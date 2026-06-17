@@ -1,0 +1,10 @@
+{
+  "name": "Fullstack Workspace",
+  "features": {},
+  "postCreateCommand": "git clone https://github.com/ammtsz/hms_frontend.git ../hms_frontend",
+  "customizations": {
+    "vscode": {
+      "extensions": []
+    }
+  }
+}

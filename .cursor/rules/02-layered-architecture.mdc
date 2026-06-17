@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+# Backend Architecture Rules
+
+- Controllers handle request/response concerns only.
+- Services hold business rules, orchestration, and error decisions.
+- DTOs validate input with class-validator.
+- Entities model persistence; transformers shape output when needed.
+- Use modules to compose features and keep dependencies explicit.
+- Put shared guards, decorators, filters, strategies, exceptions, and validators in `src/common`.
+- Keep Swagger decorators and endpoint contracts aligned with the implemented behavior.
+- Prefer structured domain errors over ad hoc thrown strings.

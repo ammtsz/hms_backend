@@ -1,0 +1,1053 @@
+-- Timezone-Agnostic Database Schema Migration
+-- This script converts all TIMESTAMP columns to separate DATE and TIME columns
+-- to eliminate timezone-related issues.
+
+-- Step 1: Create new init.sql with timezone-agnostic schema
+-- PostgreSQL schema for HMS (Helthcare Management System) - Timezone Agnostic Version
+-- This schema manages patient records, attendances, treatments, and scheduling
+-- All dates stored as DATE type, all times as TIME type - no timezone dependencies
+-- Version: 3.0 (Timezone Agnostic)
+-- Last Updated: 2025-09-18
+
+-- Domain Types (unchanged)
+CREATE TYPE PATIENT_PRIORITY AS ENUM (
+    '1', -- Emergency: Requires immediate attention
+    '2', -- Intermediate: Priority but not urgent
+    '3', -- Normal: Standard priority level
+    '4', -- Priority level 4
+    '5'  -- Priority level 5
+);
+
+CREATE TYPE PATIENT_STATUS AS ENUM (
+    'N',  -- Novo paciente (New patient)
+    'T',  -- Em tratamento (Under treatment)
+    'A',  -- Alta médica (Medical discharge)
+    'F'   -- Faltas consecutivas (Consecutive absences)
+);
+
+CREATE TYPE ATTENDANCE_TYPE AS ENUM (
+    'assessment',   -- Assessment consultation
+    'physiotherapy',  -- Physiotherapy treatment
+    'tens'         -- TENS therapy treatment
+);
+
+CREATE TYPE ATTENDANCE_STATUS AS ENUM (
+    'scheduled',   -- Appointment is scheduled
+    'checked_in',  -- Patient has arrived
+    'in_progress', -- Treatment is ongoing
+    'completed',   -- Treatment is finished
+    'cancelled',   -- Appointment was cancelled
+    'missed'       -- Patient missed the appointment
+);
+
+CREATE TYPE TREATMENT_TYPE AS ENUM (
+    'physiotherapy',  -- Physiotherapy modality
+    'tens'          -- TENS modality
+);
+
+CREATE TYPE TREATMENT_STATUS AS ENUM (
+    'scheduled',   -- Treatment (`hms_treatment`) is scheduled
+    'in_progress', -- Treatment is in progress
+    'completed',   -- Treatment is completed
+    'cancelled'    -- Treatment was cancelled
+);
+
+CREATE TYPE SESSION_STATUS AS ENUM (
+    'scheduled',   -- Session is scheduled
+    'completed',   -- Session was completed
+    'missed',      -- Session was missed
+    'cancelled'    -- Session was cancelled
+);
+
+CREATE TYPE USER_ROLE AS ENUM (
+    'staff',      -- Regular staff member
+    'admin',      -- System administrator
+    'doctor',     -- Assessment doctor
+    'therapist'   -- Treatment therapist
+);
+
+-- Core patient information (updated with timezone-agnostic timestamps)
+CREATE TABLE hms_patient (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20),
+    priority PATIENT_PRIORITY DEFAULT '3',
+    patient_status PATIENT_STATUS DEFAULT 'N',
+    birth_date DATE,
+    main_complaint TEXT,
+    start_date DATE NOT NULL,
+    discharge_date DATE,
+    missing_appointments_streak INTEGER DEFAULT 0,
+    timezone VARCHAR(50) DEFAULT 'America/Sao_Paulo',
+
+-- Timezone-agnostic audit fields
+created_date DATE DEFAULT CURRENT_DATE,
+created_time TIME DEFAULT CURRENT_TIME,
+updated_date DATE DEFAULT CURRENT_DATE,
+updated_time TIME DEFAULT CURRENT_TIME,
+
+-- Validation constraints
+CONSTRAINT valid_phone CHECK (phone ~ '^\(\d{2}\)\s\d{4,5}-\d{4}$'),
+    CONSTRAINT valid_birth_date CHECK (birth_date <= CURRENT_DATE)
+);
+
+-- Patient notes for storing detailed observations and treatment notes
+CREATE TABLE hms_patient_note (
+    id SERIAL PRIMARY KEY,
+    patient_id INTEGER NOT NULL,
+    note_content TEXT NOT NULL,
+    category VARCHAR(50) DEFAULT 'general',
+
+-- Timezone-agnostic audit fields following the existing pattern
+created_date DATE DEFAULT CURRENT_DATE,
+created_time TIME DEFAULT CURRENT_TIME,
+updated_date DATE DEFAULT CURRENT_DATE,
+updated_time TIME DEFAULT CURRENT_TIME,
+
+-- Foreign key constraint
+CONSTRAINT fk_patient_note_patient 
+        FOREIGN KEY (patient_id) 
+        REFERENCES hms_patient(id) 
+        ON DELETE CASCADE
+);
+
+-- Medical attendance records (updated with timezone-agnostic timestamps)
+CREATE TABLE hms_attendance (
+    id SERIAL PRIMARY KEY,
+    patient_id INTEGER REFERENCES hms_patient (id) ON DELETE CASCADE,
+    type ATTENDANCE_TYPE NOT NULL,
+    status ATTENDANCE_STATUS DEFAULT 'scheduled',
+
+-- Scheduled date/time (already timezone-agnostic)
+scheduled_date DATE NOT NULL, scheduled_time TIME NOT NULL,
+
+-- Event timestamps converted to separate date/time fields
+checked_in_time TIME,
+started_time TIME,
+completed_time TIME,
+cancelled_date DATE,
+cancelled_time TIME,
+
+-- Other fields
+absence_justified BOOLEAN DEFAULT NULL,
+absence_notes TEXT,
+notes TEXT,
+timezone_override VARCHAR(50),
+
+-- Parent/child relationship for linking follow-ups and generated treatments
+parent_attendance_id INTEGER REFERENCES hms_attendance (id) ON DELETE SET NULL,
+
+-- Reschedule: links this (new) attendance to the original cancelled/missed one (migration 006)
+rescheduled_from_attendance_id INTEGER NULL,
+
+-- Timezone-agnostic audit fields
+created_date DATE DEFAULT CURRENT_DATE,
+created_time TIME DEFAULT CURRENT_TIME,
+updated_date DATE DEFAULT CURRENT_DATE,
+updated_time TIME DEFAULT CURRENT_TIME
+);
+
+-- Ensure each original attendance can be the source of only one reschedule (migration 006)
+CREATE UNIQUE INDEX idx_attendance_rescheduled_from_unique ON hms_attendance (
+    rescheduled_from_attendance_id
+)
+WHERE
+    rescheduled_from_attendance_id IS NOT NULL;
+
+COMMENT ON COLUMN hms_attendance.rescheduled_from_attendance_id IS 'ID of the cancelled/missed attendance this one was rescheduled from. At most one rescheduled attendance per original.';
+
+-- Consultation records (assessment consultation per attendance)
+CREATE TABLE hms_consultation (
+    id SERIAL PRIMARY KEY,
+    attendance_id INTEGER REFERENCES hms_attendance (id) ON DELETE CASCADE UNIQUE,
+    main_complaint TEXT,
+    patient_status PATIENT_STATUS,
+    food TEXT,
+    water TEXT,
+    ointments TEXT,
+    physiotherapy BOOLEAN DEFAULT false,
+    tens BOOLEAN DEFAULT false,
+    return_weeks INTEGER CHECK (return_weeks >= 0 AND return_weeks <= 52),
+    return_when_treatment_complete BOOLEAN DEFAULT false,
+    notes TEXT,
+
+-- Consultation times converted to separate date/time fields
+start_time TIME, end_time TIME,
+
+-- Timezone-agnostic audit fields
+created_date DATE DEFAULT CURRENT_DATE,
+    created_time TIME DEFAULT CURRENT_TIME,
+    updated_date DATE DEFAULT CURRENT_DATE,
+    updated_time TIME DEFAULT CURRENT_TIME
+);
+
+-- Treatments (physiotherapy / tens per consultation; table `hms_treatment`)
+
+
+CREATE TABLE hms_treatment (
+    id SERIAL PRIMARY KEY,
+    consultation_id INTEGER NOT NULL REFERENCES hms_consultation (id) ON DELETE CASCADE,
+    attendance_id INTEGER NOT NULL REFERENCES hms_attendance (id) ON DELETE CASCADE,
+    patient_id INTEGER NOT NULL REFERENCES hms_patient (id) ON DELETE CASCADE,
+    
+    treatment_type TREATMENT_TYPE NOT NULL,
+    body_locations TEXT,
+    start_date DATE NOT NULL,
+    planned_sessions INTEGER NOT NULL CHECK (planned_sessions > 0 AND planned_sessions <= 50),
+    completed_sessions INTEGER DEFAULT 0 CHECK (completed_sessions >= 0),
+    end_date DATE,
+    status TREATMENT_STATUS DEFAULT 'scheduled',
+
+-- Physiotherapy specific fields
+duration_minutes INTEGER CHECK (
+    duration_minutes IS NULL
+    OR (
+        duration_minutes > 0
+        AND duration_minutes <= 70
+    )
+),
+color VARCHAR(50),
+notes TEXT,
+cancellation_reason TEXT,
+
+-- Timezone-agnostic audit fields
+created_date DATE DEFAULT CURRENT_DATE,
+created_time TIME DEFAULT CURRENT_TIME,
+updated_date DATE DEFAULT CURRENT_DATE,
+updated_time TIME DEFAULT CURRENT_TIME,
+
+-- Physiotherapy constraints
+CONSTRAINT check_physiotherapy_requirements CHECK (
+        (treatment_type = 'physiotherapy' AND duration_minutes IS NOT NULL AND color IS NOT NULL) OR
+        (treatment_type = 'tens' AND duration_minutes IS NULL AND color IS NULL)
+    )
+);
+
+-- Sessions (`hms_session`): scheduled occurrences for a treatment
+
+
+CREATE TABLE hms_session (
+    id SERIAL PRIMARY KEY,
+    treatment_id INTEGER NOT NULL REFERENCES hms_treatment (id) ON DELETE CASCADE,
+    attendance_id INTEGER REFERENCES hms_attendance (id) ON DELETE SET NULL,
+    
+    session_number INTEGER NOT NULL CHECK (session_number > 0),
+    scheduled_date DATE NOT NULL,
+
+-- Session timing converted to separate date/time fields
+start_time TIME,
+end_time TIME,
+status SESSION_STATUS DEFAULT 'scheduled',
+notes TEXT,
+missed_reason TEXT,
+performed_by VARCHAR(100),
+
+-- Timezone-agnostic audit fields
+
+created_date DATE DEFAULT CURRENT_DATE,
+    created_time TIME DEFAULT CURRENT_TIME,
+    updated_date DATE DEFAULT CURRENT_DATE,
+    updated_time TIME DEFAULT CURRENT_TIME
+);
+
+-- One record per (treatment_id, session_number) per attendance (allows rescheduled attendances to have their own record; matches migrations 007/008)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_session_session_number_per_attendance ON hms_session (
+    treatment_id,
+    session_number,
+    attendance_id
+)
+WHERE
+    attendance_id IS NOT NULL;
+
+-- Schedule settings table (updated with timezone-agnostic timestamps)
+CREATE TABLE hms_schedule_setting (
+    id SERIAL PRIMARY KEY,
+    day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    max_concurrent_assessment INTEGER DEFAULT 1,
+    max_concurrent_physiotherapy_tens INTEGER DEFAULT 1,
+    is_active BOOLEAN DEFAULT true,
+
+-- Timezone-agnostic audit fields
+
+
+created_date DATE DEFAULT CURRENT_DATE,
+    created_time TIME DEFAULT CURRENT_TIME,
+    updated_date DATE DEFAULT CURRENT_DATE,
+    updated_time TIME DEFAULT CURRENT_TIME,
+    
+    UNIQUE (day_of_week)
+);
+
+-- Table: hms_system_settings
+-- Purpose: Key-value store for global system configuration (e.g. appointments threshold for status F)
+CREATE TABLE hms_system_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value VARCHAR(500) NOT NULL
+);
+
+COMMENT ON TABLE hms_system_settings IS 'Global system settings; key-value store for config such as missing_appointments_threshold';
+
+-- Seed default appointments threshold (1-10, default 3)
+INSERT INTO
+    hms_system_settings (key, value)
+VALUES (
+        'missing_appointments_threshold',
+        '3'
+    )
+ON CONFLICT (key) DO NOTHING;
+
+-- Table: hms_day_finalization
+-- Purpose: Track which dates have been finalized (end-of-day process completed)
+-- Primary Key: finalization_date (one finalization per date)
+CREATE TABLE hms_day_finalization (
+    finalization_date DATE PRIMARY KEY,
+    finalized_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finalized_by VARCHAR(100), -- Future: track who finalized (currently nullable)
+    notes TEXT, -- Optional: reason or notes about finalization
+    created_date DATE DEFAULT CURRENT_DATE,
+    created_time TIME DEFAULT CURRENT_TIME
+);
+
+CREATE INDEX idx_day_finalization_date ON hms_day_finalization (finalization_date);
+
+CREATE INDEX idx_day_finalization_at ON hms_day_finalization (finalized_at);
+
+COMMENT ON TABLE hms_day_finalization IS 'Tracks finalized dates for end-of-day workflow';
+
+COMMENT ON COLUMN hms_day_finalization.finalization_date IS 'Date that was finalized';
+
+COMMENT ON COLUMN hms_day_finalization.finalized_at IS 'Timestamp when finalization occurred';
+
+COMMENT ON COLUMN hms_day_finalization.finalized_by IS 'User who finalized (future use)';
+
+COMMENT ON COLUMN hms_day_finalization.notes IS 'Optional notes about finalization';
+
+-- ============================================================================
+-- HOLIDAY MANAGEMENT SYSTEM
+-- ============================================================================
+-- Purpose: Manage holidays and blocked dates for attendance scheduling
+-- Version: 1.0
+-- Last Updated: 2026-01-27
+
+-- Holiday management table for blocking dates in the calendar
+CREATE TABLE hms_holiday (
+    id SERIAL PRIMARY KEY,
+    holiday_date DATE NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+
+-- Future enhancement: block specific treatment types
+-- NULL = all treatments blocked (default)
+-- Array values: 'assessment', 'physiotherapy', 'tens'
+blocked_treatment_types VARCHAR(20) [] DEFAULT NULL,
+
+-- UUID to group multiple holidays into periods (NULL for individual holidays)
+holiday_group_id UUID NULL,
+
+-- Audit fields (timezone-agnostic following project pattern)
+created_date DATE DEFAULT CURRENT_DATE,
+created_time TIME DEFAULT CURRENT_TIME,
+updated_date DATE DEFAULT CURRENT_DATE,
+updated_time TIME DEFAULT CURRENT_TIME,
+
+-- Constraints
+CONSTRAINT valid_holiday_date CHECK (holiday_date >= CURRENT_DATE) );
+
+-- Performance index for fast date lookups
+CREATE INDEX idx_holiday_date ON hms_holiday (holiday_date);
+
+-- Helper function to check if a date has scheduled attendances
+-- Used for validation before creating holidays
+CREATE OR REPLACE FUNCTION has_scheduled_attendances(check_date DATE)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM hms_attendance
+        WHERE scheduled_date = check_date
+        AND status != 'cancelled'
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Comments for holiday management
+COMMENT ON TABLE hms_holiday IS 'Stores holidays and blocked dates for attendance scheduling';
+
+COMMENT ON COLUMN hms_holiday.holiday_date IS 'Date of the holiday (must be unique)';
+
+COMMENT ON COLUMN hms_holiday.name IS 'Holiday name (e.g., Natal, Ano Novo)';
+
+COMMENT ON COLUMN hms_holiday.description IS 'Optional description or notes about the holiday';
+
+COMMENT ON COLUMN hms_holiday.blocked_treatment_types IS 'Array of treatment types to block (NULL = all types blocked)';
+
+-- =====================================================================================
+-- Table: hms_holiday_template
+-- Purpose: Stores reusable holiday templates that can be applied to any year
+-- =====================================================================================
+CREATE TABLE hms_holiday_template (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+
+-- JSONB column to store array of holidays with month/day/name/description
+-- Example: [{"month": 12, "day": 25, "name": "Natal", "description": "Feriado Nacional"}]
+holidays JSONB NOT NULL,
+
+-- Audit field
+created_date DATE DEFAULT CURRENT_DATE );
+
+-- Index for faster template queries
+CREATE INDEX idx_holiday_template_name ON hms_holiday_template (name);
+
+COMMENT ON TABLE hms_holiday_template IS 'Stores reusable holiday templates that can be applied to any year';
+
+COMMENT ON COLUMN hms_holiday_template.holidays IS 'JSONB array of {month, day, name, description} objects';
+
+COMMENT ON COLUMN hms_holiday.created_date IS 'Date when holiday was created (timezone-agnostic)';
+
+COMMENT ON COLUMN hms_holiday.created_time IS 'Time when holiday was created (timezone-agnostic)';
+
+COMMENT ON COLUMN hms_holiday.updated_date IS 'Date when holiday was last updated (timezone-agnostic)';
+
+COMMENT ON COLUMN hms_holiday.updated_time IS 'Time when holiday was last updated (timezone-agnostic)';
+
+COMMENT ON FUNCTION has_scheduled_attendances (DATE) IS 'Checks if a date has non-cancelled scheduled attendances';
+
+-- ============================================================================
+-- SYSTEM OPTIONS TABLE
+-- ============================================================================
+-- Purpose: Configurable options for system features (body locations, colors,
+-- priorities, note categories, etc.)
+-- Version: 2.0
+-- Last Updated: 2026-03-20
+
+-- System option rows. For some domains, `label` can be null and callers should
+-- fall back to using `value` as display text.
+CREATE TABLE hms_system_options (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(20) NOT NULL CHECK (
+        type IN (
+            'body_location',
+            'color',
+            'priority',
+            'note_category'
+        )
+    ),
+    value VARCHAR(50) NOT NULL,
+    label VARCHAR(50),
+    sort_order INTEGER,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT unique_type_value UNIQUE (type, value)
+);
+
+-- Create index for performance
+CREATE INDEX idx_system_options_type_active 
+ON hms_system_options(type, is_active);
+
+COMMENT ON TABLE hms_system_options IS 'Stores configurable system options (body locations, colors, priorities, note categories)';
+
+COMMENT ON COLUMN hms_system_options.type IS 'Option domain: body_location | color | priority | note_category';
+
+COMMENT ON COLUMN hms_system_options.value IS 'Stored code/value (e.g., "Cabeça", "Azul", "1", "general")';
+
+COMMENT ON COLUMN hms_system_options.label IS 'Human readable label for UI (nullable; fallback to value)';
+
+COMMENT ON COLUMN hms_system_options.sort_order IS 'Optional ordering hint for UI/business logic';
+
+COMMENT ON COLUMN hms_system_options.is_active IS 'Whether this option is currently active';
+
+-- ============================================================================
+-- AUTHENTICATION SYSTEM TABLES
+-- ============================================================================
+-- Purpose: User authentication with JWT tokens and refresh token management
+-- Version: 1.0
+-- Last Updated: 2026-01-22
+
+-- Users table for system authentication
+CREATE TABLE hms_user (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    display_name VARCHAR(50),
+    role USER_ROLE DEFAULT 'staff' NOT NULL,
+    is_active BOOLEAN DEFAULT true NOT NULL,
+    must_change_password BOOLEAN DEFAULT false NOT NULL,
+    failed_login_attempts INTEGER DEFAULT 0,
+    locked_until TIMESTAMP,
+    failed_password_change_attempts INTEGER DEFAULT 0 NOT NULL,
+    password_change_locked_until TIMESTAMP,
+    last_login TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Refresh tokens table for JWT session management
+CREATE TABLE hms_refresh_token (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES hms_user (id) ON DELETE CASCADE,
+    token VARCHAR(500) UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    revoked_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_refresh_token_user FOREIGN KEY (user_id) REFERENCES hms_user (id) ON DELETE CASCADE
+);
+
+-- Performance indexes for authentication
+CREATE INDEX idx_user_email ON hms_user (email);
+
+CREATE INDEX idx_user_locked ON hms_user (locked_until);
+
+CREATE INDEX idx_password_change_locked_until ON hms_user (password_change_locked_until);
+
+CREATE INDEX idx_user_role ON hms_user (role);
+
+CREATE INDEX idx_user_is_active ON hms_user (is_active);
+
+CREATE INDEX idx_user_display_name ON hms_user (display_name);
+
+CREATE INDEX idx_refresh_token_token ON hms_refresh_token (token);
+
+CREATE INDEX idx_refresh_token_user_id ON hms_refresh_token (user_id);
+
+CREATE INDEX idx_refresh_token_expires_at ON hms_refresh_token (expires_at);
+
+-- Comments for authentication tables
+COMMENT ON TABLE hms_user IS 'System users with authentication credentials';
+
+COMMENT ON TABLE hms_refresh_token IS 'JWT refresh tokens for session management';
+
+COMMENT ON COLUMN hms_user.email IS 'Unique email address for login';
+
+COMMENT ON COLUMN hms_user.password_hash IS 'Bcrypt hashed password (never store plain text)';
+
+COMMENT ON COLUMN hms_user.display_name IS 'Display name shown in UI (optional, defaults to name)';
+
+COMMENT ON COLUMN hms_user.role IS 'User role: staff, admin, doctor, therapist';
+
+COMMENT ON COLUMN hms_user.is_active IS 'Whether user account is active';
+
+COMMENT ON COLUMN hms_user.must_change_password IS 'Whether user must change password on next login';
+
+COMMENT ON COLUMN hms_user.last_login IS 'Timestamp of last successful login';
+
+COMMENT ON COLUMN hms_user.created_at IS 'Timestamp when user was created';
+
+COMMENT ON COLUMN hms_user.updated_at IS 'Timestamp when user was last updated';
+
+COMMENT ON COLUMN hms_refresh_token.token IS 'JWT refresh token string';
+
+COMMENT ON COLUMN hms_refresh_token.expires_at IS 'Token expiration timestamp';
+
+COMMENT ON COLUMN hms_refresh_token.revoked_at IS 'Timestamp when token was revoked (null if active)';
+
+COMMENT ON COLUMN hms_refresh_token.created_at IS 'Timestamp when token was created';
+
+-- No default admin user is seeded (C3 security remediation).
+-- After deploying this schema, create the first admin via the bootstrap script:
+--
+--   node scripts/create-admin.js --email admin@example.com --name "Administrator"
+--
+-- For local/staging use only (auto-generates a random password):
+--   node scripts/create-admin.js --email dev@local --name "Dev" --dev
+--
+-- Never seed a hardcoded password hash in a production SQL file.
+
+-- Function to update date/time fields for audit
+CREATE OR REPLACE FUNCTION update_updated_date_time_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_date = CURRENT_DATE;
+    NEW.updated_time = CURRENT_TIME;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Triggers for updating audit timestamps
+CREATE TRIGGER update_patients_modtime
+    BEFORE UPDATE ON hms_patient
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_date_time_column();
+
+CREATE TRIGGER update_attendances_modtime
+    BEFORE UPDATE ON hms_attendance
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_date_time_column();
+
+CREATE TRIGGER update_consultations_modtime
+    BEFORE UPDATE ON hms_consultation
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_date_time_column();
+
+CREATE TRIGGER update_scheduling_settings_modtime
+    BEFORE UPDATE ON hms_schedule_setting
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_date_time_column();
+
+CREATE TRIGGER update_treatments_modtime
+    BEFORE UPDATE ON hms_treatment
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_date_time_column();
+
+CREATE TRIGGER update_sessions_modtime
+    BEFORE UPDATE ON hms_session
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_date_time_column();
+
+CREATE TRIGGER update_patient_notes_modtime
+    BEFORE UPDATE ON hms_patient_note
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_date_time_column();
+
+CREATE TRIGGER update_holidays_modtime
+    BEFORE UPDATE ON hms_holiday
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_date_time_column();
+
+-- Function to update updated_at timestamp for user table
+CREATE OR REPLACE FUNCTION update_user_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_users_modtime
+    BEFORE UPDATE ON hms_user
+    FOR EACH ROW
+    EXECUTE FUNCTION update_user_updated_at_column();
+
+-- Enhanced function for consultation validation
+CREATE OR REPLACE FUNCTION check_one_consultation_per_attendance()
+RETURNS TRIGGER AS $$
+DECLARE
+    attendance_exists BOOLEAN;
+    attendance_status hms_attendance.status%TYPE;
+    existing_record RECORD;
+BEGIN
+    -- Check if attendance exists
+    SELECT EXISTS(
+        SELECT 1 FROM hms_attendance WHERE id = NEW.attendance_id
+    ) INTO attendance_exists;
+
+    IF NOT attendance_exists THEN
+        RAISE EXCEPTION 'Cannot create consultation: Attendance with ID % does not exist', NEW.attendance_id;
+    END IF;
+
+    -- Check attendance status
+    SELECT status INTO attendance_status
+    FROM hms_attendance
+    WHERE id = NEW.attendance_id;
+
+    IF attendance_status = 'cancelled' THEN
+        RAISE EXCEPTION 'Cannot create consultation: Attendance (ID: %) is cancelled', NEW.attendance_id;
+    END IF;
+
+    -- Check for existing consultation
+    SELECT * INTO existing_record
+    FROM hms_consultation
+    WHERE attendance_id = NEW.attendance_id;
+
+    IF FOUND THEN
+        RAISE EXCEPTION 'Cannot create consultation: Attendance (ID: %) already has a consultation (ID: %)',
+            NEW.attendance_id, existing_record.id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to enforce one consultation per attendance
+CREATE TRIGGER ensure_one_consultation_per_attendance
+    BEFORE INSERT ON hms_consultation
+    FOR EACH ROW
+    EXECUTE FUNCTION check_one_consultation_per_attendance();
+
+-- Performance indexes
+CREATE INDEX idx_attendance_scheduled_date ON hms_attendance (scheduled_date);
+
+CREATE INDEX idx_attendance_patient_id ON hms_attendance (patient_id);
+
+CREATE INDEX idx_attendance_status ON hms_attendance (status);
+
+CREATE INDEX idx_hms_patient_timezone ON hms_patient (timezone);
+
+CREATE INDEX idx_treatments_consultation ON hms_treatment (consultation_id);
+
+CREATE INDEX idx_treatments_patient ON hms_treatment (patient_id);
+
+CREATE INDEX idx_sessions_treatment ON hms_session (treatment_id);
+
+CREATE INDEX idx_hms_patient_note_patient_id ON hms_patient_note (patient_id);
+
+CREATE INDEX idx_hms_patient_note_category ON hms_patient_note (category);
+
+CREATE INDEX idx_hms_patient_note_created_date ON hms_patient_note (created_date);
+
+CREATE INDEX idx_consultation_patient_status ON hms_consultation (patient_status);
+
+-- Column comments for timezone support
+COMMENT ON COLUMN hms_patient.timezone IS 'Patient timezone for scheduling and display purposes (IANA timezone format)';
+
+COMMENT ON COLUMN hms_attendance.timezone_override IS 'Optional timezone override for specific attendances (IANA timezone format)';
+
+-- Patient notes table comments
+COMMENT ON TABLE hms_patient_note IS 'Stores patient notes and observations for healthcare providers';
+
+COMMENT ON COLUMN hms_patient_note.patient_id IS 'Reference to the patient this note belongs to';
+
+COMMENT ON COLUMN hms_patient_note.note_content IS 'The actual note content';
+
+COMMENT ON COLUMN hms_patient_note.category IS 'Note category (general, treatment, observation, etc.)';
+
+COMMENT ON COLUMN hms_patient_note.created_date IS 'Date when the note was created (timezone-agnostic)';
+
+COMMENT ON COLUMN hms_patient_note.created_time IS 'Time when the note was created (timezone-agnostic)';
+
+COMMENT ON COLUMN hms_patient_note.updated_date IS 'Date when the note was last updated (timezone-agnostic)';
+
+COMMENT ON COLUMN hms_patient_note.updated_time IS 'Time when the note was last updated (timezone-agnostic)';
+
+-- Treatment timing and hierarchy comments
+COMMENT ON COLUMN hms_attendance.checked_in_time IS 'Check-in time (date derived from attendance context)';
+
+COMMENT ON COLUMN hms_attendance.started_time IS 'Treatment start time (date derived from attendance context)';
+
+COMMENT ON COLUMN hms_attendance.completed_time IS 'Treatment completion time (date derived from attendance context)';
+
+COMMENT ON COLUMN hms_consultation.main_complaint IS 'Main complaint from the patient during this specific consultation session';
+
+COMMENT ON COLUMN hms_consultation.patient_status IS 'Patient lifecycle status at time of consultation: N=New, T=Treatment, A=Discharged, F=Missed';
+
+COMMENT ON COLUMN hms_consultation.start_time IS 'Consultation start time (date derived from attendance_date context)';
+
+COMMENT ON COLUMN hms_consultation.end_time IS 'Consultation end time (date derived from attendance_date context)';
+
+COMMENT ON COLUMN hms_treatment.body_locations IS 'Standard body locations for this treatment';
+
+COMMENT ON COLUMN hms_treatment.planned_sessions IS 'Number of sessions planned for this treatment (quantity)';
+
+COMMENT ON COLUMN hms_session.start_time IS 'Session start time (date derived from scheduled_date context)';
+
+COMMENT ON COLUMN hms_session.end_time IS 'Session end time (date derived from scheduled_date context)';
+
+-- Helper function to find root attendance from parent_attendance_id hierarchy
+CREATE OR REPLACE FUNCTION get_root_attendance_id(attendance_id INTEGER) 
+RETURNS INTEGER AS $$
+DECLARE
+    current_id INTEGER := attendance_id;
+    parent_id INTEGER;
+BEGIN
+    LOOP
+        SELECT parent_attendance_id INTO parent_id 
+        FROM hms_attendance 
+        WHERE id = current_id;
+        
+        IF parent_id IS NULL THEN
+            RETURN current_id;
+        END IF;
+        
+        current_id := parent_id;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION get_root_attendance_id (INTEGER) IS 'Returns the root (main) attendance ID for any attendance in the hierarchy';
+
+-- Consultation episodes view - using parent_attendance_id from hms_attendance
+CREATE OR REPLACE VIEW consultation_episodes AS
+SELECT
+    t1.id as root_consultation_id,
+    t1.attendance_id as main_attendance_id,
+    t1.notes as episode_notes,
+    a1.scheduled_date as episode_start_date,
+    COUNT(t2.id) + 1 as total_consultations,
+    ARRAY_AGG(
+        t2.id
+        ORDER BY a2.scheduled_date
+    ) FILTER (
+        WHERE
+            t2.id IS NOT NULL
+    ) as followup_consultation_ids,
+    MAX(a2.scheduled_date) as last_consultation_date,
+    CASE
+        WHEN MAX(t2.return_weeks) > 0
+        OR t1.return_weeks > 0 THEN 'active'
+        ELSE 'completed'
+    END as episode_status
+FROM
+    hms_consultation t1
+    LEFT JOIN hms_attendance a1 ON t1.attendance_id = a1.id
+    LEFT JOIN hms_attendance a2 ON a2.parent_attendance_id = a1.id
+    LEFT JOIN hms_consultation t2 ON t2.attendance_id = a2.id
+WHERE
+    a1.parent_attendance_id IS NULL -- Only root attendances
+GROUP BY
+    t1.id,
+    t1.attendance_id,
+    t1.notes,
+    a1.scheduled_date;
+
+COMMENT ON VIEW consultation_episodes IS 'Episode-level view of consultations with hierarchy (parent_attendance_id)';
+
+-- Default schedule settings: production allows all weekdays 6 AM to 11 PM with up to 50 concurrent assessments and treatments (can be customized later)
+INSERT INTO
+    hms_schedule_setting (
+        day_of_week,
+        start_time,
+        end_time,
+        max_concurrent_assessment,
+        max_concurrent_physiotherapy_tens,
+        is_active
+    )
+VALUES (
+        0,
+        '06:00:00',
+        '23:00:00',
+        50,
+        50,
+        true
+    ), -- Sunday: 6 AM to 11 PM
+    (
+        1,
+        '06:00:00',
+        '23:00:00',
+        50,
+        50,
+        true
+    ), -- Monday: 6 AM to 11 PM
+    (
+        2,
+        '06:00:00',
+        '23:00:00',
+        50,
+        50,
+        true
+    ), -- Tuesday: 6 AM to 11 PM
+    (
+        3,
+        '06:00:00',
+        '23:00:00',
+        50,
+        50,
+        true
+    ), -- Wednesday: 6 AM to 11 PM
+    (
+        4,
+        '06:00:00',
+        '23:00:00',
+        50,
+        50,
+        true
+    ), -- Thursday: 6 AM to 11 PM
+    (
+        5,
+        '06:00:00',
+        '23:00:00',
+        50,
+        50,
+        true
+    ), -- Friday: 6 AM to 11 PM
+    (
+        6,
+        '06:00:00',
+        '23:00:00',
+        50,
+        50,
+        true
+    );
+-- Saturday: 6 AM to 11 PM
+
+-- =====================================================================================
+-- Seed Data: Holiday Templates
+-- Purpose: Pre-populate common holiday templates for Brazil
+-- =====================================================================================
+
+-- Template 1: National Holidays (Feriados Nacionais)
+INSERT INTO
+    hms_holiday_template (name, description, holidays)
+VALUES (
+        'Feriados Nacionais',
+        NULL,
+        '[
+        {"month": 1, "day": 1, "name": "Confraternização Universal", "description": "Feriado Nacional"},
+        {"month": 4, "day": 21, "name": "Tiradentes", "description": "Feriado Nacional"},
+        {"month": 5, "day": 1, "name": "Dia do Trabalho", "description": "Feriado Nacional"},
+        {"month": 9, "day": 7, "name": "Independência do Brasil", "description": "Feriado Nacional"},
+        {"month": 10, "day": 12, "name": "Nossa Senhora Aparecida", "description": "Feriado Nacional"},
+        {"month": 11, "day": 2, "name": "Finados", "description": "Feriado Nacional"},
+        {"month": 11, "day": 15, "name": "Proclamação da República", "description": "Feriado Nacional"},
+        {"month": 12, "day": 25, "name": "Natal", "description": "Feriado Nacional"}
+    ]'::jsonb
+    );
+
+-- Template 2: São Paulo State Holidays (Feriados Estaduais de São Paulo)
+INSERT INTO
+    hms_holiday_template (name, description, holidays)
+VALUES (
+        'Feriados Estaduais de São Paulo',
+        NULL,
+        '[
+        {"month": 7, "day": 9, "name": "Revolução Constitucionalista de 1932", "description": "Feriado Estadual de São Paulo"}
+    ]'::jsonb
+    );
+
+-- Template 3: Santo André Municipal Holidays (Feriados Municipais de Santo André)
+INSERT INTO
+    hms_holiday_template (name, description, holidays)
+VALUES (
+        'Feriados Municipais de Santo André',
+        NULL,
+        '[
+        {"month": 4, "day": 8, "name": "Aniversário da cidade de Santo André", "description": "Feriado Municipal de Santo André"},
+        {"month": 11, "day": 20, "name": "Dia da Consciência Negra", "description": "Feriado Municipal de Santo André"}
+    ]'::jsonb
+    );
+-- Saturday: 6 AM to 11 PM
+
+-- =====================================================================================
+-- Seed Data: System Options
+-- Purpose: Pre-populate body locations, colors, and priority definitions
+-- =====================================================================================
+
+-- Seed body locations
+INSERT INTO
+    hms_system_options (type, value)
+VALUES ('body_location', 'Coronário'),
+    ('body_location', 'Cervical'),
+    ('body_location', 'Frontal'),
+    ('body_location', 'Cardíaco'),
+    ('body_location', 'Rins'),
+    ('body_location', 'Fígado'),
+    ('body_location', 'Pâncreas'),
+    ('body_location', 'Abdômen'),
+    (
+        'body_location',
+        'Joelho Direito'
+    ),
+    (
+        'body_location',
+        'Joelho Esquerdo'
+    ),
+    (
+        'body_location',
+        'Ombro Direito'
+    ),
+    (
+        'body_location',
+        'Ombro Esquerdo'
+    ),
+    (
+        'body_location',
+        'Tornozelo Direito'
+    ),
+    (
+        'body_location',
+        'Tornozelo Esquerdo'
+    );
+
+-- Seed colors
+INSERT INTO
+    hms_system_options (type, value)
+VALUES ('color', 'Azul'),
+    ('color', 'Amarelo'),
+    ('color', 'Branco'),
+    ('color', 'Vermelho'),
+    ('color', 'Verde'),
+    ('color', 'Violeta'),
+    ('color', 'Rosa');
+
+-- Seed priorities (initially 1-2 active, 3-5 inactive)
+INSERT INTO
+    hms_system_options (
+        type,
+        value,
+        label,
+        sort_order,
+        is_active
+    )
+VALUES (
+        'priority',
+        '1',
+        'Prioritário',
+        1,
+        true
+    ),
+    (
+        'priority',
+        '2',
+        'Padrão',
+        2,
+        true
+    ),
+    (
+        'priority',
+        '3',
+        'Prioridade 3',
+        3,
+        false
+    ),
+    (
+        'priority',
+        '4',
+        'Prioridade 4',
+        4,
+        false
+    ),
+    (
+        'priority',
+        '5',
+        'Prioridade 5',
+        5,
+        false
+    );
+
+-- Seed note categories (used for patient notes)
+INSERT INTO
+    hms_system_options (
+        type,
+        value,
+        label,
+        sort_order,
+        is_active
+    )
+VALUES (
+        'note_category',
+        'general',
+        'Geral',
+        1,
+        true
+    ),
+    (
+        'note_category',
+        'status change',
+        'Mudança de status',
+        2,
+        true
+    ),
+    (
+        'note_category',
+        'medication',
+        'Medicamentos',
+        3,
+        true
+    ),
+    (
+        'note_category',
+        'progress',
+        'Progresso',
+        4,
+        true
+    ),
+    (
+        'note_category',
+        'emergency',
+        'Emergência',
+        5,
+        true
+    );

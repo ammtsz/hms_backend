@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+# Backend Security, Dates, and Tests
+
+- Authentication is global by default; opt out with `@Public()` only where required.
+- Respect the BFF flow for auth endpoints and the `BFF_INTERNAL_SECRET` check in production.
+- Do not store tokens in client-side storage; backend auth is cookie-based and server-driven.
+- Use short, structured error codes and keep validation failures explicit.
+- Use YYYY-MM-DD strings for calendar dates and timezone-agnostic handling for scheduling fields.
+- Keep audit timestamps as timestamps and avoid converting calendar dates through UTC string hacks.
+- Use Jest for unit tests and e2e tests for request flow changes.
+- Add or update tests whenever business rules, auth, or validation change.

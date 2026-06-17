@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "start",
+      "command": "npm run start",
+      "group": "build",
+      "isBackground": true
+    },
+    {
+      "type": "shell",
+      "label": "start:debug",
+      "command": "npm run start:debug",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": [
+          {
+            "regexp": ".",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*Debugger listening on.*$",
+          "endsPattern": "^.*Application is running on.*$"
+        }
+      }
+    },
+    {
+      "type": "shell",
+      "label": "start:dev",
+      "command": "npm run start:dev",
+      "group": "build",
+      "isBackground": true
+    }
+  ]
+}
