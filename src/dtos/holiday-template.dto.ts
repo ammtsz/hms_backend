@@ -16,13 +16,13 @@ export class HolidayTemplateItemDto {
   @Max(31)
   day: number;
 
-  @ApiProperty({ example: 'Natal', description: 'Holiday name' })
+  @ApiProperty({ example: 'Christmas', description: 'Holiday name' })
   @Sanitize()
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'Feriado Nacional', required: false })
+  @ApiProperty({ example: 'National Holiday', required: false })
   @Sanitize()
   @IsOptional()
   @IsString()
@@ -30,13 +30,13 @@ export class HolidayTemplateItemDto {
 }
 
 export class CreateHolidayTemplateDto {
-  @ApiProperty({ example: 'Feriados Nacionais Brasileiros', description: 'Template name' })
+  @ApiProperty({ example: 'Brazilian National Holidays', description: 'Template name' })
   @Sanitize()
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'Feriados nacionais oficiais do Brasil', required: false })
+  @ApiProperty({ example: 'Official national holidays of Brazil', required: false })
   @Sanitize()
   @IsString()
   @IsOptional()

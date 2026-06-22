@@ -19,10 +19,10 @@ CREATE TYPE PATIENT_PRIORITY AS ENUM (
 );
 
 CREATE TYPE PATIENT_STATUS AS ENUM (
-    'N',  -- Novo paciente (New patient)
-    'T',  -- Em tratamento (Under treatment)
-    'A',  -- Alta médica (Medical discharge)
-    'F'   -- Faltas consecutivas (Consecutive absences)
+    'N',  -- New patient (N)
+    'T',  -- In treatment (T)
+    'A',  -- Discharged
+    'F'   -- Missed — consecutive (F)
 );
 
 CREATE TYPE ATTENDANCE_TYPE AS ENUM (
@@ -74,7 +74,7 @@ CREATE TABLE hms_patient (
     priority PATIENT_PRIORITY DEFAULT '3',
     patient_status PATIENT_STATUS DEFAULT 'N',
     birth_date DATE,
-    main_complaint TEXT,
+    main_concern TEXT,
     start_date DATE NOT NULL,
     discharge_date DATE,
     missing_appointments_streak INTEGER DEFAULT 0,
@@ -160,7 +160,7 @@ COMMENT ON COLUMN hms_attendance.rescheduled_from_attendance_id IS 'ID of the ca
 CREATE TABLE hms_consultation (
     id SERIAL PRIMARY KEY,
     attendance_id INTEGER REFERENCES hms_attendance (id) ON DELETE CASCADE UNIQUE,
-    main_complaint TEXT,
+    main_concern TEXT,
     patient_status PATIENT_STATUS,
     food TEXT,
     water TEXT,
@@ -452,7 +452,7 @@ COMMENT ON TABLE hms_system_options IS 'Stores configurable system options (body
 
 COMMENT ON COLUMN hms_system_options.type IS 'Option domain: body_location | color | priority | note_category';
 
-COMMENT ON COLUMN hms_system_options.value IS 'Stored code/value (e.g., "Cabeça", "Azul", "1", "general")';
+COMMENT ON COLUMN hms_system_options.value IS 'Stored code/value (e.g., "Head", "Blue", "1", "general")';
 
 COMMENT ON COLUMN hms_system_options.label IS 'Human readable label for UI (nullable; fallback to value)';
 
@@ -721,7 +721,7 @@ COMMENT ON COLUMN hms_attendance.started_time IS 'Treatment start time (date der
 
 COMMENT ON COLUMN hms_attendance.completed_time IS 'Treatment completion time (date derived from attendance context)';
 
-COMMENT ON COLUMN hms_consultation.main_complaint IS 'Main complaint from the patient during this specific consultation session';
+COMMENT ON COLUMN hms_consultation.main_concern IS 'Main concern from the patient during this specific consultation session';
 
 COMMENT ON COLUMN hms_consultation.patient_status IS 'Patient lifecycle status at time of consultation: N=New, T=Treatment, A=Discharged, F=Missed';
 
@@ -866,14 +866,14 @@ VALUES (
 
 -- =====================================================================================
 -- Seed Data: Holiday Templates
--- Purpose: Pre-populate common holiday templates for Brazil
+-- Purpose: Pre-populate common holiday templates
 -- =====================================================================================
 
--- Template 1: National Holidays (Feriados Nacionais)
+-- Template 1: National Holidays
 INSERT INTO
     hms_holiday_template (name, description, holidays)
 VALUES (
-        'Feriados Nacionais',
+        'National Holidays',
         NULL,
         '[
         {"month": 1, "day": 1, "name": "Confraternização Universal", "description": "Feriado Nacional"},
@@ -887,18 +887,18 @@ VALUES (
     ]'::jsonb
     );
 
--- Template 2: São Paulo State Holidays (Feriados Estaduais de São Paulo)
+-- Template 2: Sao Paulo State Holidays
 INSERT INTO
     hms_holiday_template (name, description, holidays)
 VALUES (
-        'Feriados Estaduais de São Paulo',
+        'Sao Paulo State Holidays',
         NULL,
         '[
         {"month": 7, "day": 9, "name": "Revolução Constitucionalista de 1932", "description": "Feriado Estadual de São Paulo"}
     ]'::jsonb
     );
 
--- Template 3: Santo André Municipal Holidays (Feriados Municipais de Santo André)
+-- Template 3: Santo Andre Municipal Holidays
 INSERT INTO
     hms_holiday_template (name, description, holidays)
 VALUES (
@@ -918,49 +918,40 @@ VALUES (
 -- Seed body locations
 INSERT INTO
     hms_system_options (type, value)
-VALUES ('body_location', 'Coronário'),
-    ('body_location', 'Cervical'),
-    ('body_location', 'Frontal'),
-    ('body_location', 'Cardíaco'),
-    ('body_location', 'Rins'),
-    ('body_location', 'Fígado'),
-    ('body_location', 'Pâncreas'),
-    ('body_location', 'Abdômen'),
+VALUES ('body_location', 'Head'),
+    ('body_location', 'Neck'),
     (
         'body_location',
-        'Joelho Direito'
+        'Left Shoulder'
     ),
+    ('body_location', 'Back'),
     (
         'body_location',
-        'Joelho Esquerdo'
+        'Right Shoulder'
     ),
+    ('body_location', 'Left Arm'),
+    ('body_location', 'Right Arm'),
+    ('body_location', 'Lumbar'),
+    ('body_location', 'Right Knee'),
+    ('body_location', 'Left Knee'),
     (
         'body_location',
-        'Ombro Direito'
+        'Right Ankle'
     ),
-    (
-        'body_location',
-        'Ombro Esquerdo'
-    ),
-    (
-        'body_location',
-        'Tornozelo Direito'
-    ),
-    (
-        'body_location',
-        'Tornozelo Esquerdo'
-    );
+    ('body_location', 'Left Ankle'),
+    ('body_location', 'Right Foot'),
+    ('body_location', 'Left Foot');
 
 -- Seed colors
 INSERT INTO
     hms_system_options (type, value)
-VALUES ('color', 'Azul'),
-    ('color', 'Amarelo'),
-    ('color', 'Branco'),
-    ('color', 'Vermelho'),
-    ('color', 'Verde'),
-    ('color', 'Violeta'),
-    ('color', 'Rosa');
+VALUES ('color', 'Blue'),
+    ('color', 'Yellow'),
+    ('color', 'White'),
+    ('color', 'Red'),
+    ('color', 'Green'),
+    ('color', 'Violet'),
+    ('color', 'Pink');
 
 -- Seed priorities (initially 1-2 active, 3-5 inactive)
 INSERT INTO
@@ -974,35 +965,35 @@ INSERT INTO
 VALUES (
         'priority',
         '1',
-        'Prioritário',
+        'Priority',
         1,
         true
     ),
     (
         'priority',
         '2',
-        'Padrão',
+        'Standard',
         2,
         true
     ),
     (
         'priority',
         '3',
-        'Prioridade 3',
+        'Priority 3',
         3,
         false
     ),
     (
         'priority',
         '4',
-        'Prioridade 4',
+        'Priority 4',
         4,
         false
     ),
     (
         'priority',
         '5',
-        'Prioridade 5',
+        'Priority 5',
         5,
         false
     );
@@ -1018,36 +1009,36 @@ INSERT INTO
     )
 VALUES (
         'note_category',
-        'geral',
-        'Geral',
+        'general',
+        'General',
         1,
         true
     ),
     (
         'note_category',
-        'alteracao_de_status',
-        'Mudança de status',
+        'status_change',
+        'Status change',
         2,
         true
     ),
     (
         'note_category',
         'medicamentos',
-        'Medicamentos',
+        'Medications',
         3,
         true
     ),
     (
         'note_category',
         'progresso',
-        'Progresso',
+        'Progress',
         4,
         true
     ),
     (
         'note_category',
         'emergencia',
-        'Emergência',
+        'Emergency',
         5,
         true
     );

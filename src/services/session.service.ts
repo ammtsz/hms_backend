@@ -457,8 +457,8 @@ export class SessionService {
       start_time: null, // Will be set separately if needed
       end_time: null, // Will be set separately if needed
       status: SessionAttendanceStatus.COMPLETED,
-      notes: `Sessão completada automaticamente via atendimento #${attendance.id}`,
-      performed_by: 'Sistema', // Could be enhanced to track actual user
+      notes: `Session automatically completed via attendance #${attendance.id}`,
+      performed_by: 'System', // Could be enhanced to track actual user
     });
 
     const saved = await this.sessionRepository.save(session);

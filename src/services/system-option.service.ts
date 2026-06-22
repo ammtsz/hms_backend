@@ -22,7 +22,7 @@ import {
 
 @Injectable()
 export class SystemOptionService {
-  private static readonly DEFAULT_NOTE_CATEGORY_VALUES = ['geral', 'general'];
+  private static readonly DEFAULT_NOTE_CATEGORY_VALUES = ['general', 'general'];
 
   constructor(
     @InjectRepository(SystemOption)
@@ -51,7 +51,9 @@ export class SystemOptionService {
       type === SystemOptionType.PRIORITY ||
       type === SystemOptionType.NOTE_CATEGORY
     ) {
-      query.orderBy('option.sortOrder', 'ASC').addOrderBy('option.value', 'ASC');
+      query
+        .orderBy('option.sortOrder', 'ASC')
+        .addOrderBy('option.value', 'ASC');
     } else {
       query.orderBy('option.value', 'ASC');
     }
@@ -64,7 +66,7 @@ export class SystemOptionService {
       where: { id },
     });
     if (!option) {
-      throw new BadRequestException('Opção de sistema não encontrada');
+      throw new BadRequestException('System option not found');
     }
     return option;
   }
@@ -76,7 +78,7 @@ export class SystemOptionService {
 
     if (existing) {
       throw new ConflictException(
-        'Este nome já existe para este tipo de opção',
+        'This name already exists for this option type',
       );
     }
 
@@ -176,7 +178,7 @@ export class SystemOptionService {
 
       if (existing) {
         throw new ConflictException(
-          'Este nome já existe para este tipo de opção',
+          'This name already exists for this option type',
         );
       }
     }
@@ -188,9 +190,7 @@ export class SystemOptionService {
     ) {
       // Priority "1" is a system invariant: it must never be disabled.
       if (option.value === '1') {
-        throw new BadRequestException(
-          'A prioridade 1 não pode ser desativada.',
-        );
+        throw new BadRequestException('Priority 1 cannot be deactivated.');
       }
 
       const blockingPatients = await this.listPriorityPatients(option.value);
@@ -198,7 +198,7 @@ export class SystemOptionService {
         throw new HttpException(
           {
             message:
-              'Não é possível desativar esta prioridade porque ainda existem pacientes usando este nível.',
+              'This priority cannot be deactivated because there are still patients using this level.',
             blocking_patients: blockingPatients,
           },
           HttpStatus.CONFLICT,
@@ -230,7 +230,7 @@ export class SystemOptionService {
       SystemOptionService.DEFAULT_NOTE_CATEGORY_VALUES.includes(option.value)
     ) {
       throw new BadRequestException(
-        "A categoria de nota padrão 'geral' não pode ser removida.",
+        "The default note category 'general' cannot be removed.",
       );
     }
     await this.systemOptionRepository.remove(option);
@@ -277,10 +277,7 @@ export class SystemOptionService {
     return parseInt(result?.total || '0', 10);
   }
 
-  async findAllWithUsageCount(
-    type: SystemOptionType,
-    includeInactive = false,
-  ) {
+  async findAllWithUsageCount(type: SystemOptionType, includeInactive = false) {
     const options = await this.findAll(type, includeInactive);
 
     const optionsWithCount = await Promise.all(
@@ -304,14 +301,12 @@ export class SystemOptionService {
   async deactivatePriority(optionId: number): Promise<SystemOption> {
     const option = await this.findOne(optionId);
     if (option.type !== SystemOptionType.PRIORITY) {
-      throw new BadRequestException('Opção não é uma prioridade');
+      throw new BadRequestException('This option is not a priority');
     }
 
     // Priority "1" is a system invariant: it must never be disabled.
     if (option.value === '1') {
-      throw new BadRequestException(
-        'A prioridade 1 não pode ser desativada.',
-      );
+      throw new BadRequestException('Priority 1 cannot be deactivated.');
     }
 
     const blockingPatients = await this.listPriorityPatients(option.value);
@@ -319,7 +314,7 @@ export class SystemOptionService {
       throw new HttpException(
         {
           message:
-            'Não é possível desativar esta prioridade porque ainda existem pacientes usando este nível.',
+            'This priority cannot be deactivated because there are still patients using this option.',
           blocking_patients: blockingPatients,
         },
         HttpStatus.CONFLICT,
@@ -337,7 +332,7 @@ export class SystemOptionService {
     const { patientIds, priorityCode } = params;
 
     if (!patientIds || patientIds.length === 0) {
-      throw new BadRequestException('Nenhum paciente selecionado');
+      throw new BadRequestException('No patient selected');
     }
 
     const targetPriorityOption = await this.systemOptionRepository.findOne({
@@ -350,7 +345,7 @@ export class SystemOptionService {
 
     if (!targetPriorityOption) {
       throw new BadRequestException(
-        'Prioridade inválida ou inativa. Selecione uma prioridade ativa.',
+        'Invalid or inactive priority. Select an active priority.',
       );
     }
 

@@ -39,11 +39,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.authService.getUserById(payload.sub);
 
     if (!user) {
-      throw new UnauthorizedException('Usuário não encontrado');
+      throw new UnauthorizedException('User not found');
     }
 
     if (!user.isActive) {
-      throw new UnauthorizedException('Usuário inativo');
+      throw new UnauthorizedException('Inactive user');
     }
 
     // This will be attached to request.user in controllers

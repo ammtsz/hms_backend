@@ -19,6 +19,11 @@ import {
 } from '../dtos/user.dto';
 import { UserResponseDto } from '../dtos/auth.dto';
 import { validatePassword } from '../common/validators/password.validator';
+import {
+  PASSWORD_CHANGE_LOCK_DURATION_MINUTES,
+  PASSWORD_CHANGE_MAX_ATTEMPTS,
+  passwordChangeMessages,
+} from '../common/messages/password-change.messages';
 
 @Injectable()
 export class UserService {
@@ -225,7 +230,7 @@ export class UserService {
       );
 
       if (!isPasswordValid) {
-        throw new UnauthorizedException('Current password is incorrect');
+        throw new UnauthorizedException(passwordChangeMessages.incorrect);
       }
 
       // Validate new password
@@ -260,7 +265,7 @@ export class UserService {
         (user.passwordChangeLockedUntil.getTime() - new Date().getTime()) / 1000 / 60
       );
       throw new UnauthorizedException(
-        `Too many failed password change attempts. Please try again in ${remainingTime} minute(s).`
+        passwordChangeMessages.tryAgainIn(remainingTime),
       );
     }
 
@@ -274,9 +279,8 @@ export class UserService {
       // Increment failed password change attempts
       user.failedPasswordChangeAttempts += 1;
 
-      // Lock password change if too many failed attempts (5 attempts)
-      const MAX_ATTEMPTS = 5;
-      const LOCK_DURATION_MINUTES = 15;
+      const MAX_ATTEMPTS = PASSWORD_CHANGE_MAX_ATTEMPTS;
+      const LOCK_DURATION_MINUTES = PASSWORD_CHANGE_LOCK_DURATION_MINUTES;
       
       if (user.failedPasswordChangeAttempts >= MAX_ATTEMPTS) {
         user.passwordChangeLockedUntil = new Date(
@@ -285,14 +289,16 @@ export class UserService {
         await this.userRepository.save(user);
         
         throw new UnauthorizedException(
-          `Too many failed password change attempts. Your account has been locked for ${LOCK_DURATION_MINUTES} minutes.`
+          passwordChangeMessages.accountLocked(LOCK_DURATION_MINUTES),
         );
       }
 
       await this.userRepository.save(user);
       
       throw new UnauthorizedException(
-        `Current password is incorrect. ${MAX_ATTEMPTS - user.failedPasswordChangeAttempts} attempt(s) remaining.`
+        passwordChangeMessages.incorrectWithRemaining(
+          MAX_ATTEMPTS - user.failedPasswordChangeAttempts,
+        ),
       );
     }
 

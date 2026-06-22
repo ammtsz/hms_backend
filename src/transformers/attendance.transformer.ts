@@ -44,7 +44,7 @@ export class AttendanceTransformer {
         priority: attendance.patient.priority,
         patient_status: attendance.patient.patient_status,
         birth_date: attendance.patient.birth_date,
-        main_complaint: attendance.patient.main_complaint,
+        main_concern: attendance.patient.main_concern,
         start_date: attendance.patient.start_date,
         discharge_date: attendance.patient.discharge_date,
         missing_appointments_streak:
@@ -77,7 +77,7 @@ export class AttendanceTransformer {
           : rawData.attendance_scheduled_date,
       notes: rawData.attendance_notes,
       patient_name:
-        rawData.patient_name || `Paciente ${rawData.attendance_patient_id}`,
+        rawData.patient_name || `Patient ${rawData.attendance_patient_id}`,
       patient_priority: rawData.patient_priority || 'NORMAL',
     };
   }

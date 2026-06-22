@@ -18,7 +18,7 @@ export class PatientNote {
   @Column({ type: 'text' })
   note_content: string;
 
-  @Column({ length: 50, default: 'geral' })
+  @Column({ length: 50, default: 'general' })
   category: string;
 
   // Timezone-agnostic audit fields following the existing pattern

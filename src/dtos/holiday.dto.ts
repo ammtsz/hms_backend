@@ -21,13 +21,13 @@ export class CreateHolidayDto {
   })
   holiday_date: string;
 
-  @ApiProperty({ example: 'Natal', description: 'Holiday name' })
+  @ApiProperty({ example: 'Christmas', description: 'Holiday name' })
   @Sanitize()
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'Feriado Nacional', required: false })
+  @ApiProperty({ example: 'National Holiday', required: false })
   @Sanitize()
   @IsString()
   @IsOptional()

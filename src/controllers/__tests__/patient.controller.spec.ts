@@ -16,7 +16,7 @@ describe('PatientController', () => {
     priority: PatientPriority.LEVEL_3,
     patient_status: PatientStatus.IN_TREATMENT,
     birth_date: '1990-01-01',
-    main_complaint: null,
+    main_concern: null,
     start_date: '2025-07-22',
     discharge_date: null,
     missing_appointments_streak: 0,
@@ -173,7 +173,7 @@ describe('PatientController', () => {
     it('should pass cancellation_reason to setPatientStatus options', async () => {
       const updateDto: UpdatePatientDto = {
         patient_status: PatientStatus.ABSENT,
-        cancellation_reason: 'Paciente pediu cancelamento',
+        cancellation_reason: 'Patient requested cancellation',
       };
       const absentPatient = {
         ...mockPatient,
@@ -189,7 +189,7 @@ describe('PatientController', () => {
       expect(service.setPatientStatus).toHaveBeenCalledWith(
         1,
         PatientStatus.ABSENT,
-        { cancellationReason: 'Paciente pediu cancelamento' },
+        { cancellationReason: 'Patient requested cancellation' },
       );
       expect(service.update).not.toHaveBeenCalled();
     });

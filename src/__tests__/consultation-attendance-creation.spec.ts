@@ -2,10 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { TreatmentService } from '../services/treatment.service';
 import { AttendanceService } from '../services/attendance.service';
-import {
-  Treatment,
-  TreatmentType,
-} from '../entities/treatment.entity';
+import { Treatment, TreatmentType } from '../entities/treatment.entity';
 import { Session } from '../entities/session.entity';
 import { Consultation } from '../entities/consultation.entity';
 import { Attendance } from '../entities/attendance.entity';
@@ -106,47 +103,32 @@ describe('TreatmentService - Attendance Creation', () => {
         attendance_id: attendanceId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
-        body_location: 'Cabeça',
+        body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
         completed_sessions: 0,
         status: 'scheduled',
         duration_minutes: 30,
-        color: 'azul',
+        color: 'blue',
       };
 
       // Mock repository responses
-      mockConsultationRepository.findOne.mockResolvedValue(
-        mockConsultation,
-      );
+      mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
       mockAttendanceRepository.findOne.mockResolvedValue(mockAttendance);
-      mockTreatmentRepository.create.mockReturnValue(
-        mockTreatment,
-      );
-      mockTreatmentRepository.save.mockResolvedValue(
-        mockTreatment,
-      );
-      mockTreatmentRepository.findOne.mockResolvedValue(
-        mockTreatment,
-      );
+      mockTreatmentRepository.create.mockReturnValue(mockTreatment);
+      mockTreatmentRepository.save.mockResolvedValue(mockTreatment);
+      mockTreatmentRepository.findOne.mockResolvedValue(mockTreatment);
 
       // Mock session creation
-      const mockSessions = Array.from(
-        { length: plannedSessions },
-        (_, i) => ({
-          id: i + 1,
-          treatment_id: 1,
-          session_number: i + 1,
-          scheduled_date: startDate, // Will be calculated correctly in actual code
-          status: 'scheduled',
-        }),
-      );
-      mockSessionRepository.create.mockImplementation(
-        (data) => data,
-      );
-      mockSessionRepository.save.mockResolvedValue(
-        mockSessions,
-      );
+      const mockSessions = Array.from({ length: plannedSessions }, (_, i) => ({
+        id: i + 1,
+        treatment_id: 1,
+        session_number: i + 1,
+        scheduled_date: startDate, // Will be calculated correctly in actual code
+        status: 'scheduled',
+      }));
+      mockSessionRepository.create.mockImplementation((data) => data);
+      mockSessionRepository.save.mockResolvedValue(mockSessions);
 
       // Mock attendance creation
       const mockCreatedAttendance = { id: 2 };
@@ -159,11 +141,11 @@ describe('TreatmentService - Attendance Creation', () => {
         attendance_id: attendanceId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
-        body_location: 'Cabeça',
+        body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
         duration_minutes: 30,
-        color: 'azul',
+        color: 'blue',
       });
 
       // Verify treatment session was created
@@ -206,7 +188,7 @@ describe('TreatmentService - Attendance Creation', () => {
         attendance_id: attendanceId,
         patient_id: patientId,
         treatment_type: TreatmentType.TENS,
-        body_location: 'Coluna',
+        body_location: 'Back',
         start_date: startDate,
         planned_sessions: plannedSessions,
         completed_sessions: 0,
@@ -214,37 +196,22 @@ describe('TreatmentService - Attendance Creation', () => {
       };
 
       // Mock repository responses
-      mockConsultationRepository.findOne.mockResolvedValue(
-        mockConsultation,
-      );
+      mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
       mockAttendanceRepository.findOne.mockResolvedValue(mockAttendance);
-      mockTreatmentRepository.create.mockReturnValue(
-        mockTreatment,
-      );
-      mockTreatmentRepository.save.mockResolvedValue(
-        mockTreatment,
-      );
-      mockTreatmentRepository.findOne.mockResolvedValue(
-        mockTreatment,
-      );
+      mockTreatmentRepository.create.mockReturnValue(mockTreatment);
+      mockTreatmentRepository.save.mockResolvedValue(mockTreatment);
+      mockTreatmentRepository.findOne.mockResolvedValue(mockTreatment);
 
       // Mock session creation
-      const mockSessions = Array.from(
-        { length: plannedSessions },
-        (_, i) => ({
-          id: i + 1,
-          treatment_id: 1,
-          session_number: i + 1,
-          scheduled_date: startDate,
-          status: 'scheduled',
-        }),
-      );
-      mockSessionRepository.create.mockImplementation(
-        (data) => data,
-      );
-      mockSessionRepository.save.mockResolvedValue(
-        mockSessions,
-      );
+      const mockSessions = Array.from({ length: plannedSessions }, (_, i) => ({
+        id: i + 1,
+        treatment_id: 1,
+        session_number: i + 1,
+        scheduled_date: startDate,
+        status: 'scheduled',
+      }));
+      mockSessionRepository.create.mockImplementation((data) => data);
+      mockSessionRepository.save.mockResolvedValue(mockSessions);
 
       // Mock attendance creation - capture the calls
       const createdAttendances = [];
@@ -260,7 +227,7 @@ describe('TreatmentService - Attendance Creation', () => {
         attendance_id: attendanceId,
         patient_id: patientId,
         treatment_type: TreatmentType.TENS,
-        body_location: 'Coluna',
+        body_location: 'Back',
         start_date: startDate,
         planned_sessions: plannedSessions,
       });
@@ -291,29 +258,21 @@ describe('TreatmentService - Attendance Creation', () => {
         attendance_id: attendanceId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
-        body_location: 'Cabeça',
+        body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
         completed_sessions: 0,
         status: 'scheduled',
         duration_minutes: 30,
-        color: 'azul',
+        color: 'blue',
       };
 
       // Mock repository responses
-      mockConsultationRepository.findOne.mockResolvedValue(
-        mockConsultation,
-      );
+      mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
       mockAttendanceRepository.findOne.mockResolvedValue(mockAttendance);
-      mockTreatmentRepository.create.mockReturnValue(
-        mockTreatment,
-      );
-      mockTreatmentRepository.save.mockResolvedValue(
-        mockTreatment,
-      );
-      mockTreatmentRepository.findOne.mockResolvedValue(
-        mockTreatment,
-      );
+      mockTreatmentRepository.create.mockReturnValue(mockTreatment);
+      mockTreatmentRepository.save.mockResolvedValue(mockTreatment);
+      mockTreatmentRepository.findOne.mockResolvedValue(mockTreatment);
 
       // Capture sessions as they are created
       const createdSessions = [];
@@ -321,11 +280,9 @@ describe('TreatmentService - Attendance Creation', () => {
         createdSessions.push(data);
         return data;
       });
-      mockSessionRepository.save.mockImplementation(
-        (sessionRows) => {
-          return Promise.resolve(sessionRows);
-        },
-      );
+      mockSessionRepository.save.mockImplementation((sessionRows) => {
+        return Promise.resolve(sessionRows);
+      });
 
       mockAttendanceRepository.create.mockImplementation((data) => data);
       mockAttendanceRepository.save.mockResolvedValue({ id: 2 });
@@ -336,11 +293,11 @@ describe('TreatmentService - Attendance Creation', () => {
         attendance_id: attendanceId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
-        body_location: 'Cabeça',
+        body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
         duration_minutes: 30,
-        color: 'azul',
+        color: 'blue',
       });
 
       // Verify sessions were created with weekly intervals
@@ -371,45 +328,30 @@ describe('TreatmentService - Attendance Creation', () => {
         attendance_id: attendanceId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
-        body_location: 'Cabeça',
+        body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
         completed_sessions: 0,
         status: 'scheduled',
         duration_minutes: 30,
-        color: 'azul',
+        color: 'blue',
       };
 
-      mockConsultationRepository.findOne.mockResolvedValue(
-        mockConsultation,
-      );
+      mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
       mockAttendanceRepository.findOne.mockResolvedValue(mockAttendance);
-      mockTreatmentRepository.create.mockReturnValue(
-        mockTreatment,
-      );
-      mockTreatmentRepository.save.mockResolvedValue(
-        mockTreatment,
-      );
-      mockTreatmentRepository.findOne.mockResolvedValue(
-        mockTreatment,
-      );
+      mockTreatmentRepository.create.mockReturnValue(mockTreatment);
+      mockTreatmentRepository.save.mockResolvedValue(mockTreatment);
+      mockTreatmentRepository.findOne.mockResolvedValue(mockTreatment);
 
-      const mockSessions = Array.from(
-        { length: plannedSessions },
-        (_, i) => ({
-          id: i + 1,
-          treatment_id: 1,
-          session_number: i + 1,
-          scheduled_date: startDate,
-          status: 'scheduled',
-        }),
-      );
-      mockSessionRepository.create.mockImplementation(
-        (data) => data,
-      );
-      mockSessionRepository.save.mockResolvedValue(
-        mockSessions,
-      );
+      const mockSessions = Array.from({ length: plannedSessions }, (_, i) => ({
+        id: i + 1,
+        treatment_id: 1,
+        session_number: i + 1,
+        scheduled_date: startDate,
+        status: 'scheduled',
+      }));
+      mockSessionRepository.create.mockImplementation((data) => data);
+      mockSessionRepository.save.mockResolvedValue(mockSessions);
 
       const createdAttendances = [];
       mockAttendanceRepository.create.mockImplementation((data) => {
@@ -423,11 +365,11 @@ describe('TreatmentService - Attendance Creation', () => {
         attendance_id: attendanceId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
-        body_location: 'Cabeça',
+        body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
         duration_minutes: 30,
-        color: 'azul',
+        color: 'blue',
       });
 
       // Verify all attendances use 19:30 time
@@ -451,45 +393,30 @@ describe('TreatmentService - Attendance Creation', () => {
         attendance_id: attendanceId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
-        body_location: 'Cabeça',
+        body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
         completed_sessions: 0,
         status: 'scheduled',
         duration_minutes: 30,
-        color: 'azul',
+        color: 'blue',
       };
 
-      mockConsultationRepository.findOne.mockResolvedValue(
-        mockConsultation,
-      );
+      mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
       mockAttendanceRepository.findOne.mockResolvedValue(mockAttendance);
-      mockTreatmentRepository.create.mockReturnValue(
-        mockTreatment,
-      );
-      mockTreatmentRepository.save.mockResolvedValue(
-        mockTreatment,
-      );
-      mockTreatmentRepository.findOne.mockResolvedValue(
-        mockTreatment,
-      );
+      mockTreatmentRepository.create.mockReturnValue(mockTreatment);
+      mockTreatmentRepository.save.mockResolvedValue(mockTreatment);
+      mockTreatmentRepository.findOne.mockResolvedValue(mockTreatment);
 
-      const mockSessions = Array.from(
-        { length: plannedSessions },
-        (_, i) => ({
-          id: i + 1,
-          treatment_id: 1,
-          session_number: i + 1,
-          scheduled_date: startDate,
-          status: 'scheduled',
-        }),
-      );
-      mockSessionRepository.create.mockImplementation(
-        (data) => data,
-      );
-      mockSessionRepository.save.mockResolvedValue(
-        mockSessions,
-      );
+      const mockSessions = Array.from({ length: plannedSessions }, (_, i) => ({
+        id: i + 1,
+        treatment_id: 1,
+        session_number: i + 1,
+        scheduled_date: startDate,
+        status: 'scheduled',
+      }));
+      mockSessionRepository.create.mockImplementation((data) => data);
+      mockSessionRepository.save.mockResolvedValue(mockSessions);
 
       const createdAttendances = [];
       mockAttendanceRepository.create.mockImplementation((data) => {
@@ -503,11 +430,11 @@ describe('TreatmentService - Attendance Creation', () => {
         attendance_id: attendanceId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
-        body_location: 'Cabeça',
+        body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
         duration_minutes: 30,
-        color: 'azul',
+        color: 'blue',
       });
 
       // Verify all treatment attendances link to the original consultation

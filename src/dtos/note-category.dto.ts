@@ -5,24 +5,24 @@ import { Sanitize } from '../common/decorators/sanitize.decorator';
 export class CreateNoteCategoryDto {
   @ApiProperty({
     description:
-      'Stored category code (e.g., "geral", "alteracao_de_status", "medicamentos", "progresso", "emergencia")',
-    example: 'alteracao_de_status',
+      'Stored category code (e.g., "general", "status_change", "medications", "progress", "emergency")',
+    example: 'status_change',
   })
   @IsString()
-  @MaxLength(50, { message: 'Código deve ter no máximo 50 caracteres' })
+  @MaxLength(50, { message: 'Code must be at most 50 characters long' })
   @Matches(/^[a-z0-9_-]+$/, {
     message:
-      'Código inválido. Use apenas letras minúsculas (a-z), números (0-9), _ ou -',
+      'Invalid code. Use only lowercase letters (a-z), numbers (0-9), _ or -',
   })
   value: string;
 
   @ApiProperty({
     description: 'Human readable label for UI',
-    example: 'Mudança de status',
+    example: 'Status change',
   })
   @Sanitize()
   @IsString()
-  @MaxLength(50, { message: 'Rótulo deve ter no máximo 50 caracteres' })
+  @MaxLength(50, { message: 'Label must be at most 50 characters long' })
   label: string;
 
   @ApiProperty({
@@ -32,4 +32,3 @@ export class CreateNoteCategoryDto {
   @IsOptional()
   sort_order?: number;
 }
-

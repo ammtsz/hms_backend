@@ -156,7 +156,7 @@ describe('EndOfDayProcessService', () => {
       };
 
       await expect(service.processEndOfDay(dto)).rejects.toThrow(ConflictException);
-      await expect(service.processEndOfDay(dto)).rejects.toThrow('Dia já finalizado.');
+      await expect(service.processEndOfDay(dto)).rejects.toThrow('Day already finalized.');
 
       expect(mockDayFinalizationService.isDayFinalized).toHaveBeenCalledWith('2024-01-15');
       expect(mockAttendanceService.update).not.toHaveBeenCalled();
@@ -180,7 +180,7 @@ describe('EndOfDayProcessService', () => {
       });
       expect(mockDayFinalizationService.finalizeDay).toHaveBeenCalledWith(
         '2024-01-15',
-        'Dia finalizado sem ausências',
+        'Day finalized without absences',
       );
       expect(mockAttendanceService.update).not.toHaveBeenCalled();
     });
@@ -239,7 +239,7 @@ describe('EndOfDayProcessService', () => {
 
       expect(mockDayFinalizationService.finalizeDay).toHaveBeenCalledWith(
         '2024-01-15',
-        expect.stringContaining('ausência'),
+        expect.stringContaining('absence'),
       );
     });
 
@@ -274,7 +274,7 @@ describe('EndOfDayProcessService', () => {
       expect(mockPatientService.setPatientStatus).toHaveBeenCalledWith(
         1,
         PatientStatus.ABSENT,
-        { cancellationReason: '3 faltas consecutivas sem justificativa' },
+        { cancellationReason: '3 consecutive unjustified absences' },
       );
       expect(mockPatientService.update).not.toHaveBeenCalled();
       expect(result.status_changed_to_f).toHaveLength(1);
@@ -353,7 +353,9 @@ describe('EndOfDayProcessService', () => {
 
         expect(mockAttendanceService.reschedule).not.toHaveBeenCalled();
         expect(result.could_not_reschedule).toHaveLength(1);
-        expect(result.could_not_reschedule[0].reason).toBe('Paciente não está em tratamento ativo');
+        expect(result.could_not_reschedule[0].reason).toBe(
+          "Patient doesn't have an active treatment",
+        );
       });
 
       it('should push to could_not_reschedule when non-T patient has first assessment but no date available', async () => {
@@ -374,7 +376,7 @@ describe('EndOfDayProcessService', () => {
         expect(mockAttendanceService.reschedule).not.toHaveBeenCalled();
         expect(result.could_not_reschedule).toHaveLength(1);
         expect(result.could_not_reschedule[0].reason).toBe(
-          'Não foi possível encontrar data disponível em 52 semanas',
+            'Could not find an available date within 52 weeks',
         );
       });
     });
@@ -532,7 +534,7 @@ describe('EndOfDayProcessService', () => {
 
         expect(mockDayFinalizationService.finalizeDay).toHaveBeenCalledWith(
           '2024-01-15',
-          expect.stringContaining('ausência'),
+          expect.stringContaining('absence'),
         );
       });
 
@@ -549,7 +551,7 @@ describe('EndOfDayProcessService', () => {
 
         expect(mockDayFinalizationService.finalizeDay).toHaveBeenCalled();
         expect(result.could_not_reschedule).toHaveLength(1);
-        expect(result.could_not_reschedule[0].reason).toBe('Erro interno ao processar ausência');
+        expect(result.could_not_reschedule[0].reason).toBe('Internal error while processing absence');
       });
 
       it('should finalize day and push to could_not_reschedule when setPatientStatus throws at threshold', async () => {
@@ -570,7 +572,7 @@ describe('EndOfDayProcessService', () => {
         expect(mockDayFinalizationService.finalizeDay).toHaveBeenCalled();
         expect(result.status_changed_to_f).toHaveLength(0);
         expect(result.could_not_reschedule).toHaveLength(1);
-        expect(result.could_not_reschedule[0].reason).toBe('Erro interno ao processar ausência');
+        expect(result.could_not_reschedule[0].reason).toBe('Internal error while processing absence');
       });
 
       it('should finalize day and push to could_not_reschedule when reschedule throws unexpectedly', async () => {
@@ -588,7 +590,7 @@ describe('EndOfDayProcessService', () => {
         expect(mockDayFinalizationService.finalizeDay).toHaveBeenCalled();
         expect(result.rescheduled).toHaveLength(0);
         expect(result.could_not_reschedule).toHaveLength(1);
-        expect(result.could_not_reschedule[0].reason).toBe('Erro interno ao processar ausência');
+        expect(result.could_not_reschedule[0].reason).toBe('Internal error while processing absence');
       });
 
       it('should process remaining attendances after one fails', async () => {
@@ -615,8 +617,8 @@ describe('EndOfDayProcessService', () => {
 
         expect(mockDayFinalizationService.finalizeDay).toHaveBeenCalled();
         expect(result.could_not_reschedule).toHaveLength(2);
-        expect(result.could_not_reschedule[0].reason).toBe('Erro interno ao processar ausência');
-        expect(result.could_not_reschedule[1].reason).toBe('Não foi possível encontrar data disponível em 52 semanas');
+        expect(result.could_not_reschedule[0].reason).toBe('Internal error while processing absence');
+        expect(result.could_not_reschedule[1].reason).toBe('Could not find an available date within 52 weeks');
       });
     });
 
@@ -649,7 +651,7 @@ describe('EndOfDayProcessService', () => {
       expect(mockPatientService.setPatientStatus).toHaveBeenCalledWith(
         1,
         PatientStatus.ABSENT,
-        { cancellationReason: '5 faltas consecutivas sem justificativa' },
+        { cancellationReason: '5 consecutive unjustified absences' },
       );
     });
   });

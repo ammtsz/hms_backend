@@ -6,6 +6,10 @@ import { Repository } from 'typeorm';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { ChangeOwnPasswordDto } from '../../dtos/user.dto';
+import {
+  passwordChangeMessages,
+  PASSWORD_CHANGE_LOCK_DURATION_MINUTES,
+} from '../../common/messages/password-change.messages';
 
 // Mock bcrypt
 jest.mock('bcrypt');
@@ -112,7 +116,7 @@ describe('UserService - Password Change Rate Limiting', () => {
 
       await expect(
         service.changeOwnPassword(1, changePasswordDto)
-      ).rejects.toThrow('2 attempt(s) remaining');
+      ).rejects.toThrow(passwordChangeMessages.incorrectWithRemaining(2));
 
       expect(mockRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -133,7 +137,9 @@ describe('UserService - Password Change Rate Limiting', () => {
 
       await expect(
         service.changeOwnPassword(1, changePasswordDto)
-      ).rejects.toThrow('locked for 15 minutes');
+      ).rejects.toThrow(
+        passwordChangeMessages.accountLocked(PASSWORD_CHANGE_LOCK_DURATION_MINUTES),
+      );
 
       expect(mockRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -161,7 +167,7 @@ describe('UserService - Password Change Rate Limiting', () => {
 
       await expect(
         service.changeOwnPassword(1, changePasswordDto)
-      ).rejects.toThrow('Too many failed password change attempts');
+      ).rejects.toThrow(/Too many failed password change attempts/);
     });
 
     it('should allow password change after lock expires', async () => {
@@ -241,7 +247,7 @@ describe('UserService - Password Change Rate Limiting', () => {
 
       await expect(
         service.changeOwnPassword(1, changePasswordDto)
-      ).rejects.toThrow('2 attempt(s) remaining');
+      ).rejects.toThrow(passwordChangeMessages.incorrectWithRemaining(2));
 
       // User 2 with 0 failed attempts
       const user2 = { ...mockUser, id: 2, failedPasswordChangeAttempts: 0 };
@@ -250,7 +256,7 @@ describe('UserService - Password Change Rate Limiting', () => {
 
       await expect(
         service.changeOwnPassword(2, changePasswordDto)
-      ).rejects.toThrow('4 attempt(s) remaining');
+      ).rejects.toThrow(passwordChangeMessages.incorrectWithRemaining(4));
     });
   });
 });

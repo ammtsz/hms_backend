@@ -7,7 +7,7 @@ import {
 describe('scheduling-signature.utils', () => {
   describe('normalizeSchedulingKey', () => {
     it('trims and lowercases', () => {
-      expect(normalizeSchedulingKey('  Cervical ')).toBe('cervical');
+      expect(normalizeSchedulingKey('  Neck ')).toBe('neck');
     });
   });
 
@@ -16,8 +16,8 @@ describe('scheduling-signature.utils', () => {
       expect(
         treatmentSignaturesConflict(
           AttendanceType.TENS,
-          { bodyLocation: 'Cervical' },
-          { bodyLocation: 'cervical' },
+          { bodyLocation: 'Neck' },
+          { bodyLocation: 'neck' },
         ),
       ).toBe(true);
     });
@@ -26,8 +26,8 @@ describe('scheduling-signature.utils', () => {
       expect(
         treatmentSignaturesConflict(
           AttendanceType.TENS,
-          { bodyLocation: 'Cervical' },
-          { bodyLocation: 'Frontal' },
+          { bodyLocation: 'Neck' },
+          { bodyLocation: 'Left Shoulder' },
         ),
       ).toBe(false);
     });
@@ -36,8 +36,8 @@ describe('scheduling-signature.utils', () => {
       expect(
         treatmentSignaturesConflict(
           AttendanceType.PHYSIOTHERAPY,
-          { bodyLocation: 'Cervical', color: 'Azul' },
-          { bodyLocation: 'Cervical', color: 'azul' },
+          { bodyLocation: 'Neck', color: 'Blue' },
+          { bodyLocation: 'Neck', color: 'blue' },
         ),
       ).toBe(true);
     });
@@ -46,8 +46,8 @@ describe('scheduling-signature.utils', () => {
       expect(
         treatmentSignaturesConflict(
           AttendanceType.PHYSIOTHERAPY,
-          { bodyLocation: 'Cervical', color: 'Azul' },
-          { bodyLocation: 'Cervical', color: 'Vermelho' },
+          { bodyLocation: 'Neck', color: 'Blue' },
+          { bodyLocation: 'Neck', color: 'Red' },
         ),
       ).toBe(false);
     });

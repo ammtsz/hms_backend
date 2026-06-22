@@ -15,7 +15,7 @@ describe('auth DTO validation', () => {
         expect.objectContaining({
           property: 'password',
           constraints: expect.objectContaining({
-            minLength: 'Senha deve ter no mínimo 12 caracteres',
+            minLength: 'Password must be at least 12 characters long',
           }),
         }),
       ]),
@@ -36,7 +36,7 @@ describe('auth DTO validation', () => {
         expect.objectContaining({
           property: 'password',
           constraints: expect.objectContaining({
-            minLength: 'Senha deve ter no mínimo 12 caracteres',
+            minLength: 'Password must be at least 12 characters long',
           }),
         }),
       ]),

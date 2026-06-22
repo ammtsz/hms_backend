@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConsultationService } from './../consultation.service';
-import { AttendanceService } from './../attendance.service';
-import { TreatmentService } from './../treatment.service';
-import { PatientService } from './../patient.service';
+import { ConsultationService } from '../consultation.service';
+import { AttendanceService } from '../attendance.service';
+import { TreatmentService } from '../treatment.service';
+import { PatientService } from '../patient.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Consultation } from '../../entities/consultation.entity';
 import { Attendance } from '../../entities/attendance.entity';
@@ -53,7 +53,7 @@ describe('ConsultationService', () => {
     end_time: '11:00',
     return_weeks: 2,
     notes: 'Patient responded well to treatment',
-    main_complaint: '',
+    main_concern: '',
     patient_status: 'T',
     created_date: '',
     created_time: '',

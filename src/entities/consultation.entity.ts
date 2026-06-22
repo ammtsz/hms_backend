@@ -24,7 +24,7 @@ export class Consultation {
   attendance: Attendance;
 
   @Column({ type: 'text', nullable: true })
-  main_complaint: string;
+  main_concern: string;
 
   @Column({ type: 'varchar', length: 1, nullable: true })
   patient_status: string;

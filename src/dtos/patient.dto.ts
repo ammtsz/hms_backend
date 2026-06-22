@@ -70,7 +70,7 @@ export class CreatePatientDto {
   @Sanitize()
   @IsString()
   @IsOptional()
-  main_complaint?: string;
+  main_concern?: string;
 
   @ApiPropertyOptional({
     description: 'Patient timezone (IANA timezone format)',
@@ -126,7 +126,7 @@ export class UpdatePatientDto {
 
   @ApiPropertyOptional({
     description: 'Cancellation reason used when setting patient status to A or F',
-    example: 'Paciente decidiu cancelar por não se sentir seguro com as datas futuras',
+    example: 'Patient decided to cancel because they did not feel comfortable with future dates',
     maxLength: 2000,
   })
   @Sanitize()
@@ -152,7 +152,7 @@ export class UpdatePatientDto {
   @Sanitize()
   @IsString()
   @IsOptional()
-  main_complaint?: string;
+  main_concern?: string;
 
   @ApiPropertyOptional({
     description: 'Patient discharge date',
@@ -214,7 +214,7 @@ export class PatientResponseDto {
     description: 'Main health complaint',
     example: 'Frequent headaches',
   })
-  main_complaint?: string;
+  main_concern?: string;
 
   @ApiPropertyOptional({
     description: 'Patient discharge date',

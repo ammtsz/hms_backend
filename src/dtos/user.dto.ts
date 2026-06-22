@@ -26,7 +26,7 @@ export class CreateUserDto {
 
   @ApiProperty({
     description: 'Full name',
-    example: 'João Silva',
+    example: 'John Smith',
   })
   @Sanitize()
   @IsString()
@@ -35,7 +35,7 @@ export class CreateUserDto {
 
   @ApiPropertyOptional({
     description: 'Display name (shown in UI)',
-    example: 'Dr. João',
+    example: 'Dr. John',
   })
   @Sanitize()
   @IsString()
@@ -84,7 +84,7 @@ export class CreateUserDto {
 export class UpdateUserDto {
   @ApiPropertyOptional({
     description: 'Full name',
-    example: 'João Silva',
+    example: 'John Smith',
   })
   @Sanitize()
   @IsString()
@@ -101,7 +101,7 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional({
     description: 'Display name',
-    example: 'Dr. João',
+    example: 'Dr. John',
   })
   @Sanitize()
   @IsString()
@@ -132,7 +132,7 @@ export class UpdateUserDto {
 export class UpdateOwnProfileDto {
   @ApiPropertyOptional({
     description: 'Full name (admin only)',
-    example: 'João Silva',
+    example: 'John Smith',
   })
   @Sanitize()
   @IsString()
@@ -149,7 +149,7 @@ export class UpdateOwnProfileDto {
 
   @ApiPropertyOptional({
     description: 'Display name',
-    example: 'Joãozinho',
+    example: 'Johnny',
   })
   @Sanitize()
   @IsString()

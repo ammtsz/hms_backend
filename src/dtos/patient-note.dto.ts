@@ -1,9 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsNotEmpty,
-  MaxLength,
-} from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Sanitize } from '../common/decorators/sanitize.decorator';
 
@@ -26,13 +21,13 @@ export class CreatePatientNoteDto {
 
   @ApiPropertyOptional({
     description: 'Category of the note',
-    default: 'geral',
+    default: 'general',
     example: 'treatment',
   })
   @IsString()
   @IsOptional()
-  @MaxLength(50, { message: 'Category deve ter no máximo 50 caracteres' })
-  category?: NoteCategory = 'geral';
+  @MaxLength(50, { message: 'Category must be at most 50 characters long' })
+  category?: NoteCategory = 'general';
 }
 
 export class UpdatePatientNoteDto {
@@ -57,7 +52,7 @@ export class UpdatePatientNoteDto {
   })
   @IsString()
   @IsOptional()
-  @MaxLength(50, { message: 'Category deve ter no máximo 50 caracteres' })
+  @MaxLength(50, { message: 'Category must be at most 50 characters long' })
   category?: NoteCategory;
 }
 

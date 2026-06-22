@@ -121,7 +121,7 @@ describe('SettingsController', () => {
       const updated = { id: 2, value: '2' };
       mockSystemOptionService.update.mockResolvedValue(updated);
 
-      const dto: UpdateSystemOptionDto = { label: 'Nível 2' };
+      const dto: UpdateSystemOptionDto = { label: 'Level 2' };
       const result = await controller.updatePriorityOption('2', dto);
 
       expect(result).toBe(updated);
@@ -194,10 +194,10 @@ describe('SettingsController', () => {
     });
 
     it('updateNoteCategory should delegate to update', async () => {
-      const updated = { id: 10, label: 'Novo' };
+      const updated = { id: 10, label: 'New' };
       mockSystemOptionService.update.mockResolvedValue(updated);
 
-      const patch: UpdateSystemOptionDto = { label: 'Novo' };
+      const patch: UpdateSystemOptionDto = { label: 'New' };
       const result = await controller.updateNoteCategory('10', patch);
 
       expect(result).toBe(updated);
@@ -210,7 +210,7 @@ describe('SettingsController', () => {
       const result = await controller.deleteNoteCategory('10');
 
       expect(mockSystemOptionService.delete).toHaveBeenCalledWith(10);
-      expect(result).toEqual({ message: 'Categoria excluída com sucesso' });
+      expect(result).toEqual({ message: 'Note category deleted successfully' });
     });
   });
 });

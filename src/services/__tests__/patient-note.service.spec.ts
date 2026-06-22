@@ -25,7 +25,7 @@ describe('PatientNoteService', () => {
   const savedNoteShape = {
     id: 1,
     patient_id: 10,
-    note_content: 'Conteúdo',
+    note_content: 'Content',
     category: 'general',
     created_date: '2025-01-01',
     created_time: '10:00:00',
@@ -48,7 +48,7 @@ describe('PatientNoteService', () => {
       findOne: jest.fn().mockResolvedValue({
         id: 1,
         type: SystemOptionType.NOTE_CATEGORY,
-        value: 'geral',
+        value: 'general',
         isActive: true,
       }),
     };
@@ -85,7 +85,7 @@ describe('PatientNoteService', () => {
       expect(systemOptionRepo.findOne).toHaveBeenCalledWith({
         where: {
           type: SystemOptionType.NOTE_CATEGORY,
-          value: 'geral',
+          value: 'general',
           isActive: true,
         },
       });
@@ -107,9 +107,9 @@ describe('PatientNoteService', () => {
     it('should throw NotFoundException when patient does not exist', async () => {
       patientRepo.findOne.mockResolvedValueOnce(null);
 
-      await expect(
-        service.create(99, { note_content: 'Obs' }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.create(99, { note_content: 'Obs' })).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

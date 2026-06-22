@@ -109,7 +109,7 @@ describe('AuthService - Security Features', () => {
 
       await expect(
         service.login({ email: 'test@example.com', password: 'wrongpassword' }),
-      ).rejects.toThrow('Conta bloqueada por 15 minutos');
+      ).rejects.toThrow('Account locked for 15 minutes due to multiple login attempts.');
 
       expect(mockUserRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -133,7 +133,7 @@ describe('AuthService - Security Features', () => {
 
       await expect(
         service.login({ email: 'test@example.com', password: 'correctpassword' }),
-      ).rejects.toThrow(/Conta bloqueada/);
+      ).rejects.toThrow(/Account locked/);
 
       expect(bcrypt.compare).not.toHaveBeenCalled();
     });

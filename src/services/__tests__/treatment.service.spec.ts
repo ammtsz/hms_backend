@@ -146,7 +146,7 @@ describe('TreatmentService', () => {
         BadRequestException,
       );
       await expect(service.updateTreatment(1, dto)).rejects.toThrow(
-        'já possui uma sessão finalizada',
+        'already has a completed session',
       );
       expect(mockSave).not.toHaveBeenCalled();
     });

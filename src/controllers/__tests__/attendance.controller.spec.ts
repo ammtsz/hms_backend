@@ -115,8 +115,8 @@ describe('AttendanceController', () => {
           {
             id: 1,
             date: '2025-07-22',
-            main_complaint: 'Dor nas costas',
-            label: '22/07/2025 - Dor nas costas',
+            main_concern: 'Back pain',
+            label: '2025-07-22 - Back pain',
           },
         ],
       }),
@@ -451,8 +451,8 @@ describe('AttendanceController', () => {
           {
             id: 1,
             date: '2025-07-22',
-            main_complaint: 'Dor nas costas',
-            label: '22/07/2025 - Dor nas costas',
+            main_concern: 'Back pain',
+            label: '2025-07-22 - Back pain',
           },
         ],
       });

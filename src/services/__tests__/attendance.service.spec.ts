@@ -4,7 +4,11 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Attendance } from '../../entities/attendance.entity';
 import { Patient } from '../../entities/patient.entity';
 import { CreateAttendanceDto } from '../../dtos/attendance.dto';
-import { AttendanceType, AttendanceStatus, PatientStatus } from '../../common/enums';
+import {
+  AttendanceType,
+  AttendanceStatus,
+  PatientStatus,
+} from '../../common/enums';
 import { ScheduleSetting } from '../../entities/schedule-setting.entity';
 import { Repository, DeleteResult } from 'typeorm';
 import {
@@ -132,7 +136,9 @@ describe('AttendanceService', () => {
             markSessionMissed: jest.fn(),
             getSessionsByAttendance: jest.fn().mockResolvedValue([]),
             getSessionsForReschedule: jest.fn().mockResolvedValue([]),
-            cancelSessionsByAttendanceId: jest.fn().mockResolvedValue(undefined),
+            cancelSessionsByAttendanceId: jest
+              .fn()
+              .mockResolvedValue(undefined),
             getMaxScheduledDateForTreatment: jest.fn().mockResolvedValue(null),
           },
         },
@@ -230,7 +236,7 @@ describe('AttendanceService', () => {
         scheduled_time: '14:30',
         consultation: {
           patient_status: 'T',
-          main_complaint: 'Dor nas costas',
+          main_concern: 'Back pain',
         },
       } as unknown as Attendance;
 
@@ -247,9 +253,9 @@ describe('AttendanceService', () => {
       expect(result.options[0]).toMatchObject({
         id: 10,
         date: '2025-07-22',
-        main_complaint: 'Dor nas costas',
+        main_concern: 'Back pain',
       });
-      expect(result.options[0].label).toMatch(/ - Dor nas costas$/);
+      expect(result.options[0].label).toBe('2025-07-22 - Back pain');
     });
 
     it('should exclude roots whose chain has patient_status A or F', async () => {
@@ -260,7 +266,10 @@ describe('AttendanceService', () => {
         type: AttendanceType.ASSESSMENT,
         parent_attendance_id: null,
         scheduled_date: '2025-07-20',
-        consultation: { patient_status: 'A', main_complaint: 'Alta' },
+        consultation: {
+          patient_status: 'A',
+          main_concern: 'Discharged',
+        },
       } as unknown as Attendance;
       const rootOngoing = {
         ...mockAttendance,
@@ -271,7 +280,7 @@ describe('AttendanceService', () => {
         scheduled_date: '2025-07-22',
         consultation: {
           patient_status: 'T',
-          main_complaint: 'Dor nas costas',
+          main_concern: 'Back pain',
         },
       } as unknown as Attendance;
 
@@ -283,7 +292,7 @@ describe('AttendanceService', () => {
 
       expect(result.options).toHaveLength(1);
       expect(result.options[0].id).toBe(2);
-      expect(result.options[0].main_complaint).toBe('Dor nas costas');
+      expect(result.options[0].main_concern).toBe('Back pain');
     });
 
     it('should return empty options when patient has no assessment roots', async () => {
@@ -343,11 +352,9 @@ describe('AttendanceService', () => {
       };
       mockRepository.save.mockResolvedValueOnce(savedAttendance);
 
-      await service.syncStatusFromSession(
-        1,
-        AttendanceStatus.CANCELLED,
-        { cancellationReason: 'Reason' },
-      );
+      await service.syncStatusFromSession(1, AttendanceStatus.CANCELLED, {
+        cancellationReason: 'Reason',
+      });
 
       expect(repository.merge).toHaveBeenCalledWith(
         mockAttendance,
@@ -374,7 +381,7 @@ describe('AttendanceService', () => {
           notes: 'Updated notes',
           updated_date: expect.any(String),
           updated_time: expect.any(String),
-        })
+        }),
       );
       expect(repository.findOne).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -394,7 +401,7 @@ describe('AttendanceService', () => {
         priority: null,
         patient_status: null,
         birth_date: null,
-        main_complaint: null,
+        main_concern: null,
         start_date: '2025-01-01',
         discharge_date: null,
         missing_appointments_streak: 0,
@@ -406,7 +413,9 @@ describe('AttendanceService', () => {
       };
 
       jest.spyOn(patientRepo, 'findOne').mockResolvedValue(patient);
-      const saveSpy = jest.spyOn(patientRepo, 'save').mockResolvedValue(patient);
+      const saveSpy = jest
+        .spyOn(patientRepo, 'save')
+        .mockResolvedValue(patient);
 
       const att1: Attendance = {
         ...mockAttendance,
@@ -483,7 +492,7 @@ describe('AttendanceService', () => {
           status: AttendanceStatus.CANCELLED,
           absence_notes: 'Test cancellation',
           absence_justified: true,
-        })
+        }),
       );
     });
 
@@ -509,7 +518,7 @@ describe('AttendanceService', () => {
       // Default: no open root assessment (so create flow can reach later validations or success)
       jest.spyOn(repository, 'findOne').mockResolvedValue(null);
       // Default NEW_PATIENT so assessment create without parent can reach schedule/day validations;
-      // override to IN_TREATMENT in tests that assert parent-attendance rules for "em tratamento".
+      // override to IN_TREATMENT in tests that assert parent-attendance rules for "in treatment".
       jest.spyOn(patientRepository, 'findOne').mockResolvedValue({
         id: 1,
         patient_status: PatientStatus.NEW_PATIENT,
@@ -535,7 +544,7 @@ describe('AttendanceService', () => {
       };
 
       await expect(service.create(dto)).rejects.toThrow(
-        'Não há agenda disponível para esta data. Escolha outro dia.',
+        'No schedule is available for this date. Choose another day.',
       );
     });
 
@@ -582,22 +591,24 @@ describe('AttendanceService', () => {
         updated_time: '09:00:00',
       } as ScheduleSetting);
 
-      jest
-        .spyOn(repository, 'count')
-        .mockImplementation((options: unknown) => {
-          const where = (options as { where?: { type?: AttendanceType; status?: AttendanceStatus } }).where;
-
-          // Concurrent slot count for assessment attendances
-          if (
-            where?.type === AttendanceType.ASSESSMENT &&
-            where.status === AttendanceStatus.SCHEDULED
-          ) {
-            return Promise.resolve(2);
+      jest.spyOn(repository, 'count').mockImplementation((options: unknown) => {
+        const where = (
+          options as {
+            where?: { type?: AttendanceType; status?: AttendanceStatus };
           }
+        ).where;
 
-          // Default to 0 for other count calls (e.g., completed root or duplicate checks)
-          return Promise.resolve(0);
-        });
+        // Concurrent slot count for assessment attendances
+        if (
+          where?.type === AttendanceType.ASSESSMENT &&
+          where.status === AttendanceStatus.SCHEDULED
+        ) {
+          return Promise.resolve(2);
+        }
+
+        // Default to 0 for other count calls (e.g., completed root or duplicate checks)
+        return Promise.resolve(0);
+      });
 
       const dto: CreateAttendanceDto = {
         patient_id: 1,
@@ -624,11 +635,13 @@ describe('AttendanceService', () => {
       const dayFinalizationService = module.get(DayFinalizationService);
       jest
         .spyOn(dayFinalizationService, 'getFinalizationStatus')
-        .mockResolvedValue({ finalization_date: '2025-07-22' } as DayFinalization);
+        .mockResolvedValue({
+          finalization_date: '2025-07-22',
+        } as DayFinalization);
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
       await expect(service.create(dto)).rejects.toThrow(
-        'Dia já finalizado. Não é mais possível agendar atendimentos para este dia.',
+        'Day already finalized. It is no longer possible to schedule attendances for this day.',
       );
     });
 
@@ -651,7 +664,9 @@ describe('AttendanceService', () => {
         thrown = e as Error;
       }
       expect(thrown).toBeInstanceOf(BadRequestException);
-      expect(thrown?.message).toMatch(/Selecione a queixa principal \(consulta anterior\) relacionada a este agendamento./);
+      expect(thrown?.message).toMatch(
+        /Select the main complaint \(previous consultation\) related to this appointment/,
+      );
     });
 
     it('should throw BadRequestException when IN_TREATMENT patient schedules assessment without parent (even if no completed root row)', async () => {
@@ -676,7 +691,9 @@ describe('AttendanceService', () => {
         thrown = e as Error;
       }
       expect(thrown).toBeInstanceOf(BadRequestException);
-      expect(thrown?.message).toMatch(/Selecione a queixa principal \(consulta anterior\) relacionada a este agendamento./);
+      expect(thrown?.message).toMatch(
+        /Select the main complaint \(previous consultation\) related to this appointment/,
+      );
     });
 
     it('should reject parent_attendance_id when patient is DISCHARGED (A)', async () => {
@@ -696,7 +713,7 @@ describe('AttendanceService', () => {
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
       await expect(service.create(dto)).rejects.toThrow(
-        /Queixa principal desatualizada/,
+        /Main complaint is outdated/,
       );
     });
 
@@ -717,7 +734,7 @@ describe('AttendanceService', () => {
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
       await expect(service.create(dto)).rejects.toThrow(
-        /Queixa principal desatualizada/,
+        /Main complaint is outdated/,
       );
     });
 
@@ -738,7 +755,7 @@ describe('AttendanceService', () => {
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
       await expect(service.create(dto)).rejects.toThrow(
-        /Queixa principal desatualizada/,
+        /Main complaint is outdated/,
       );
     });
 
@@ -866,9 +883,11 @@ describe('AttendanceService', () => {
       const openRootWithPatient = {
         ...mockAttendance,
         scheduled_date: '2025-07-15',
-        patient: { id: 1, name: 'Maria Silva' } as Patient,
+        patient: { id: 1, name: 'Emily Williams' } as Patient,
       };
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(openRootWithPatient as Attendance);
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(openRootWithPatient as Attendance);
 
       let thrown: Error | null = null;
       try {
@@ -878,7 +897,7 @@ describe('AttendanceService', () => {
       }
       expect(thrown).toBeInstanceOf(BadRequestException);
       expect(thrown?.message).toContain(
-        'Conclua esta consulta antes de agendar uma nova.',
+        'Complete this consultation before scheduling a new one.',
       );
     });
 
@@ -899,9 +918,11 @@ describe('AttendanceService', () => {
       const openRootWithPatient = {
         ...mockAttendance,
         scheduled_date: '2025-07-15',
-        patient: { id: 1, name: 'Maria Silva' } as Patient,
+        patient: { id: 1, name: 'Emily Williams' } as Patient,
       };
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(openRootWithPatient as Attendance);
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(openRootWithPatient as Attendance);
 
       let thrown: Error | null = null;
       try {
@@ -911,10 +932,10 @@ describe('AttendanceService', () => {
       }
       expect(thrown).toBeInstanceOf(BadRequestException);
       expect(thrown?.message).toContain(
-        'Conclua esta consulta antes de agendar uma nova.',
+        'Complete this consultation before scheduling a new one.',
       );
-      expect(thrown?.message).toContain('Maria Silva');
-      expect(thrown?.message).toContain('15/07/2025'); // formatDateBR('2025-07-15')
+      expect(thrown?.message).toContain('Emily Williams');
+      expect(thrown?.message).toContain('07/15/2025'); // formatDisplayDate('2025-07-15')
     });
 
     it('should throw BadRequestException when patient already has attendance for same date and type', async () => {
@@ -927,11 +948,18 @@ describe('AttendanceService', () => {
       };
 
       const dayFinalizationService = module.get(DayFinalizationService);
-      jest.spyOn(dayFinalizationService, 'getFinalizationStatus').mockResolvedValue(null);
+      jest
+        .spyOn(dayFinalizationService, 'getFinalizationStatus')
+        .mockResolvedValue(null);
       const holidayService = module.get(HolidayService);
-      jest.spyOn(holidayService, 'isHolidayForTreatment').mockResolvedValue(false);
+      jest
+        .spyOn(holidayService, 'isHolidayForTreatment')
+        .mockResolvedValue(false);
       jest.spyOn(repository, 'count').mockImplementation((options: any) => {
-        if (options?.where?.scheduled_date === '2025-07-22' && options?.where?.patient_id === 1)
+        if (
+          options?.where?.scheduled_date === '2025-07-22' &&
+          options?.where?.patient_id === 1
+        )
           return Promise.resolve(1);
         return Promise.resolve(0);
       });
@@ -951,7 +979,7 @@ describe('AttendanceService', () => {
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
       await expect(service.create(dto)).rejects.toThrow(
-        'Este paciente já possui consulta agendada para esta data.',
+        'This patient already has a consultation scheduled for this date.',
       );
     });
 
@@ -987,15 +1015,17 @@ describe('AttendanceService', () => {
     });
 
     it('should not throw when all dates have active setting with max_concurrent_physiotherapy_tens > 0', async () => {
-      jest.spyOn(scheduleSettingRepository, 'findOne').mockImplementation((opts: any) => {
-        const dayOfWeek = opts?.where?.day_of_week;
-        return Promise.resolve({
-          id: 1,
-          day_of_week: dayOfWeek,
-          is_active: true,
-          max_concurrent_physiotherapy_tens: 2,
-        } as ScheduleSetting);
-      });
+      jest
+        .spyOn(scheduleSettingRepository, 'findOne')
+        .mockImplementation((opts: any) => {
+          const dayOfWeek = opts?.where?.day_of_week;
+          return Promise.resolve({
+            id: 1,
+            day_of_week: dayOfWeek,
+            is_active: true,
+            max_concurrent_physiotherapy_tens: 2,
+          } as ScheduleSetting);
+        });
 
       await expect(
         service.validateTreatmentSlotsForDates(['2025-07-22', '2025-07-29']),
@@ -1010,7 +1040,7 @@ describe('AttendanceService', () => {
       ).rejects.toThrow(BadRequestException);
       await expect(
         service.validateTreatmentSlotsForDates(['2025-07-22']),
-      ).rejects.toThrow(/não possuem vagas para tratamentos/);
+      ).rejects.toThrow(/do not have treatment slots/);
     });
 
     it('should throw BadRequestException when a date has inactive setting', async () => {
@@ -1079,16 +1109,16 @@ describe('AttendanceService', () => {
           if (attendanceId === 99) {
             return Promise.resolve([
               {
-                body_location: 'Cervical',
-                color: 'Azul',
+                body_location: 'Neck',
+                color: 'Blue',
               },
             ]);
           }
           if (attendanceId === 10) {
             return Promise.resolve([
               {
-                body_location: 'Cervical',
-                color: 'Azul',
+                body_location: 'Neck',
+                color: 'Blue',
               },
             ]);
           }
@@ -1117,14 +1147,10 @@ describe('AttendanceService', () => {
         .spyOn(sessionService, 'getSessionsByAttendance')
         .mockImplementation((attendanceId: number) => {
           if (attendanceId === 99) {
-            return Promise.resolve([
-              { body_location: 'Cervical', color: 'Azul' },
-            ]);
+            return Promise.resolve([{ body_location: 'Neck', color: 'Blue' }]);
           }
           if (attendanceId === 10) {
-            return Promise.resolve([
-              { body_location: 'Cervical', color: 'Vermelho' },
-            ]);
+            return Promise.resolve([{ body_location: 'Neck', color: 'Red' }]);
           }
           return Promise.resolve([]);
         });
@@ -1214,7 +1240,7 @@ describe('AttendanceService', () => {
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           status: AttendanceStatus.CANCELLED,
-        })
+        }),
       );
     });
 
@@ -1247,11 +1273,9 @@ describe('AttendanceService', () => {
         status: AttendanceStatus.MISSED,
       } as Attendance;
 
-      jest
-        .spyOn(repository, 'findOne')
-        .mockResolvedValueOnce(missedAttendance);
+      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(missedAttendance);
 
-      await expect(service.cancel(1, 'Faltas consecutivas')).rejects.toThrow(
+      await expect(service.cancel(1, 'Missed — consecutive')).rejects.toThrow(
         InvalidAttendanceStatusTransitionException,
       );
     });
@@ -1259,9 +1283,19 @@ describe('AttendanceService', () => {
 
   describe('findOpenAttendancesByPatientId and cancelOpenAttendancesForPatient', () => {
     it('findOpenAttendancesByPatientId should only return scheduled, checked_in, in_progress', async () => {
-      const scheduled = { ...mockAttendance, id: 1, status: AttendanceStatus.SCHEDULED };
-      const checkedIn = { ...mockAttendance, id: 2, status: AttendanceStatus.CHECKED_IN };
-      jest.spyOn(repository, 'find').mockResolvedValueOnce([scheduled, checkedIn] as Attendance[]);
+      const scheduled = {
+        ...mockAttendance,
+        id: 1,
+        status: AttendanceStatus.SCHEDULED,
+      };
+      const checkedIn = {
+        ...mockAttendance,
+        id: 2,
+        status: AttendanceStatus.CHECKED_IN,
+      };
+      jest
+        .spyOn(repository, 'find')
+        .mockResolvedValueOnce([scheduled, checkedIn] as Attendance[]);
 
       const result = await service.findOpenAttendancesByPatientId(1);
 
@@ -1274,51 +1308,118 @@ describe('AttendanceService', () => {
         }),
       );
       expect(result).toHaveLength(2);
-      expect(result.map((a) => a.status)).toEqual([AttendanceStatus.SCHEDULED, AttendanceStatus.CHECKED_IN]);
+      expect(result.map((a) => a.status)).toEqual([
+        AttendanceStatus.SCHEDULED,
+        AttendanceStatus.CHECKED_IN,
+      ]);
     });
 
     it('cancelOpenAttendancesForPatient should only cancel scheduled, checked_in, in_progress (never missed)', async () => {
-      const scheduledAtt = { ...mockAttendance, id: 10, status: AttendanceStatus.SCHEDULED, scheduled_date: '2025-02-01', type: 'assessment' };
-      const missedAtt = { ...mockAttendance, id: 20, status: AttendanceStatus.MISSED, scheduled_date: '2025-01-15', type: 'assessment' };
+      const scheduledAtt = {
+        ...mockAttendance,
+        id: 10,
+        status: AttendanceStatus.SCHEDULED,
+        scheduled_date: '2025-02-01',
+        type: 'assessment',
+      };
+      const missedAtt = {
+        ...mockAttendance,
+        id: 20,
+        status: AttendanceStatus.MISSED,
+        scheduled_date: '2025-01-15',
+        type: 'assessment',
+      };
       // Simulate find returning both (e.g. if query were wrong): defensive filter must exclude MISSED
-      jest.spyOn(repository, 'find').mockResolvedValueOnce([scheduledAtt, missedAtt] as Attendance[]);
-      const cancelSpy = jest.spyOn(service, 'cancel').mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(repository, 'find')
+        .mockResolvedValueOnce([scheduledAtt, missedAtt] as Attendance[]);
+      const cancelSpy = jest
+        .spyOn(service, 'cancel')
+        .mockResolvedValueOnce(undefined);
 
-      const result = await service.cancelOpenAttendancesForPatient(1, 'Faltas consecutivas');
+      const result = await service.cancelOpenAttendancesForPatient(
+        1,
+        'Missed — consecutive',
+      );
 
       // Only the SCHEDULED attendance should be cancelled (defensive filter excludes MISSED)
       expect(cancelSpy).toHaveBeenCalledTimes(1);
-      expect(cancelSpy).toHaveBeenCalledWith(10, 'Faltas consecutivas');
-      expect(result).toEqual([{ id: 10, type: 'assessment', scheduled_date: '2025-02-01' }]);
+      expect(cancelSpy).toHaveBeenCalledWith(10, 'Missed — consecutive');
+      expect(result).toEqual([
+        { id: 10, type: 'assessment', scheduled_date: '2025-02-01' },
+      ]);
     });
 
     it('cancelOpenAttendancesForPatient should exclude given attendance IDs (e.g. just-completed)', async () => {
-      const completedAtt = { ...mockAttendance, id: 10, status: AttendanceStatus.IN_PROGRESS, scheduled_date: '2025-02-01', type: 'assessment' };
-      const scheduledAtt = { ...mockAttendance, id: 20, status: AttendanceStatus.SCHEDULED, scheduled_date: '2025-02-15', type: 'assessment' };
-      jest.spyOn(repository, 'find').mockResolvedValueOnce([completedAtt, scheduledAtt] as Attendance[]);
-      const cancelSpy = jest.spyOn(service, 'cancel').mockResolvedValueOnce(undefined);
+      const completedAtt = {
+        ...mockAttendance,
+        id: 10,
+        status: AttendanceStatus.IN_PROGRESS,
+        scheduled_date: '2025-02-01',
+        type: 'assessment',
+      };
+      const scheduledAtt = {
+        ...mockAttendance,
+        id: 20,
+        status: AttendanceStatus.SCHEDULED,
+        scheduled_date: '2025-02-15',
+        type: 'assessment',
+      };
+      jest
+        .spyOn(repository, 'find')
+        .mockResolvedValueOnce([completedAtt, scheduledAtt] as Attendance[]);
+      const cancelSpy = jest
+        .spyOn(service, 'cancel')
+        .mockResolvedValueOnce(undefined);
 
-      const result = await service.cancelOpenAttendancesForPatient(1, 'Alta médica', {
-        excludeAttendanceIds: [10],
-      });
+      const result = await service.cancelOpenAttendancesForPatient(
+        1,
+        'Discharged',
+        {
+          excludeAttendanceIds: [10],
+        },
+      );
 
       // Only attendance 20 should be cancelled; 10 is excluded
       expect(cancelSpy).toHaveBeenCalledTimes(1);
-      expect(cancelSpy).toHaveBeenCalledWith(20, 'Alta médica');
-      expect(result).toEqual([{ id: 20, type: 'assessment', scheduled_date: '2025-02-15' }]);
+      expect(cancelSpy).toHaveBeenCalledWith(20, 'Discharged');
+      expect(result).toEqual([
+        { id: 20, type: 'assessment', scheduled_date: '2025-02-15' },
+      ]);
     });
 
     it('cancelOpenAttendancesByIds should only cancel open statuses (never missed or completed)', async () => {
-      const scheduledAtt = { ...mockAttendance, id: 10, status: AttendanceStatus.SCHEDULED, scheduled_date: '2025-02-01', type: 'assessment' };
-      const missedAtt = { ...mockAttendance, id: 20, status: AttendanceStatus.MISSED, scheduled_date: '2025-01-15', type: 'assessment' };
-      jest.spyOn(repository, 'find').mockResolvedValueOnce([scheduledAtt, missedAtt] as Attendance[]);
-      const cancelSpy = jest.spyOn(service, 'cancel').mockResolvedValueOnce(undefined);
+      const scheduledAtt = {
+        ...mockAttendance,
+        id: 10,
+        status: AttendanceStatus.SCHEDULED,
+        scheduled_date: '2025-02-01',
+        type: 'assessment',
+      };
+      const missedAtt = {
+        ...mockAttendance,
+        id: 20,
+        status: AttendanceStatus.MISSED,
+        scheduled_date: '2025-01-15',
+        type: 'assessment',
+      };
+      jest
+        .spyOn(repository, 'find')
+        .mockResolvedValueOnce([scheduledAtt, missedAtt] as Attendance[]);
+      const cancelSpy = jest
+        .spyOn(service, 'cancel')
+        .mockResolvedValueOnce(undefined);
 
-      const result = await service.cancelOpenAttendancesByIds([10, 20], 'Session cancelled');
+      const result = await service.cancelOpenAttendancesByIds(
+        [10, 20],
+        'Session cancelled',
+      );
 
       expect(cancelSpy).toHaveBeenCalledTimes(1);
       expect(cancelSpy).toHaveBeenCalledWith(10, 'Session cancelled');
-      expect(result).toEqual([{ id: 10, type: 'assessment', scheduled_date: '2025-02-01' }]);
+      expect(result).toEqual([
+        { id: 10, type: 'assessment', scheduled_date: '2025-02-01' },
+      ]);
     });
   });
 
@@ -1338,7 +1439,7 @@ describe('AttendanceService', () => {
           notes: 'Updated notes only',
           updated_date: expect.any(String),
           updated_time: expect.any(String),
-        })
+        }),
       );
       expect(repository.save).toHaveBeenCalled();
     });
@@ -1369,22 +1470,24 @@ describe('AttendanceService', () => {
         updated_time: '09:00:00',
       } as ScheduleSetting);
 
-      jest
-        .spyOn(repository, 'count')
-        .mockImplementation((options: unknown) => {
-          const where = (options as { where?: { type?: AttendanceType; status?: AttendanceStatus } }).where;
-
-          // Concurrent slot count for physiotherapy attendances
-          if (
-            where?.type === AttendanceType.PHYSIOTHERAPY &&
-            where.status === AttendanceStatus.SCHEDULED
-          ) {
-            return Promise.resolve(1);
+      jest.spyOn(repository, 'count').mockImplementation((options: unknown) => {
+        const where = (
+          options as {
+            where?: { type?: AttendanceType; status?: AttendanceStatus };
           }
+        ).where;
 
-          // Default to 0 for other count calls (e.g., completed root or duplicate checks)
-          return Promise.resolve(0);
-        });
+        // Concurrent slot count for physiotherapy attendances
+        if (
+          where?.type === AttendanceType.PHYSIOTHERAPY &&
+          where.status === AttendanceStatus.SCHEDULED
+        ) {
+          return Promise.resolve(1);
+        }
+
+        // Default to 0 for other count calls (e.g., completed root or duplicate checks)
+        return Promise.resolve(0);
+      });
 
       const dto: CreateAttendanceDto = {
         patient_id: 1,
@@ -1418,22 +1521,24 @@ describe('AttendanceService', () => {
         updated_time: '09:00:00',
       } as ScheduleSetting);
 
-      jest
-        .spyOn(repository, 'count')
-        .mockImplementation((options: unknown) => {
-          const where = (options as { where?: { type?: AttendanceType; status?: AttendanceStatus } }).where;
-
-          // Concurrent slot count below limit for assessment attendances
-          if (
-            where?.type === AttendanceType.ASSESSMENT &&
-            where.status === AttendanceStatus.SCHEDULED
-          ) {
-            return Promise.resolve(1);
+      jest.spyOn(repository, 'count').mockImplementation((options: unknown) => {
+        const where = (
+          options as {
+            where?: { type?: AttendanceType; status?: AttendanceStatus };
           }
+        ).where;
 
-          // Default to 0 for other count calls (e.g., completed root or duplicate checks)
-          return Promise.resolve(0);
-        });
+        // Concurrent slot count below limit for assessment attendances
+        if (
+          where?.type === AttendanceType.ASSESSMENT &&
+          where.status === AttendanceStatus.SCHEDULED
+        ) {
+          return Promise.resolve(1);
+        }
+
+        // Default to 0 for other count calls (e.g., completed root or duplicate checks)
+        return Promise.resolve(0);
+      });
 
       const dto: CreateAttendanceDto = {
         patient_id: 1,
@@ -1589,8 +1694,12 @@ describe('AttendanceService', () => {
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(mockCheckedInAttendance);
-      jest.spyOn(repository, 'merge').mockReturnValueOnce(mockCheckedInAttendance);
-      jest.spyOn(repository, 'save').mockResolvedValueOnce(mockCheckedInAttendance);
+      jest
+        .spyOn(repository, 'merge')
+        .mockReturnValueOnce(mockCheckedInAttendance);
+      jest
+        .spyOn(repository, 'save')
+        .mockResolvedValueOnce(mockCheckedInAttendance);
 
       await service.update(1, updateDto);
       expect(repository.save).toHaveBeenCalled();
@@ -1610,8 +1719,12 @@ describe('AttendanceService', () => {
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(mockCheckedInAttendance);
-      jest.spyOn(repository, 'merge').mockReturnValueOnce(mockCheckedInAttendance);
-      jest.spyOn(repository, 'save').mockResolvedValueOnce(mockCheckedInAttendance);
+      jest
+        .spyOn(repository, 'merge')
+        .mockReturnValueOnce(mockCheckedInAttendance);
+      jest
+        .spyOn(repository, 'save')
+        .mockResolvedValueOnce(mockCheckedInAttendance);
 
       await service.update(1, updateDto);
       expect(repository.save).toHaveBeenCalled();
@@ -1651,8 +1764,12 @@ describe('AttendanceService', () => {
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(mockCancelledAttendance);
-      jest.spyOn(repository, 'merge').mockReturnValueOnce(mockCancelledAttendance);
-      jest.spyOn(repository, 'save').mockResolvedValueOnce(mockCancelledAttendance);
+      jest
+        .spyOn(repository, 'merge')
+        .mockReturnValueOnce(mockCancelledAttendance);
+      jest
+        .spyOn(repository, 'save')
+        .mockResolvedValueOnce(mockCancelledAttendance);
 
       await service.update(1, updateDto);
       expect(repository.save).toHaveBeenCalled();
@@ -1705,18 +1822,20 @@ describe('AttendanceService', () => {
           },
         ]),
       };
-      
-      jest.spyOn(repository, 'createQueryBuilder').mockReturnValueOnce(mockQueryBuilderForFilters as any);
+
+      jest
+        .spyOn(repository, 'createQueryBuilder')
+        .mockReturnValueOnce(mockQueryBuilderForFilters as any);
 
       const result = await service.findAllForAgenda(filters);
 
       expect(mockQueryBuilderForFilters.andWhere).toHaveBeenCalledWith(
         'attendance.status IN (:...statuses)',
-        { statuses: [AttendanceStatus.SCHEDULED] }
+        { statuses: [AttendanceStatus.SCHEDULED] },
       );
       expect(mockQueryBuilderForFilters.andWhere).toHaveBeenCalledWith(
         'attendance.type = :type',
-        { type: 'assessment' }
+        { type: 'assessment' },
       );
       expect(mockQueryBuilderForFilters.andWhere).toHaveBeenCalledWith(
         'attendance.scheduled_date >= :fromDate',
@@ -1742,7 +1861,9 @@ describe('AttendanceService', () => {
         getRawMany: jest.fn().mockResolvedValue([]),
       };
 
-      jest.spyOn(repository, 'createQueryBuilder').mockReturnValueOnce(mockQueryBuilderForFilters as any);
+      jest
+        .spyOn(repository, 'createQueryBuilder')
+        .mockReturnValueOnce(mockQueryBuilderForFilters as any);
 
       await service.findAllForAgenda({
         statuses: [AttendanceStatus.SCHEDULED, AttendanceStatus.COMPLETED],
@@ -1777,8 +1898,10 @@ describe('AttendanceService', () => {
           scheduled_date: '2025-07-23', // String format
         }),
       };
-      
-      jest.spyOn(repository, 'createQueryBuilder').mockReturnValueOnce(mockQueryBuilderForString as any);
+
+      jest
+        .spyOn(repository, 'createQueryBuilder')
+        .mockReturnValueOnce(mockQueryBuilderForString as any);
 
       const result = await service.findNextScheduledDate();
 
@@ -1795,8 +1918,10 @@ describe('AttendanceService', () => {
         orderBy: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(null),
       };
-      
-      jest.spyOn(repository, 'createQueryBuilder').mockReturnValueOnce(mockQueryBuilderForNull as any);
+
+      jest
+        .spyOn(repository, 'createQueryBuilder')
+        .mockReturnValueOnce(mockQueryBuilderForNull as any);
 
       const result = await service.findNextScheduledDate();
 
@@ -1813,8 +1938,10 @@ describe('AttendanceService', () => {
           scheduled_date: '2025-07-25', // String format
         }),
       };
-      
-      jest.spyOn(repository, 'createQueryBuilder').mockReturnValueOnce(mockQueryBuilderForString as any);
+
+      jest
+        .spyOn(repository, 'createQueryBuilder')
+        .mockReturnValueOnce(mockQueryBuilderForString as any);
 
       const result = await service.findNextScheduledDate();
 
@@ -1829,10 +1956,14 @@ describe('AttendanceService', () => {
         orderBy: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockRejectedValue(new Error('Database error')),
       };
-      
-      jest.spyOn(repository, 'createQueryBuilder').mockReturnValueOnce(mockQueryBuilderForError as any);
 
-      await expect(service.findNextScheduledDate()).rejects.toThrow('Database error');
+      jest
+        .spyOn(repository, 'createQueryBuilder')
+        .mockReturnValueOnce(mockQueryBuilderForError as any);
+
+      await expect(service.findNextScheduledDate()).rejects.toThrow(
+        'Database error',
+      );
     });
   });
 
@@ -1858,7 +1989,9 @@ describe('AttendanceService', () => {
     ];
 
     it('should return attendance statistics for a date', async () => {
-      jest.spyOn(repository, 'find').mockResolvedValueOnce(mockAttendances as any);
+      jest
+        .spyOn(repository, 'find')
+        .mockResolvedValueOnce(mockAttendances as any);
 
       const result = await service.getAttendanceStats('2025-07-22');
 
@@ -1894,14 +2027,36 @@ describe('AttendanceService', () => {
 
     it('should handle all attendance statuses correctly', async () => {
       const allStatusAttendances = [
-        { ...mockAttendance, status: AttendanceStatus.SCHEDULED, type: 'assessment' },
-        { ...mockAttendance, status: AttendanceStatus.CHECKED_IN, type: 'assessment' },
-        { ...mockAttendance, status: AttendanceStatus.IN_PROGRESS, type: 'physiotherapy' },
-        { ...mockAttendance, status: AttendanceStatus.COMPLETED, type: 'physiotherapy' },
-        { ...mockAttendance, status: AttendanceStatus.CANCELLED, type: 'assessment' },
+        {
+          ...mockAttendance,
+          status: AttendanceStatus.SCHEDULED,
+          type: 'assessment',
+        },
+        {
+          ...mockAttendance,
+          status: AttendanceStatus.CHECKED_IN,
+          type: 'assessment',
+        },
+        {
+          ...mockAttendance,
+          status: AttendanceStatus.IN_PROGRESS,
+          type: 'physiotherapy',
+        },
+        {
+          ...mockAttendance,
+          status: AttendanceStatus.COMPLETED,
+          type: 'physiotherapy',
+        },
+        {
+          ...mockAttendance,
+          status: AttendanceStatus.CANCELLED,
+          type: 'assessment',
+        },
       ];
 
-      jest.spyOn(repository, 'find').mockResolvedValueOnce(allStatusAttendances as any);
+      jest
+        .spyOn(repository, 'find')
+        .mockResolvedValueOnce(allStatusAttendances as any);
 
       const result = await service.getAttendanceStats('2025-07-22');
 
@@ -1954,17 +2109,19 @@ describe('AttendanceService', () => {
         absence_notes: '',
       };
 
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(mockScheduledAttendance);
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(mockScheduledAttendance);
 
       await service.update(1, updateDto);
 
       expect(patientRepository.findOne).toHaveBeenCalledWith({
-        where: { id: mockAttendance.patient_id }
+        where: { id: mockAttendance.patient_id },
       });
       expect(patientRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           missing_appointments_streak: 1,
-        })
+        }),
       );
     });
 
@@ -1974,8 +2131,13 @@ describe('AttendanceService', () => {
         status: AttendanceStatus.SCHEDULED,
       };
 
-      const patientWithStreak = { ...mockPatient, missing_appointments_streak: 2 };
-      jest.spyOn(patientRepository, 'findOne').mockResolvedValueOnce(patientWithStreak);
+      const patientWithStreak = {
+        ...mockPatient,
+        missing_appointments_streak: 2,
+      };
+      jest
+        .spyOn(patientRepository, 'findOne')
+        .mockResolvedValueOnce(patientWithStreak);
 
       const updateDto = {
         status: AttendanceStatus.MISSED,
@@ -1983,20 +2145,27 @@ describe('AttendanceService', () => {
         absence_notes: 'Medical emergency',
       };
 
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(mockScheduledAttendance);
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(mockScheduledAttendance);
 
       await service.update(1, updateDto);
 
       expect(patientRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           missing_appointments_streak: 0,
-        })
+        }),
       );
     });
 
     it('should reset missing_appointments_streak to 0 when completing attendance', async () => {
-      const patientWithStreak = { ...mockPatient, missing_appointments_streak: 3 };
-      jest.spyOn(patientRepository, 'findOne').mockResolvedValueOnce(patientWithStreak);
+      const patientWithStreak = {
+        ...mockPatient,
+        missing_appointments_streak: 3,
+      };
+      jest
+        .spyOn(patientRepository, 'findOne')
+        .mockResolvedValueOnce(patientWithStreak);
 
       const mockInProgressAttendance = {
         ...mockAttendance,
@@ -2007,14 +2176,16 @@ describe('AttendanceService', () => {
         status: AttendanceStatus.COMPLETED,
       };
 
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(mockInProgressAttendance);
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(mockInProgressAttendance);
 
       await service.update(1, updateDto);
 
       expect(patientRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           missing_appointments_streak: 0,
-        })
+        }),
       );
     });
 
@@ -2028,7 +2199,9 @@ describe('AttendanceService', () => {
         status: AttendanceStatus.CHECKED_IN,
       };
 
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(mockScheduledAttendance);
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(mockScheduledAttendance);
 
       await service.update(1, updateDto);
 
@@ -2050,12 +2223,14 @@ describe('AttendanceService', () => {
         absence_justified: false,
       };
 
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(mockScheduledAttendance);
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(mockScheduledAttendance);
 
       await service.update(1, updateDto);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Patient 1 not found')
+        expect.stringContaining('Patient 1 not found'),
       );
       consoleErrorSpy.mockRestore();
     });
@@ -2074,9 +2249,9 @@ describe('AttendanceService', () => {
         getRawMany: jest.fn().mockResolvedValue([]),
       };
 
-      jest.spyOn(repository, 'createQueryBuilder').mockReturnValue(
-        mockQueryBuilder as any,
-      );
+      jest
+        .spyOn(repository, 'createQueryBuilder')
+        .mockReturnValue(mockQueryBuilder as any);
 
       const result = await service.findUnresolvedPastDates();
 
@@ -2123,9 +2298,9 @@ describe('AttendanceService', () => {
         getRawMany: jest.fn().mockResolvedValue(mockUnresolvedData),
       };
 
-      jest.spyOn(repository, 'createQueryBuilder').mockReturnValue(
-        mockQueryBuilder as any,
-      );
+      jest
+        .spyOn(repository, 'createQueryBuilder')
+        .mockReturnValue(mockQueryBuilder as any);
 
       const result = await service.findUnresolvedPastDates();
 
@@ -2155,9 +2330,9 @@ describe('AttendanceService', () => {
         getRawMany: jest.fn().mockResolvedValue([]),
       };
 
-      jest.spyOn(repository, 'createQueryBuilder').mockReturnValue(
-        mockQueryBuilder as any,
-      );
+      jest
+        .spyOn(repository, 'createQueryBuilder')
+        .mockReturnValue(mockQueryBuilder as any);
 
       await service.findUnresolvedPastDates();
 
@@ -2179,9 +2354,9 @@ describe('AttendanceService', () => {
         getRawMany: jest.fn().mockResolvedValue([]),
       };
 
-      jest.spyOn(repository, 'createQueryBuilder').mockReturnValue(
-        mockQueryBuilder as any,
-      );
+      jest
+        .spyOn(repository, 'createQueryBuilder')
+        .mockReturnValue(mockQueryBuilder as any);
 
       await service.findUnresolvedPastDates();
 
@@ -2200,9 +2375,9 @@ describe('AttendanceService', () => {
         getRawMany: jest.fn().mockResolvedValue([]),
       };
 
-      jest.spyOn(repository, 'createQueryBuilder').mockReturnValue(
-        mockQueryBuilder as any,
-      );
+      jest
+        .spyOn(repository, 'createQueryBuilder')
+        .mockReturnValue(mockQueryBuilder as any);
 
       await service.findUnresolvedPastDates();
 
@@ -2244,28 +2419,41 @@ describe('AttendanceService', () => {
         scheduled_time: '14:00:00',
       };
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(assessmentAttendance as Attendance);
+      jest
+        .spyOn(service, 'findOne')
+        .mockResolvedValue(assessmentAttendance as Attendance);
       jest.spyOn(repository, 'count').mockResolvedValue(0);
-      jest.spyOn(repository, 'save').mockImplementation(async (attendance: any) => {
-        return {
-          ...attendance,
-          scheduled_date: newDate,
-        };
-      });
+      jest
+        .spyOn(repository, 'save')
+        .mockImplementation(async (attendance: any) => {
+          return {
+            ...attendance,
+            scheduled_date: newDate,
+          };
+        });
 
       const mockHolidayService = module.get(HolidayService);
-      jest.spyOn(mockHolidayService, 'isHolidayForTreatment').mockResolvedValue(false);
+      jest
+        .spyOn(mockHolidayService, 'isHolidayForTreatment')
+        .mockResolvedValue(false);
 
-      const mockScheduleSettingRepo = module.get(getRepositoryToken(ScheduleSetting));
-      jest.spyOn(mockScheduleSettingRepo, 'findOne').mockResolvedValue(mockScheduleSetting);
+      const mockScheduleSettingRepo = module.get(
+        getRepositoryToken(ScheduleSetting),
+      );
+      jest
+        .spyOn(mockScheduleSettingRepo, 'findOne')
+        .mockResolvedValue(mockScheduleSetting);
 
       const mockSessionService = module.get(SessionService);
-      const getSessionsByAttendanceSpy = jest.spyOn(mockSessionService, 'getSessionsByAttendance');
+      const getSessionsByAttendanceSpy = jest.spyOn(
+        mockSessionService,
+        'getSessionsByAttendance',
+      );
 
       const result = await service.postpone(attendanceId, newDate);
 
       expect(result.scheduled_date).toBe(newDate);
-      expect(result.notes).toContain('Reagendado: 2026-02-20 → 2026-03-15');
+      expect(result.notes).toContain('Rescheduled: 2026-02-20 → 2026-03-15');
       // Should NOT call SessionService for assessment attendances
       expect(getSessionsByAttendanceSpy).not.toHaveBeenCalled();
     });
@@ -2296,32 +2484,46 @@ describe('AttendanceService', () => {
         }),
       ];
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(physiotherapyAttendance as Attendance);
+      jest
+        .spyOn(service, 'findOne')
+        .mockResolvedValue(physiotherapyAttendance as Attendance);
       jest.spyOn(repository, 'count').mockResolvedValue(0);
-      jest.spyOn(repository, 'save').mockImplementation(async (attendance: any) => {
-        return { ...attendance };
-      });
+      jest
+        .spyOn(repository, 'save')
+        .mockImplementation(async (attendance: any) => {
+          return { ...attendance };
+        });
 
       const mockHolidayService = module.get(HolidayService);
-      jest.spyOn(mockHolidayService, 'isHolidayForTreatment').mockResolvedValue(false);
+      jest
+        .spyOn(mockHolidayService, 'isHolidayForTreatment')
+        .mockResolvedValue(false);
 
-      const mockScheduleSettingRepo = module.get(getRepositoryToken(ScheduleSetting));
-      jest.spyOn(mockScheduleSettingRepo, 'findOne').mockResolvedValue(mockScheduleSetting);
+      const mockScheduleSettingRepo = module.get(
+        getRepositoryToken(ScheduleSetting),
+      );
+      jest
+        .spyOn(mockScheduleSettingRepo, 'findOne')
+        .mockResolvedValue(mockScheduleSetting);
 
       const mockSessionService = module.get(SessionService);
-      const getSessionsByAttendanceSpy = jest.spyOn(mockSessionService, 'getSessionsByAttendance')
+      const getSessionsByAttendanceSpy = jest
+        .spyOn(mockSessionService, 'getSessionsByAttendance')
         .mockResolvedValue(mockLinkedSessions);
-      const rescheduleSessionSpy = jest.spyOn(mockSessionService, 'rescheduleSession')
-        .mockResolvedValue(mockSessionResponseDto({ id: 1, scheduled_date: newDate }));
+      const rescheduleSessionSpy = jest
+        .spyOn(mockSessionService, 'rescheduleSession')
+        .mockResolvedValue(
+          mockSessionResponseDto({ id: 1, scheduled_date: newDate }),
+        );
 
       const result = await service.postpone(attendanceId, newDate);
 
       expect(result.scheduled_date).toBe(newDate);
-      expect(result.notes).toContain('Reagendado: 2026-02-20 → 2026-03-15');
-      
+      expect(result.notes).toContain('Rescheduled: 2026-02-20 → 2026-03-15');
+
       // Should call SessionService for physiotherapy attendances
       expect(getSessionsByAttendanceSpy).toHaveBeenCalledWith(attendanceId);
-      
+
       // Should reschedule both sessions
       expect(rescheduleSessionSpy).toHaveBeenCalledTimes(2);
       expect(rescheduleSessionSpy).toHaveBeenCalledWith(10, newDate);
@@ -2348,28 +2550,42 @@ describe('AttendanceService', () => {
         }),
       ];
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(tensAttendance as Attendance);
+      jest
+        .spyOn(service, 'findOne')
+        .mockResolvedValue(tensAttendance as Attendance);
       jest.spyOn(repository, 'count').mockResolvedValue(0);
-      jest.spyOn(repository, 'save').mockImplementation(async (attendance: any) => {
-        return { ...attendance };
-      });
+      jest
+        .spyOn(repository, 'save')
+        .mockImplementation(async (attendance: any) => {
+          return { ...attendance };
+        });
 
       const mockHolidayService = module.get(HolidayService);
-      jest.spyOn(mockHolidayService, 'isHolidayForTreatment').mockResolvedValue(false);
+      jest
+        .spyOn(mockHolidayService, 'isHolidayForTreatment')
+        .mockResolvedValue(false);
 
-      const mockScheduleSettingRepo = module.get(getRepositoryToken(ScheduleSetting));
-      jest.spyOn(mockScheduleSettingRepo, 'findOne').mockResolvedValue(mockScheduleSetting);
+      const mockScheduleSettingRepo = module.get(
+        getRepositoryToken(ScheduleSetting),
+      );
+      jest
+        .spyOn(mockScheduleSettingRepo, 'findOne')
+        .mockResolvedValue(mockScheduleSetting);
 
       const mockSessionService = module.get(SessionService);
-      const getSessionsByAttendanceSpy = jest.spyOn(mockSessionService, 'getSessionsByAttendance')
+      const getSessionsByAttendanceSpy = jest
+        .spyOn(mockSessionService, 'getSessionsByAttendance')
         .mockResolvedValue(mockLinkedSessions);
-      const rescheduleSessionSpy = jest.spyOn(mockSessionService, 'rescheduleSession')
-        .mockResolvedValue(mockSessionResponseDto({ id: 1, scheduled_date: newDate }));
+      const rescheduleSessionSpy = jest
+        .spyOn(mockSessionService, 'rescheduleSession')
+        .mockResolvedValue(
+          mockSessionResponseDto({ id: 1, scheduled_date: newDate }),
+        );
 
       const result = await service.postpone(attendanceId, newDate);
 
       expect(result.scheduled_date).toBe(newDate);
-      
+
       // Should call SessionService for tens attendances
       expect(getSessionsByAttendanceSpy).toHaveBeenCalledWith(attendanceId);
       expect(rescheduleSessionSpy).toHaveBeenCalledWith(20, newDate);
@@ -2402,23 +2618,37 @@ describe('AttendanceService', () => {
         }),
       ];
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(physiotherapyAttendance as Attendance);
+      jest
+        .spyOn(service, 'findOne')
+        .mockResolvedValue(physiotherapyAttendance as Attendance);
       jest.spyOn(repository, 'count').mockResolvedValue(0);
-      jest.spyOn(repository, 'save').mockImplementation(async (attendance: any) => {
-        return { ...attendance };
-      });
+      jest
+        .spyOn(repository, 'save')
+        .mockImplementation(async (attendance: any) => {
+          return { ...attendance };
+        });
 
       const mockHolidayService = module.get(HolidayService);
-      jest.spyOn(mockHolidayService, 'isHolidayForTreatment').mockResolvedValue(false);
+      jest
+        .spyOn(mockHolidayService, 'isHolidayForTreatment')
+        .mockResolvedValue(false);
 
-      const mockScheduleSettingRepo = module.get(getRepositoryToken(ScheduleSetting));
-      jest.spyOn(mockScheduleSettingRepo, 'findOne').mockResolvedValue(mockScheduleSetting);
+      const mockScheduleSettingRepo = module.get(
+        getRepositoryToken(ScheduleSetting),
+      );
+      jest
+        .spyOn(mockScheduleSettingRepo, 'findOne')
+        .mockResolvedValue(mockScheduleSetting);
 
       const mockSessionService = module.get(SessionService);
-      jest.spyOn(mockSessionService, 'getSessionsByAttendance')
+      jest
+        .spyOn(mockSessionService, 'getSessionsByAttendance')
         .mockResolvedValue(mockLinkedSessions);
-      const rescheduleSessionSpy = jest.spyOn(mockSessionService, 'rescheduleSession')
-        .mockResolvedValue(mockSessionResponseDto({ id: 1, scheduled_date: newDate }));
+      const rescheduleSessionSpy = jest
+        .spyOn(mockSessionService, 'rescheduleSession')
+        .mockResolvedValue(
+          mockSessionResponseDto({ id: 1, scheduled_date: newDate }),
+        );
 
       await service.postpone(attendanceId, newDate);
 
@@ -2439,7 +2669,9 @@ describe('AttendanceService', () => {
         scheduled_time: '14:00:00',
       };
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(assessmentAttendance as Attendance);
+      jest
+        .spyOn(service, 'findOne')
+        .mockResolvedValue(assessmentAttendance as Attendance);
 
       const dayFinalizationService = module.get(DayFinalizationService);
       jest
@@ -2450,7 +2682,7 @@ describe('AttendanceService', () => {
         BadRequestException,
       );
       await expect(service.postpone(attendanceId, newDate)).rejects.toThrow(
-        'Dia já finalizado. Não é mais possível agendar atendimentos para este dia.',
+        'Day finalized. It is no longer possible to schedule attendances for this day.',
       );
     });
   });
@@ -2502,7 +2734,7 @@ describe('AttendanceService', () => {
           new_scheduled_date: '2026-04-01',
         }),
       ).rejects.toThrow(
-        'Este atendimento já foi reagendado para o dia 22/03/2026',
+        'This attendance has already been rescheduled for 03/22/2026',
       );
     });
 
@@ -2522,7 +2754,9 @@ describe('AttendanceService', () => {
         parent_attendance_id: null,
       };
 
-      jest.spyOn(repository, 'find').mockResolvedValue([cancelledAttendance as Attendance]);
+      jest
+        .spyOn(repository, 'find')
+        .mockResolvedValue([cancelledAttendance as Attendance]);
 
       await expect(
         service.reschedule({
@@ -2536,7 +2770,7 @@ describe('AttendanceService', () => {
           new_scheduled_date: '2026-03-15',
         }),
       ).rejects.toThrow(
-        'Paciente não está em tratamento. Apenas pacientes em tratamento podem reagendar atendimentos.',
+        'Patient is not in treatment. Only patients in treatment can reschedule attendances.',
       );
     });
 
@@ -2563,19 +2797,29 @@ describe('AttendanceService', () => {
         .mockResolvedValueOnce([missedAssessmentAttendance])
         .mockResolvedValueOnce([]); // alreadyRescheduled
       jest.spyOn(repository, 'count').mockResolvedValue(0); // concurrent slot count
-      jest.spyOn(repository, 'create').mockImplementation((dto) => ({ ...dto, id: 2 } as Attendance));
-      jest.spyOn(repository, 'save').mockImplementation(async (att) => ({ ...att, id: 2 } as Attendance));
+      jest
+        .spyOn(repository, 'create')
+        .mockImplementation((dto) => ({ ...dto, id: 2 }) as Attendance);
+      jest
+        .spyOn(repository, 'save')
+        .mockImplementation(async (att) => ({ ...att, id: 2 }) as Attendance);
 
       const dayFinalizationService = module.get(DayFinalizationService);
-      jest.spyOn(dayFinalizationService, 'getFinalizationStatus').mockResolvedValue(null);
+      jest
+        .spyOn(dayFinalizationService, 'getFinalizationStatus')
+        .mockResolvedValue(null);
 
       const holidayService = module.get(HolidayService);
-      jest.spyOn(holidayService, 'isHolidayForTreatment').mockResolvedValue(false);
+      jest
+        .spyOn(holidayService, 'isHolidayForTreatment')
+        .mockResolvedValue(false);
 
       const scheduleSettingRepo = module.get<Repository<ScheduleSetting>>(
         getRepositoryToken(ScheduleSetting),
       );
-      jest.spyOn(scheduleSettingRepo, 'findOne').mockResolvedValue(mockScheduleSettingForReschedule);
+      jest
+        .spyOn(scheduleSettingRepo, 'findOne')
+        .mockResolvedValue(mockScheduleSettingForReschedule);
 
       const result = await service.reschedule({
         attendance_ids: [1],
@@ -2614,7 +2858,10 @@ describe('AttendanceService', () => {
         .mockResolvedValueOnce(attendanceTwo);
       jest
         .spyOn(service, 'postpone')
-        .mockResolvedValueOnce({ ...attendanceOne, scheduled_date: '2026-03-17' } as Attendance)
+        .mockResolvedValueOnce({
+          ...attendanceOne,
+          scheduled_date: '2026-03-17',
+        } as Attendance)
         .mockRejectedValueOnce(new Error('slot unavailable'));
 
       const result = await service.bulkPostpone([1, 2], '2026-03-17', false);
@@ -2622,7 +2869,11 @@ describe('AttendanceService', () => {
       expect(result.success_count).toBe(1);
       expect(result.failure_count).toBe(1);
       expect(result.successes).toEqual([
-        { attendance_id: 1, message: 'Successfully postponed', new_date: '2026-03-17' },
+        {
+          attendance_id: 1,
+          message: 'Successfully postponed',
+          new_date: '2026-03-17',
+        },
       ]);
       expect(result.failures).toEqual([
         { attendance_id: 2, error: 'slot unavailable' },
@@ -2649,7 +2900,7 @@ describe('AttendanceService', () => {
         id: 900,
         type: AttendanceType.ASSESSMENT,
         patient_id: 1,
-        patient: { id: 1, name: 'Paciente Teste' } as unknown as Patient,
+        patient: { id: 1, name: 'Test Patient' } as unknown as Patient,
         scheduled_date: '2026-03-17',
         status: AttendanceStatus.SCHEDULED,
       } as Attendance;
@@ -2661,9 +2912,18 @@ describe('AttendanceService', () => {
         .mockResolvedValueOnce(assessmentReturn);
       jest
         .spyOn(service, 'postpone')
-        .mockResolvedValueOnce({ ...treatmentOne, scheduled_date: '2026-03-24' } as Attendance)
-        .mockResolvedValueOnce({ ...treatmentTwo, scheduled_date: '2026-03-24' } as Attendance)
-        .mockResolvedValueOnce({ ...assessmentReturn, scheduled_date: '2026-04-14' } as Attendance);
+        .mockResolvedValueOnce({
+          ...treatmentOne,
+          scheduled_date: '2026-03-24',
+        } as Attendance)
+        .mockResolvedValueOnce({
+          ...treatmentTwo,
+          scheduled_date: '2026-03-24',
+        } as Attendance)
+        .mockResolvedValueOnce({
+          ...assessmentReturn,
+          scheduled_date: '2026-04-14',
+        } as Attendance);
 
       jest
         .spyOn(service, 'getTreatmentIdForAttendanceId')
@@ -2683,7 +2943,10 @@ describe('AttendanceService', () => {
         ) => Promise<Attendance[]>;
       };
       jest
-        .spyOn(serviceWithReturnFinder, 'findReturnAssessmentAttendancesForTreatment')
+        .spyOn(
+          serviceWithReturnFinder,
+          'findReturnAssessmentAttendancesForTreatment',
+        )
         .mockResolvedValue([assessmentReturn]);
 
       const treatmentService = module.get(TreatmentService);
@@ -2715,7 +2978,7 @@ describe('AttendanceService', () => {
         {
           attendance_id: 900,
           patient_id: 1,
-          patient_name: 'Paciente Teste',
+          patient_name: 'Test Patient',
           old_date: '2026-03-17',
           new_date: '2026-04-14',
         },
@@ -2736,7 +2999,7 @@ describe('AttendanceService', () => {
         id: 901,
         type: AttendanceType.ASSESSMENT,
         patient_id: 1,
-        patient: { id: 1, name: 'Paciente Teste' } as unknown as Patient,
+        patient: { id: 1, name: 'Test Patient' } as unknown as Patient,
         scheduled_date: '2026-03-17',
         status: AttendanceStatus.SCHEDULED,
       } as Attendance;
@@ -2747,7 +3010,10 @@ describe('AttendanceService', () => {
         .mockResolvedValueOnce(assessmentReturn);
       jest
         .spyOn(service, 'postpone')
-        .mockResolvedValueOnce({ ...treatmentAttendance, scheduled_date: '2026-03-24' } as Attendance)
+        .mockResolvedValueOnce({
+          ...treatmentAttendance,
+          scheduled_date: '2026-03-24',
+        } as Attendance)
         .mockRejectedValueOnce(new Error('holiday blocked'));
       jest
         .spyOn(service, 'getTreatmentIdForAttendanceId')
@@ -2765,7 +3031,10 @@ describe('AttendanceService', () => {
         ) => Promise<Attendance[]>;
       };
       jest
-        .spyOn(serviceWithReturnFinder, 'findReturnAssessmentAttendancesForTreatment')
+        .spyOn(
+          serviceWithReturnFinder,
+          'findReturnAssessmentAttendancesForTreatment',
+        )
         .mockResolvedValue([assessmentReturn]);
 
       const treatmentService = module.get(TreatmentService);
@@ -2807,13 +3076,15 @@ describe('AttendanceService', () => {
       id: 900,
       type: AttendanceType.ASSESSMENT,
       patient_id: 1,
-      patient: { id: 1, name: 'Paciente Teste' } as unknown as Patient,
+      patient: { id: 1, name: 'Test Patient' } as unknown as Patient,
       scheduled_date: '2026-06-24',
       status: AttendanceStatus.SCHEDULED,
     } as Attendance;
 
     it('should return rescheduled=false when no treatment is linked', async () => {
-      jest.spyOn(service, 'getTreatmentIdForAttendanceId').mockResolvedValueOnce(null);
+      jest
+        .spyOn(service, 'getTreatmentIdForAttendanceId')
+        .mockResolvedValueOnce(null);
 
       const result = await service.recomputeReturnForEpisode(5);
 
@@ -2821,15 +3092,19 @@ describe('AttendanceService', () => {
     });
 
     it('should return rescheduled=false when return_when_treatment_complete=false and return_weeks=0', async () => {
-      jest.spyOn(service, 'getTreatmentIdForAttendanceId').mockResolvedValueOnce(10);
+      jest
+        .spyOn(service, 'getTreatmentIdForAttendanceId')
+        .mockResolvedValueOnce(10);
       const treatmentService = module.get(TreatmentService);
-      jest.spyOn(treatmentService, 'getSessionWithReturnConfig').mockResolvedValueOnce({
-        attendance_id: 100,
-        patient_id: 1,
-        consultation_id: 50,
-        return_weeks: 0,
-        return_when_treatment_complete: false,
-      });
+      jest
+        .spyOn(treatmentService, 'getSessionWithReturnConfig')
+        .mockResolvedValueOnce({
+          attendance_id: 100,
+          patient_id: 1,
+          consultation_id: 50,
+          return_weeks: 0,
+          return_when_treatment_complete: false,
+        });
 
       const result = await service.recomputeReturnForEpisode(5);
 
@@ -2837,18 +3112,26 @@ describe('AttendanceService', () => {
     });
 
     it('should return rescheduled=false when no scheduled sessions exist for consultation treatments', async () => {
-      jest.spyOn(service, 'getTreatmentIdForAttendanceId').mockResolvedValueOnce(10);
+      jest
+        .spyOn(service, 'getTreatmentIdForAttendanceId')
+        .mockResolvedValueOnce(10);
       const treatmentService = module.get(TreatmentService);
-      jest.spyOn(treatmentService, 'getSessionWithReturnConfig').mockResolvedValueOnce({
-        attendance_id: 100,
-        patient_id: 1,
-        consultation_id: 50,
-        return_weeks: 1,
-        return_when_treatment_complete: true,
-      });
-      jest.spyOn(treatmentService, 'getTreatmentIdsByConsultationId').mockResolvedValueOnce([10, 11]);
+      jest
+        .spyOn(treatmentService, 'getSessionWithReturnConfig')
+        .mockResolvedValueOnce({
+          attendance_id: 100,
+          patient_id: 1,
+          consultation_id: 50,
+          return_weeks: 1,
+          return_when_treatment_complete: true,
+        });
+      jest
+        .spyOn(treatmentService, 'getTreatmentIdsByConsultationId')
+        .mockResolvedValueOnce([10, 11]);
       const recordService = module.get(SessionService);
-      jest.spyOn(recordService, 'getMaxScheduledDateForTreatment').mockResolvedValue(null);
+      jest
+        .spyOn(recordService, 'getMaxScheduledDateForTreatment')
+        .mockResolvedValue(null);
 
       const result = await service.recomputeReturnForEpisode(5);
 
@@ -2856,25 +3139,41 @@ describe('AttendanceService', () => {
     });
 
     it('should return rescheduled=false when return is already at the computed date', async () => {
-      jest.spyOn(service, 'getTreatmentIdForAttendanceId').mockResolvedValueOnce(10);
+      jest
+        .spyOn(service, 'getTreatmentIdForAttendanceId')
+        .mockResolvedValueOnce(10);
       const treatmentService = module.get(TreatmentService);
-      jest.spyOn(treatmentService, 'getSessionWithReturnConfig').mockResolvedValueOnce({
-        attendance_id: 100,
-        patient_id: 1,
-        consultation_id: 50,
-        return_weeks: 1,
-        return_when_treatment_complete: true,
-      });
-      jest.spyOn(treatmentService, 'getTreatmentIdsByConsultationId').mockResolvedValueOnce([10]);
+      jest
+        .spyOn(treatmentService, 'getSessionWithReturnConfig')
+        .mockResolvedValueOnce({
+          attendance_id: 100,
+          patient_id: 1,
+          consultation_id: 50,
+          return_weeks: 1,
+          return_when_treatment_complete: true,
+        });
+      jest
+        .spyOn(treatmentService, 'getTreatmentIdsByConsultationId')
+        .mockResolvedValueOnce([10]);
       const recordService = module.get(SessionService);
-      jest.spyOn(recordService, 'getMaxScheduledDateForTreatment').mockResolvedValueOnce('2026-06-24');
-      jest.spyOn(service, 'findNextSchedulableDate').mockResolvedValueOnce('2026-07-01');
+      jest
+        .spyOn(recordService, 'getMaxScheduledDateForTreatment')
+        .mockResolvedValueOnce('2026-06-24');
+      jest
+        .spyOn(service, 'findNextSchedulableDate')
+        .mockResolvedValueOnce('2026-07-01');
 
       const serviceWithFinder = service as unknown as {
-        findReturnAssessmentAttendancesForTreatment: (tid: number, minDate: string) => Promise<Attendance[]>;
+        findReturnAssessmentAttendancesForTreatment: (
+          tid: number,
+          minDate: string,
+        ) => Promise<Attendance[]>;
       };
-      jest.spyOn(serviceWithFinder, 'findReturnAssessmentAttendancesForTreatment')
-        .mockResolvedValueOnce([{ ...returnAttendance, scheduled_date: '2026-07-01' } as Attendance]);
+      jest
+        .spyOn(serviceWithFinder, 'findReturnAssessmentAttendancesForTreatment')
+        .mockResolvedValueOnce([
+          { ...returnAttendance, scheduled_date: '2026-07-01' } as Attendance,
+        ]);
 
       const result = await service.recomputeReturnForEpisode(5);
 
@@ -2883,27 +3182,39 @@ describe('AttendanceService', () => {
 
     it('should recompute return date using max session across all consultation treatments', async () => {
       // Two treatments: T1 last session Jun 24, T2 last session Jun 17. Max = Jun 24. return_weeks=1 → Jul 1.
-      jest.spyOn(service, 'getTreatmentIdForAttendanceId').mockResolvedValueOnce(10);
+      jest
+        .spyOn(service, 'getTreatmentIdForAttendanceId')
+        .mockResolvedValueOnce(10);
       const treatmentService = module.get(TreatmentService);
-      jest.spyOn(treatmentService, 'getSessionWithReturnConfig').mockResolvedValueOnce({
-        attendance_id: 100,
-        patient_id: 1,
-        consultation_id: 50,
-        return_weeks: 1,
-        return_when_treatment_complete: true,
-      });
-      jest.spyOn(treatmentService, 'getTreatmentIdsByConsultationId').mockResolvedValueOnce([10, 11]);
+      jest
+        .spyOn(treatmentService, 'getSessionWithReturnConfig')
+        .mockResolvedValueOnce({
+          attendance_id: 100,
+          patient_id: 1,
+          consultation_id: 50,
+          return_weeks: 1,
+          return_when_treatment_complete: true,
+        });
+      jest
+        .spyOn(treatmentService, 'getTreatmentIdsByConsultationId')
+        .mockResolvedValueOnce([10, 11]);
       const recordService = module.get(SessionService);
       jest
         .spyOn(recordService, 'getMaxScheduledDateForTreatment')
         .mockResolvedValueOnce('2026-06-24') // T1
         .mockResolvedValueOnce('2026-06-17'); // T2
-      jest.spyOn(service, 'findNextSchedulableDate').mockResolvedValueOnce('2026-07-01');
+      jest
+        .spyOn(service, 'findNextSchedulableDate')
+        .mockResolvedValueOnce('2026-07-01');
 
       const serviceWithFinder = service as unknown as {
-        findReturnAssessmentAttendancesForTreatment: (tid: number, minDate: string) => Promise<Attendance[]>;
+        findReturnAssessmentAttendancesForTreatment: (
+          tid: number,
+          minDate: string,
+        ) => Promise<Attendance[]>;
       };
-      jest.spyOn(serviceWithFinder, 'findReturnAssessmentAttendancesForTreatment')
+      jest
+        .spyOn(serviceWithFinder, 'findReturnAssessmentAttendancesForTreatment')
         .mockResolvedValueOnce([returnAttendance]);
 
       jest.spyOn(service, 'findOne').mockResolvedValueOnce(returnAttendance);
@@ -2918,13 +3229,20 @@ describe('AttendanceService', () => {
         rescheduled: true,
         attendance_id: 900,
         patient_id: 1,
-        patient_name: 'Paciente Teste',
+        patient_name: 'Test Patient',
         old_date: '2026-06-24',
         new_date: '2026-07-01',
       });
-      expect(recordService.getMaxScheduledDateForTreatment).toHaveBeenCalledWith(10);
-      expect(recordService.getMaxScheduledDateForTreatment).toHaveBeenCalledWith(11);
-      expect(service.findNextSchedulableDate).toHaveBeenCalledWith('2026-07-01', AttendanceType.ASSESSMENT);
+      expect(
+        recordService.getMaxScheduledDateForTreatment,
+      ).toHaveBeenCalledWith(10);
+      expect(
+        recordService.getMaxScheduledDateForTreatment,
+      ).toHaveBeenCalledWith(11);
+      expect(service.findNextSchedulableDate).toHaveBeenCalledWith(
+        '2026-07-01',
+        AttendanceType.ASSESSMENT,
+      );
     });
   });
 });

@@ -102,7 +102,7 @@ export class HolidayTemplateService {
           testDate.getMonth() + 1 !== holidayItem.month ||
           testDate.getDate() !== holidayItem.day
         ) {
-          throw new Error(`Data inválida (não existe no calendário)`);
+          throw new Error(`Invalid date (does not exist on the calendar)`);
         }
 
         // Check if date is in the past
@@ -111,7 +111,7 @@ export class HolidayTemplateService {
         const holidayDate = new Date(testDate);
         
         if (holidayDate < today) {
-          throw new Error(`Não é possível adicionar feriados em datas passadas`);
+          throw new Error(`Cannot add holidays on past dates`);
         }
 
         const createDto: CreateHolidayDto = {
@@ -126,19 +126,19 @@ export class HolidayTemplateService {
         result.failureCount++;
         
         // Provide user-friendly error messages
-        let errorMessage = 'Erro desconhecido';
+        let errorMessage = 'Unknown error';
         
         if (error instanceof Error) {
-          // Map English error codes to Portuguese user-friendly messages
+          // Map English error codes to user-friendly messages
           if (error.message.includes('PAST_DATE')) {
-            errorMessage = 'Não é possível adicionar feriados em datas passadas';
+            errorMessage = 'Cannot add holidays on past dates';
           } else if (error.message.includes('DUPLICATE_HOLIDAY')) {
-            errorMessage = 'Feriado já existe para esta data';
+            errorMessage = 'A holiday already exists for this date';
           } else if (error.message.includes('ATTENDANCE_CONFLICT')) {
             const count = error.message.split(':')[1];
-            errorMessage = `Existem ${count} atendimento(s) agendado(s) para esta data`;
-          } else if (error.message.includes('não existe no calendário')) {
-            errorMessage = 'Data inválida (não existe no calendário)';
+            errorMessage = `There are ${count} scheduled attendance(s) for this date`;
+          } else if (error.message.includes('does not exist on the calendar')) {
+            errorMessage = 'Invalid date (does not exist on the calendar)';
           } else {
             errorMessage = error.message;
           }

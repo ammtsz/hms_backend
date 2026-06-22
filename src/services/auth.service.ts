@@ -70,7 +70,7 @@ export class AuthService {
         (user.lockedUntil.getTime() - Date.now()) / 60000
       );
       throw new UnauthorizedException(
-        `Conta bloqueada. Tente novamente em ${minutesRemaining} minutos.`
+        `Account locked. Try again in ${minutesRemaining} minutes.`
       );
     }
 
@@ -86,14 +86,14 @@ export class AuthService {
           user.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
           await this.userRepository.save(user);
           throw new UnauthorizedException(
-            'Conta bloqueada por 15 minutos devido a múltiplas tentativas de login.'
+            'Account locked for 15 minutes due to multiple login attempts.'
           );
         }
 
         await this.userRepository.save(user);
       }
 
-      throw new UnauthorizedException('Email ou senha inválidos');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     // Successful login - reset failed attempts and lock
@@ -125,7 +125,7 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('Email já está em uso');
+      throw new ConflictException('Email is already in use');
     }
 
     // Hash password
@@ -158,15 +158,15 @@ export class AuthService {
     });
 
     if (!refreshToken) {
-      throw new UnauthorizedException('Token inválido');
+      throw new UnauthorizedException('Invalid token');
     }
 
     if (!refreshToken.isValid()) {
-      throw new UnauthorizedException('Token expirado ou revogado');
+      throw new UnauthorizedException('Token expired or revoked');
     }
 
     if (!refreshToken.user.isActive) {
-      throw new UnauthorizedException('Usuário inativo');
+      throw new UnauthorizedException('Inactive user');
     }
 
     // Revoke the old refresh token immediately

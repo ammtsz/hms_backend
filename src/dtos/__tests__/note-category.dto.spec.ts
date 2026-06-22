@@ -5,8 +5,8 @@ import { CreateNoteCategoryDto } from '../note-category.dto';
 describe('CreateNoteCategoryDto', () => {
   it('should validate a complete dto', async () => {
     const dto = plainToClass(CreateNoteCategoryDto, {
-      value: 'alteracao_de_status',
-      label: 'Mudança de status',
+      value: 'status_change',
+      label: 'Status change',
       sort_order: 2,
     });
     const errors = await validate(dto);
@@ -16,7 +16,7 @@ describe('CreateNoteCategoryDto', () => {
   it('should allow omitting sort_order', async () => {
     const dto = plainToClass(CreateNoteCategoryDto, {
       value: 'general',
-      label: 'Geral',
+      label: 'General',
     });
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);

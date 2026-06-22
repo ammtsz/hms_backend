@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ScheduleSettingService } from './../schedule-setting.service';
+import { ScheduleSettingService } from '../schedule-setting.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ScheduleSetting } from '../../entities/schedule-setting.entity';
 import { Repository, DeleteResult } from 'typeorm';

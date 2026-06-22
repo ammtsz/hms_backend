@@ -23,13 +23,13 @@ export class CreateConsultationDto {
   attendance_id: number;
 
   @ApiPropertyOptional({
-    description: 'Main complaint from the patient',
+    description: 'Main concern from the patient',
     example: 'Pain in lower back',
   })
   @Sanitize()
   @IsString()
   @IsOptional()
-  main_complaint?: string;
+  main_concern?: string;
 
   @ApiPropertyOptional({
     description:
@@ -151,13 +151,13 @@ export class UpdateConsultationDto {
   attendance_id?: number;
 
   @ApiPropertyOptional({
-    description: 'Main complaint from the patient',
+    description: 'Main concern from the patient',
     example: 'Pain in lower back',
   })
   @Sanitize()
   @IsString()
   @IsOptional()
-  main_complaint?: string;
+  main_concern?: string;
 
   @ApiPropertyOptional({
     description:
@@ -282,10 +282,10 @@ export class ConsultationResponseDto {
   attendance_id: number;
 
   @ApiPropertyOptional({
-    description: 'Main complaint from the patient',
+    description: 'Main concern from the patient',
     example: 'Pain in lower back',
   })
-  main_complaint?: string;
+  main_concern?: string;
 
   @ApiPropertyOptional({
     description: 'Treatment status (N, T, A, or F)',
@@ -445,7 +445,7 @@ export class UpdateConsultationResponseDto {
 
   @ApiPropertyOptional({
     description:
-      'Attendances cancelled when treatment status was set to Alta (A) or Faltas consecutivas (F)',
+      'Attendances cancelled when treatment status was set to Discharged (A) or Missed (F)',
     type: [CancelledAttendanceItemDto],
   })
   cancelled_attendances?: CancelledAttendanceItemDto[];

@@ -31,7 +31,7 @@ export class Patient {
   birth_date: string;
 
   @Column({ type: 'text', nullable: true })
-  main_complaint: string;
+  main_concern: string;
 
   @Column({ type: 'date' })
   start_date: string;

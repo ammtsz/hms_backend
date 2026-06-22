@@ -35,7 +35,7 @@ import {
 } from '../utils/datetime-helpers';
 import {
   addDaysToDateString,
-  formatDateBR,
+  formatDisplayDate,
   getDayOfTheWeekName,
   compareDateStrings,
   toDateStringOnly,
@@ -187,7 +187,7 @@ export class AttendanceService {
 
   /**
    * Find all open (scheduled, checked_in, in_progress) attendances for a patient.
-   * Used when changing patient status to Alta (A) or Faltas consecutivas (F) to cancel them.
+   * Used when changing patient status to Discharged (A) or Missed (F) to cancel them.
    */
   async findOpenAttendancesByPatientId(patientId: number): Promise<Attendance[]> {
     return this.attendanceRepository.find({
@@ -271,7 +271,7 @@ export class AttendanceService {
 
   /**
    * Returns eligible parent (root) attendances for linking a new assessment consultation.
-   * Excludes roots whose chain has any attendance with patient_status 'A' (Alta) or 'F' (Faltas).
+   * Excludes roots whose chain has any attendance with patient_status 'A' (Discharged (A)) or 'F' (Missed (F)).
    */
   async findEligibleParentOptions(
     patientId: number,
@@ -300,14 +300,13 @@ export class AttendanceService {
 
     const options: EligibleParentOptionDto[] = roots
       .map((root) => {
-        const mainComplaint =
-          root.consultation?.main_complaint?.trim() || 'Sem queixa registrada';
-        const dateLabel = formatDateBR(root.scheduled_date);
+        const mainConcern =
+          root.consultation?.main_concern?.trim() || 'No main concern recorded';
         return {
           id: root.id,
           date: root.scheduled_date,
-          main_complaint: mainComplaint,
-          label: `${dateLabel} - ${mainComplaint}`,
+          main_concern: mainConcern,
+          label: `${root.scheduled_date} - ${mainConcern}`,
         };
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -316,9 +315,9 @@ export class AttendanceService {
   }
 
   /**
-   * parent_attendance_id is only valid for patients em tratamento (T).
-   * For A/F (nova queixa) or N, the client must not send a parent; stale tabs are rejected here.
-   * Also verifies the parent row is an assessment root for this patient and still eligible (same rules as eligible-parent-options).
+   * parent_attendance_id is only valid for patients in treatment (T).
+   * For A/F (new complaint) or N, the client must not send a parent; stale tabs are rejected here.
+   * Also verifies the parent row is an assessment root for this patient and is still eligible (same rules as eligible-parent-options).
    */
   private async assertParentAttendanceAllowedForCreate(
     patientId: number,
@@ -329,11 +328,11 @@ export class AttendanceService {
       select: ['id', 'patient_status'],
     });
     if (!patient) {
-      throw new BadRequestException('Paciente não encontrado.');
+      throw new BadRequestException('Patient not found.');
     }
     if (patient.patient_status !== PatientStatus.IN_TREATMENT) {
       throw new BadRequestException(
-        'Queixa principal desatualizada. O paciente está iniciando um novo tratamento, portanto este agendamento não pode estar vinculado a uma consulta anterior. Atualize a página e tente novamente selecionando a opção "Nova queixa".',
+        'Main complaint is outdated. The patient is starting a new treatment, so this appointment cannot be linked to a previous consultation. Refresh the page and try again by selecting the "New complaint" option.',
       );
     }
 
@@ -342,22 +341,22 @@ export class AttendanceService {
     });
     if (!parentRow) {
       throw new BadRequestException(
-        'Consulta principal (queixa) não encontrada.',
+        'First consultation not found.',
       );
     }
     if (parentRow.patient_id !== patientId) {
       throw new BadRequestException(
-        'A consulta principal selecionada não pertence a este paciente.',
+        'The selected first consultation does not belong to this patient.',
       );
     }
     if (parentRow.type !== AttendanceType.ASSESSMENT) {
       throw new BadRequestException(
-        'A consulta principal deve ser uma consulta de avaliação.',
+        'The first consultation must be an assessment consultation.',
       );
     }
     if (parentRow.parent_attendance_id != null) {
       throw new BadRequestException(
-        'A consulta principal deve ser a consulta raiz da queixa.',
+        'The first consultation must be the root consultation for the complaint.',
       );
     }
 
@@ -365,7 +364,7 @@ export class AttendanceService {
     const allowedIds = new Set(eligible.options.map((o) => o.id));
     if (!allowedIds.has(parentAttendanceId)) {
       throw new BadRequestException(
-        'Esta queixa principal não está mais disponível para novos vínculos (tratamento encerrado). Atualize a página e escolha outra opção.',
+        'This first consultation is no longer available for new links (treatment closed). Refresh the page and choose another option.',
       );
     }
   }
@@ -472,7 +471,7 @@ export class AttendanceService {
     ) {
       const reason =
         updateAttendanceDto.absence_notes ||
-        'Motivo não informado no momento do registro';
+        'Reason not provided at the time of registration';
       await this.sessionService.markSessionsAsMissedByAttendanceId(
         updatedAttendance.id,
         reason,
@@ -566,7 +565,7 @@ export class AttendanceService {
       .split(' ')[0]
       .substring(0, 8);
     attendance.absence_justified = cancellationReason ? true : false;
-    attendance.absence_notes = cancellationReason || 'Não justificado';
+    attendance.absence_notes = cancellationReason || 'Unjustified';
 
     await this.attendanceRepository.save(attendance);
 
@@ -673,10 +672,10 @@ export class AttendanceService {
   ): never {
     const detail =
       type === AttendanceType.PHYSIOTHERAPY
-        ? 'local do corpo e cor'
-        : 'local do corpo';
+        ? 'body location and color'
+        : 'body location';
     throw new BadRequestException(
-      `Este paciente já possui atendimento de ${type === AttendanceType.PHYSIOTHERAPY ? 'fisioterapia' : 'TENS'} agendado para esta data com o mesmo ${detail}.`,
+      `This patient already has a ${type === AttendanceType.PHYSIOTHERAPY ? 'physiotherapy' : 'TENS'} attendance scheduled for this date with the same ${detail}.`,
     );
   }
 
@@ -747,21 +746,21 @@ export class AttendanceService {
       });
       if (openRoot) {
         const patient_name = openRoot.patient?.name ?? "";
-        const scheduled_date = formatDateBR(openRoot.scheduled_date);
+        const scheduled_date = formatDisplayDate(openRoot.scheduled_date);
         throw new BadRequestException(
-          `O paciente ${patient_name + " "}ainda não completou a primeira consulta agendada para ${scheduled_date}. Conclua esta consulta antes de agendar uma nova.`,
+            `The patient ${patient_name + " "}has not yet completed the first consultation scheduled for ${scheduled_date}. Complete this consultation before scheduling a new one.`,
         );
       }
 
-      // Em tratamento (T): always link to a queixa principal (never schedule root assessment without parent).
+      // In treatment (T): always link to the main complaint (never schedule a root assessment without a parent).
       if (inTreatment) {
         throw new BadRequestException(
-          'Selecione a queixa principal (consulta anterior) relacionada a este agendamento. Se a lista não aparecer, atualize a página e tente novamente.',
+          'Select the main complaint (previous consultation) related to this appointment. If the list does not appear, refresh the page and try again.',
         );
       }
 
-      // Novo paciente (N) or unknown status: block "first attendance" if any completed root exists.
-      // A/F: skip — "Nova Queixa" is allowed when there is no open root (checked above).
+      // New patient (N) or unknown status: block "first attendance" if any completed root exists.
+      // A/F: skip — "New complaint" is allowed when there is no open root (checked above).
       if (!allowNewRootAssessmentWithoutParent) {
         const completedRootCount = await this.attendanceRepository.count({
           where: {
@@ -773,7 +772,7 @@ export class AttendanceService {
         });
         if (completedRootCount > 0) {
           throw new BadRequestException(
-            'Selecione a queixa principal (consulta anterior) relacionada a este agendamento. Se a lista não aparecer, atualize a página e tente novamente.',
+            'Select the main complaint (previous consultation) related to this appointment. If the list does not appear, refresh the page and try again.',
           );
         }
       }
@@ -785,7 +784,7 @@ export class AttendanceService {
     );
     if (finalization) {
       throw new BadRequestException(
-        'Dia já finalizado. Não é mais possível agendar atendimentos para este dia.',
+        'Day already finalized. It is no longer possible to schedule attendances for this day.',
       );
     }
 
@@ -796,13 +795,13 @@ export class AttendanceService {
     );
     if (isBlockedByHoliday) {
       const treatmentTypeNames = {
-        assessment: 'Consultas de Avaliação',
+        assessment: 'Assessment consultations',
         physiotherapy: 'Physiotherapy',
         tens: 'TENS'
       };
       const treatmentName = treatmentTypeNames[dto.type as keyof typeof treatmentTypeNames] || dto.type;
       throw new BadRequestException(
-        `Esta data é feriado e não é possível agendar o tratamento ${treatmentName}.`,
+        `This date is a holiday and it is not possible to schedule ${treatmentName}.`,
       );
     }
 
@@ -821,7 +820,7 @@ export class AttendanceService {
       });
       if (existingAssessment > 0) {
         throw new BadRequestException(
-          'Este paciente já possui consulta agendada para esta data. Verifique a lista de atendimentos.',
+          'This patient already has a consultation scheduled for this date. Check the attendance list.',
         );
       }
     }
@@ -855,7 +854,7 @@ export class AttendanceService {
 
     if (!setting) {
       throw new BadRequestException(
-        'Não há agenda disponível para esta data. Escolha outro dia.',
+        'No schedule is available for this date. Choose another day.',
       );
     }
 
@@ -925,10 +924,10 @@ export class AttendanceService {
       const formatted = invalidDates
         .slice()
         .sort()
-        .map((d) => formatDateBR(d))
+        .map((d) => formatDisplayDate(d))
         .join(', ');
       throw new BadRequestException(
-        `As seguintes datas não possuem vagas para tratamentos (Fisioterapia/TENS): ${formatted}. Escolha datas com vagas na agenda.`,
+        `The following dates do not have treatment slots (Physiotherapy/TENS): ${formatted}. Choose dates with available slots in the schedule.`,
       );
     }
   }
@@ -1531,7 +1530,7 @@ export class AttendanceService {
     const finalization = await this.dayFinalizationService.getFinalizationStatus(newDate);
     if (finalization) {
       throw new BadRequestException(
-        'Dia já finalizado. Não é mais possível agendar atendimentos para este dia.',
+        'Day finalized. It is no longer possible to schedule attendances for this day.',
       );
     }
 
@@ -1542,13 +1541,13 @@ export class AttendanceService {
     );
     if (isBlockedByHoliday) {
       const treatmentTypeNames = {
-        assessment: 'Consultas de Avaliação',
+        assessment: 'Assessment consultations',
         physiotherapy: 'Physiotherapy',
         tens: 'TENS'
       };
       const treatmentName = treatmentTypeNames[attendance.type as keyof typeof treatmentTypeNames] || attendance.type;
       throw new BadRequestException(
-        `Dia ${(newDate)} é feriado para ${treatmentName}.`,
+        `The day ${newDate} is a holiday for ${treatmentName}.`,
       );
     }
 
@@ -1578,7 +1577,7 @@ export class AttendanceService {
       });
       if (existingAssessment > 0) {
         throw new BadRequestException(
-          'Este paciente já possui consulta agendada para esta data. Verifique a lista de atendimentos.',
+          'This patient already has a consultation scheduled for this date. Check the attendance list.',
         );
       }
     }
@@ -1603,7 +1602,7 @@ export class AttendanceService {
     });
 
     if (!setting) {
-      throw new Error(`Atendimentos não disponíveis para ${getDayOfTheWeekName(dayOfWeek)}s.`);
+      throw new Error(`Attendances are not available on ${getDayOfTheWeekName(dayOfWeek)}s.`);
     }
 
     const maxConcurrent =
@@ -1623,10 +1622,10 @@ export class AttendanceService {
     const diffTime = Math.abs(newDateObj.getTime() - originalDateObj.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     const days = Math.ceil(diffDays);
-    const daysCount = `${newDateObj < originalDateObj ? '-' : '+'}${days} ${days === 1 ? 'dia' : 'dias'}`;
+    const daysCount = `${newDateObj < originalDateObj ? '-' : '+'}${days} ${days === 1 ? 'day' : 'days'}`;
 
     // Update notes to track postponement history
-    const postponementNote = `Reagendado: ${originalDate} → ${newDate} (${daysCount})`;
+    const postponementNote = `Rescheduled: ${originalDate} → ${newDate} (${daysCount})`;
 
     let updatedNotes = postponementNote;
     if (attendance.notes) {
@@ -1666,12 +1665,12 @@ export class AttendanceService {
     const { attendance_ids: attendanceIdsRaw, new_scheduled_date: newDate } = dto;
 
     if (attendanceIdsRaw.length === 0) {
-      throw new BadRequestException('attendance_ids não pode ser vazio.');
+      throw new BadRequestException('attendance_ids cannot be empty.');
     }
 
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(newDate)) {
-      throw new BadRequestException('Nova data deve estar no formato YYYY-MM-DD.');
+      throw new BadRequestException('New date must be in YYYY-MM-DD format.');
     }
 
     const attendanceIds = [...new Set(attendanceIdsRaw)];
@@ -1694,7 +1693,7 @@ export class AttendanceService {
     const invalid = attendances.filter((a) => !allowedStatuses.includes(a.status));
     if (invalid.length > 0) {
       throw new BadRequestException(
-        `Apenas atendimentos cancelados ou perdidos podem ser reagendados. IDs inválidos: ${invalid.map((a) => a.id).join(', ')}`,
+        `Only cancelled or missed attendances can be rescheduled. Invalid IDs: ${invalid.map((a) => a.id).join(', ')}`,
       );
     }
 
@@ -1706,7 +1705,7 @@ export class AttendanceService {
       );
     if (patient.patient_status !== PatientStatus.IN_TREATMENT && !isAllowedBypass) {
       throw new BadRequestException(
-        'Paciente não está em tratamento. Apenas pacientes em tratamento podem reagendar atendimentos.',
+        'Patient is not in treatment. Only patients in treatment can reschedule attendances.',
       );
     }
 
@@ -1715,11 +1714,11 @@ export class AttendanceService {
       select: ['rescheduled_from_attendance_id', 'scheduled_date'],
     });
     if (alreadyRescheduled.length > 0) {
-      const existingDate = formatDateBR(
+      const existingDate = formatDisplayDate(
         toDateStringOnly(alreadyRescheduled[0].scheduled_date),
       );
       throw new BadRequestException(
-        `Este atendimento já foi reagendado para o dia ${existingDate}`,
+        `This attendance has already been rescheduled for ${existingDate}`,
       );
     }
 
@@ -2037,7 +2036,7 @@ export class AttendanceService {
         results.auto_rescheduled_returns.push({
           attendance_id: assessmentAttendanceId,
           patient_id: assessmentAttendance.patient_id,
-          patient_name: assessmentAttendance.patient?.name ?? 'Paciente',
+          patient_name: assessmentAttendance.patient?.name ?? 'Patient',
           old_date: previousDate,
           new_date: targetDate,
         });
@@ -2119,7 +2118,7 @@ export class AttendanceService {
         `Schedulable-date resolution exceeded max depth (${MAX_DEPTH} weeks). Cannot find available date.`,
       );
       throw new BadRequestException(
-        `Não é possível agendar: muitos dias bloqueados consecutivos (verificados ${MAX_DEPTH} semanas à frente).`,
+        `Unable to schedule: too many consecutive blocked days (checked ${MAX_DEPTH} weeks ahead).`,
       );
     }
 
@@ -2216,7 +2215,7 @@ export class AttendanceService {
       rescheduled: true,
       attendance_id: returnAtt.id,
       patient_id: returnAtt.patient_id,
-      patient_name: returnAtt.patient?.name ?? 'Paciente',
+      patient_name: returnAtt.patient?.name ?? 'Patient',
       old_date: previousDate,
       new_date: targetDate,
     };

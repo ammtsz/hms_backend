@@ -136,8 +136,8 @@ describe('HolidayService - generateDateRange', () => {
     const createPeriodDto: CreateHolidayPeriodDto = {
       start_date: '2026-02-08',
       end_date: '2026-02-14',
-      name: 'Semana de teste',
-      description: 'Período completo de 7 dias',
+      name: 'Test week',
+      description: 'Full 7-day period',
       blocked_treatment_types: ['assessment'],
     };
 
@@ -150,12 +150,12 @@ describe('HolidayService - generateDateRange', () => {
     expect(holidays[0]).toMatchObject({
       holiday_date: '2026-02-08',
       holiday_group_id: 'test-holiday-group-id',
-      name: 'Semana de teste',
+      name: 'Test week',
     });
     expect(holidays[6]).toMatchObject({
       holiday_date: '2026-02-14',
       holiday_group_id: 'test-holiday-group-id',
-      name: 'Semana de teste',
+      name: 'Test week',
     });
   });
 
@@ -165,8 +165,8 @@ describe('HolidayService - generateDateRange', () => {
     const createPeriodDto: CreateHolidayPeriodDto = {
       start_date: '2026-02-08',
       end_date: '2026-02-14',
-      name: 'Semana de teste',
-      description: 'Período com conflito',
+      name: 'Test week',
+      description: 'Conflicting period',
       blocked_treatment_types: ['assessment'],
     };
 
@@ -179,7 +179,7 @@ describe('HolidayService - generateDateRange', () => {
     await service.createHolidayPeriod({
       start_date: '2026-02-08',
       end_date: '2026-02-14',
-      name: 'Semana de teste',
+      name: 'Test week',
       description: null,
       blocked_treatment_types: null,
     });

@@ -355,7 +355,7 @@ export class AttendanceAgendaDto {
 
   @ApiProperty({
     description: 'Patient name',
-    example: 'João Silva',
+    example: 'John Smith',
   })
   patient_name: string;
 
@@ -389,14 +389,14 @@ export class EligibleParentOptionDto {
   date: string;
 
   @ApiProperty({
-    description: 'Main complaint from the root consultation',
-    example: 'Dor nas costas',
+    description: 'Main concern from the root consultation',
+    example: 'Back pain',
   })
-  main_complaint: string;
+  main_concern: string;
 
   @ApiProperty({
-    description: 'Display label (date + main complaint)',
-    example: '2025-07-22 - Dor nas costas',
+    description: 'Display label (date + main concern)',
+    example: '2025-07-22 - Back pain',
   })
   label: string;
 }
@@ -530,7 +530,7 @@ export class RecomputeReturnResultDto {
   @ApiPropertyOptional({ description: 'Patient ID', example: 10 })
   patient_id?: number;
 
-  @ApiPropertyOptional({ description: 'Patient name', example: 'Maria' })
+  @ApiPropertyOptional({ description: 'Patient name', example: 'Emily' })
   patient_name?: string;
 
   @ApiPropertyOptional({ description: 'Previous scheduled date', example: '2026-06-24' })
@@ -577,7 +577,7 @@ export class BulkOperationResultDto {
       {
         attendance_id: 55,
         patient_id: 10,
-        patient_name: 'Maria',
+        patient_name: 'Emily',
         old_date: '2026-04-01',
         new_date: '2026-04-08',
       },

@@ -56,7 +56,7 @@ describe('Consultation - patient_status field', () => {
             findOne: jest.fn().mockResolvedValue({
               id: 1,
               patient_status: 'N',
-              main_complaint: null,
+              main_concern: null,
             }),
             update: jest.fn(),
           },
@@ -109,7 +109,7 @@ describe('Consultation - patient_status field', () => {
 
       const createDto: CreateConsultationDto = {
         attendance_id: 1,
-        main_complaint: 'Back pain',
+        main_concern: 'Back pain',
         patient_status: 'T',
         return_weeks: 2,
       };
@@ -140,7 +140,7 @@ describe('Consultation - patient_status field', () => {
       expect(consultationRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           attendance_id: 1,
-          main_complaint: 'Back pain',
+          main_concern: 'Back pain',
           patient_status: 'T',
           return_weeks: 2,
         }),
@@ -150,7 +150,7 @@ describe('Consultation - patient_status field', () => {
       expect(result.consultation).toMatchObject({
         id: 1,
         patient_status: 'T',
-        main_complaint: 'Back pain',
+        main_concern: 'Back pain',
       });
 
       // Verify patient's patient_status was updated via setPatientStatus (single entry point)
@@ -177,7 +177,7 @@ describe('Consultation - patient_status field', () => {
 
       const createDto: CreateConsultationDto = {
         attendance_id: 1,
-        main_complaint: 'First consultation',
+        main_concern: 'First consultation',
         patient_status: 'N',
         return_weeks: 1,
       };
@@ -223,7 +223,7 @@ describe('Consultation - patient_status field', () => {
 
       const createDto: CreateConsultationDto = {
         attendance_id: 1,
-        main_complaint: 'Final consultation',
+        main_concern: 'Final consultation',
         patient_status: 'A',
       };
 
@@ -275,7 +275,7 @@ describe('Consultation - patient_status field', () => {
 
       const createDto: CreateConsultationDto = {
         attendance_id: 1,
-        main_complaint: 'Back pain',
+        main_concern: 'Back pain',
         return_weeks: 2,
         // patient_status is optional/undefined
       };
@@ -314,7 +314,7 @@ describe('Consultation - patient_status field', () => {
       const mockExistingConsultation = {
         id: 1,
         attendance_id: 1,
-        main_complaint: 'Back pain',
+        main_concern: 'Back pain',
         patient_status: 'N',
         attendance: {
           patient_id: 1,

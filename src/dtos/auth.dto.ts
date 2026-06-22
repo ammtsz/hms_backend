@@ -4,41 +4,41 @@ import { UserRole } from '../entities/user.entity';
 
 // Login request DTO
 export class LoginDto {
-  @IsEmail({}, { message: 'Email inválido' })
-  @IsNotEmpty({ message: 'Email é obrigatório' })
+  @IsEmail({}, { message: 'Invalid email' })
+  @IsNotEmpty({ message: 'Email is required' })
   email: string;
 
-  @IsString({ message: 'Senha deve ser uma string' })
-  @IsNotEmpty({ message: 'Senha é obrigatória' })
-  @MinLength(12, { message: 'Senha deve ter no mínimo 12 caracteres' })
+  @IsString({ message: 'Password must be a string' })
+  @IsNotEmpty({ message: 'Password is required' })
+  @MinLength(12, { message: 'Password must be at least 12 characters long' })
   password: string;
 }
 
 // Register request DTO
 export class RegisterDto {
-  @IsEmail({}, { message: 'Email inválido' })
-  @IsNotEmpty({ message: 'Email é obrigatório' })
+  @IsEmail({}, { message: 'Invalid email' })
+  @IsNotEmpty({ message: 'Email is required' })
   email: string;
 
-  @IsString({ message: 'Senha deve ser uma string' })
-  @IsNotEmpty({ message: 'Senha é obrigatória' })
-  @MinLength(12, { message: 'Senha deve ter no mínimo 12 caracteres' })
+  @IsString({ message: 'Password must be a string' })
+  @IsNotEmpty({ message: 'Password is required' })
+  @MinLength(12, { message: 'Password must be at least 12 characters long' })
   password: string;
 
   @Sanitize()
-  @IsString({ message: 'Nome deve ser uma string' })
-  @IsNotEmpty({ message: 'Nome é obrigatório' })
+  @IsString({ message: 'Name must be a string' })
+  @IsNotEmpty({ message: 'Name is required' })
   name: string;
 
-  @IsString({ message: 'Função deve ser uma string' })
-  @IsNotEmpty({ message: 'Função é obrigatória' })
+  @IsString({ message: 'Role must be a string' })
+  @IsNotEmpty({ message: 'Role is required' })
   role: UserRole;
 }
 
 // Refresh token request DTO
 export class RefreshTokenDto {
-  @IsString({ message: 'Token deve ser uma string' })
-  @IsNotEmpty({ message: 'Token é obrigatório' })
+  @IsString({ message: 'Token must be a string' })
+  @IsNotEmpty({ message: 'Token is required' })
   refreshToken: string;
 }
 
@@ -59,7 +59,7 @@ type UserResponseSource = {
   created_at?: Date;
 };
 
-// User response DTO (what gets sent to client)
+// User response DTO (what gets sent to the client)
 export class UserResponseDto {
   id: number;
   email: string;

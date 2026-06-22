@@ -7,10 +7,10 @@ import {
 
 describe('PatientNote DTOs', () => {
   describe('CreatePatientNoteDto', () => {
-    it('should validate with "alteracao_de_status" category', async () => {
+    it('should validate with "status_change" category', async () => {
       const dto = plainToClass(CreatePatientNoteDto, {
-        note_content: 'Paciente alterado para alta.',
-        category: 'alteracao_de_status',
+        note_content: 'Patient changed to discharged.',
+        category: 'status_change',
       });
 
       const errors = await validate(dto);
@@ -19,7 +19,7 @@ describe('PatientNote DTOs', () => {
 
     it('should fail for category longer than 50 chars', async () => {
       const dto = plainToClass(CreatePatientNoteDto, {
-        note_content: 'Observacao',
+        note_content: 'Observation',
         category: 'a'.repeat(51),
       });
 
@@ -30,9 +30,9 @@ describe('PatientNote DTOs', () => {
   });
 
   describe('UpdatePatientNoteDto', () => {
-    it('should validate with "alteracao_de_status" category', async () => {
+    it('should validate with "status_change" category', async () => {
       const dto = plainToClass(UpdatePatientNoteDto, {
-        category: 'alteracao_de_status',
+        category: 'status_change',
       });
 
       const errors = await validate(dto);

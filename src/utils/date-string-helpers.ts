@@ -60,30 +60,28 @@ export function compareDateStrings(date1: string, date2: string): number {
 }
 
 /**
- * Get Portuguese day-of-week name from JavaScript day index (0 = Sunday, 6 = Saturday).
+ * Get English day-of-week name from JavaScript day index (0 = Sunday, 6 = Saturday).
  */
 export function getDayOfTheWeekName(dayOfWeek: number): string {
-  const days = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   return days[dayOfWeek] ?? '';
 }
 
-export function formatDateBR(dateStr: string): string {
+export function formatDisplayDate(dateStr: string): string {
   if (!dateStr) return "";
-  
-  // Handle both ISO date strings and date objects
+
   let d: Date;
-  if (dateStr.includes('T')) {
-    // Full ISO string
+  if (dateStr.includes("T")) {
     d = new Date(dateStr);
   } else {
-    // Date-only string (YYYY-MM-DD) - parse as local time to avoid timezone issues
-    d = new Date(dateStr + 'T00:00:00');
+    d = new Date(dateStr + "T00:00:00");
   }
-  
+
   if (isNaN(d.getTime())) return dateStr;
-  
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
+
+  return d.toLocaleDateString("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+  });
 }

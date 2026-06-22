@@ -14,7 +14,7 @@ import { SystemOptionType } from '../entities/system-option.entity';
 export class CreateSystemOptionValueDto {
   @Sanitize()
   @IsString()
-  @MaxLength(50, { message: 'Nome deve ter no máximo 50 caracteres' })
+  @MaxLength(50, { message: 'Name must be at most 50 characters long' })
   value: string;
 }
 
@@ -24,17 +24,17 @@ export class CreateSystemOptionDto {
 
   @Sanitize()
   @IsString()
-  @MaxLength(50, { message: 'Nome deve ter no máximo 50 caracteres' })
+  @MaxLength(50, { message: 'Name must be at most 50 characters long' })
   value: string;
 
   @ApiPropertyOptional({
     description: 'Human readable label for UI (optional; can be null)',
-    example: 'Idoso/crianças',
+    example: 'Seniors/children',
   })
   @Sanitize()
   @IsString()
   @IsOptional()
-  @MaxLength(50, { message: 'Label deve ter no máximo 50 caracteres' })
+  @MaxLength(50, { message: 'Label must be at most 50 characters long' })
   label?: string | null;
 
   @ApiPropertyOptional({
@@ -49,7 +49,7 @@ export class CreateSystemOptionDto {
 export class UpdateSystemOptionDto {
   @Sanitize()
   @IsString()
-  @MaxLength(50, { message: 'Nome deve ter no máximo 50 caracteres' })
+  @MaxLength(50, { message: 'Name must be at most 50 characters long' })
   @IsOptional()
   value?: string;
 
@@ -59,7 +59,7 @@ export class UpdateSystemOptionDto {
 
   @Sanitize()
   @IsString()
-  @MaxLength(50, { message: 'Label deve ter no máximo 50 caracteres' })
+  @MaxLength(50, { message: 'Label must be at most 50 characters long' })
   @IsOptional()
   label?: string | null;
 

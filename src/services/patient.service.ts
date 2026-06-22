@@ -23,6 +23,7 @@ import {
 } from '../common/exceptions';
 import { AttendanceService } from './attendance.service';
 import { TreatmentService } from './treatment.service';
+import { formatDisplayDate } from '../utils/date-string-helpers';
 import { PatientNoteService } from './patient-note.service';
 import { CreatePatientNoteDto } from '../dtos/patient-note.dto';
 
@@ -100,7 +101,7 @@ export class PatientService {
 
     // Validate timezone if provided, otherwise use server's timezone
     let patientTimezone: string;
-    
+
     if (createPatientDto.timezone) {
       if (!isValidTimezone(createPatientDto.timezone)) {
         throw new ValidationException(
@@ -167,7 +168,7 @@ export class PatientService {
       updatePatientDto.patient_status === PatientStatus.ABSENT
     ) {
       throw new ValidationException(
-        'Use setPatientStatus to set status to Alta (A) or Faltas consecutivas (F).',
+        'Use setPatientStatus to set status to Discharged (A) or Missed (F).',
       );
     }
   }
@@ -217,7 +218,7 @@ export class PatientService {
       });
       if (completedCount > 0) {
         throw new ValidationException(
-          'Só é possível alterar para Novo Paciente quando o paciente não possui nenhum atendimento concluído.',
+          'Can only change to New Patient status when the patient has no completed attendance.',
         );
       }
     }
@@ -248,9 +249,7 @@ export class PatientService {
     return priorities.map((p) => p.value);
   }
 
-  private validateTimezoneForUpdate(
-    updatePatientDto: UpdatePatientDto,
-  ): void {
+  private validateTimezoneForUpdate(updatePatientDto: UpdatePatientDto): void {
     if (
       updatePatientDto.timezone &&
       !isValidTimezone(updatePatientDto.timezone)
@@ -280,7 +279,7 @@ export class PatientService {
       updatePatientDto.discharge_date < lastCompletedDate
     ) {
       throw new ValidationException(
-        `A data de alta não pode ser anterior à data do último atendimento concluído (${lastCompletedDate}).`,
+        `The discharge date cannot be earlier than the date of the last completed attendance (${lastCompletedDate}).`,
       );
     }
   }
@@ -354,7 +353,7 @@ export class PatientService {
       });
       if (completedCount > 0) {
         throw new ValidationException(
-          'Só é possível alterar para Novo Paciente quando o paciente não possui nenhum atendimento concluído.',
+          'Can only change to New Patient status when the patient has no completed attendance.',
         );
       }
     }
@@ -365,7 +364,7 @@ export class PatientService {
   }
 
   /**
-   * Transition patient to Alta (A) or Faltas consecutivas (F).
+   * Transition patient to Discharged (A) or Missed (F).
    * Validates the transition, cancels all open attendances and non-completed treatments,
    * updates the patient, and returns the patient plus the list of cancelled attendances.
    * @internal Used only by setPatientStatus; callers should use setPatientStatus.
@@ -413,16 +412,16 @@ export class PatientService {
       cancellationReasonFromOptions && cancellationReasonFromOptions.length > 0
         ? cancellationReasonFromOptions
         : newStatus === PatientStatus.DISCHARGED
-          ? 'Alta do tratamento'
-          : 'Faltas consecutivas';
+          ? 'Discharged'
+          : 'Missed — consecutive';
 
-    const { date: nowInPatientTimezone } =
-      getCurrentDateTimeInTimezone(patient.timezone);
+    const { date: nowInPatientTimezone } = getCurrentDateTimeInTimezone(
+      patient.timezone,
+    );
 
     let triggerDate = nowInPatientTimezone;
     const triggerAttendanceId =
-      options?.triggerAttendanceIds?.[0] ??
-      options?.excludeAttendanceIds?.[0];
+      options?.triggerAttendanceIds?.[0] ?? options?.excludeAttendanceIds?.[0];
 
     if (typeof triggerAttendanceId === 'number') {
       const triggerAttendance = await this.attendanceRepository.findOne({
@@ -433,20 +432,14 @@ export class PatientService {
       }
     }
 
-    const triggerDateBR = (() => {
-      const value = triggerDate?.slice(0, 10);
-      const parts = value?.split('-');
-      if (parts?.length === 3) {
-        const [yyyy, mm, dd] = parts;
-        if (yyyy && mm && dd) return `${dd}/${mm}/${yyyy}`;
-      }
-      return triggerDate;
-    })();
+    const triggerDateBR = triggerDate
+      ? formatDisplayDate(triggerDate.slice(0, 10))
+      : triggerDate;
 
     const statusLabel =
       newStatus === PatientStatus.DISCHARGED
-        ? `${PatientStatus.DISCHARGED} (Alta do tratamento)`
-        : `${PatientStatus.ABSENT} (Faltas consecutivas)`;
+        ? 'Discharged'
+        : 'Missed — consecutive';
 
     const cancelledAttendances =
       await this.attendanceService.cancelOpenAttendancesForPatient(
@@ -457,8 +450,7 @@ export class PatientService {
         },
       );
 
-    const sessions =
-      await this.treatmentService.getTreatmentsByPatient(id);
+    const sessions = await this.treatmentService.getTreatmentsByPatient(id);
     const nonCompleted = sessions.filter((s) => s.status !== 'completed');
     for (const session of nonCompleted) {
       await this.treatmentService.cancelTreatment(
@@ -475,7 +467,7 @@ export class PatientService {
 
     const savedPatient = await this.patientRepository.save(patient);
 
-    const noteCategory: CreatePatientNoteDto['category'] = 'alteracao_de_status';
+    const noteCategory: CreatePatientNoteDto['category'] = 'status_change';
     const detailedNoteEnabled = cancelledAttendances.length > 0;
 
     if (detailedNoteEnabled) {
@@ -505,28 +497,24 @@ export class PatientService {
       const sortedDates = Array.from(byDate.keys()).sort();
       const maxNoteLength = 1900; // keep below backend 2000 char validation
 
-      let noteContent = `Alteração de status do paciente para ${statusLabel} em ${triggerDateBR}.\nMotivo: ${cancellationReason}\nAtendimentos cancelados:\n`;
+      let noteContent = `Patient status changed to ${statusLabel} on ${triggerDateBR}.\nReason: ${cancellationReason}\nCancelled attendances:\n`;
 
       for (const date of sortedDates) {
         const bucket = byDate.get(date);
         if (!bucket) continue;
 
         const parts: string[] = [];
-        if (bucket.assessment) parts.push('Consulta de Avaliação');
+        if (bucket.assessment) parts.push('Assessment consultation');
         if (bucket.hasPhysiotherapy && bucket.hasTens) {
-          parts.push('Fisioterapia e TENS');
+          parts.push('Physiotherapy and TENS');
         } else if (bucket.hasPhysiotherapy) {
-          parts.push('Fisioterapia');
+          parts.push('Physiotherapy');
         } else if (bucket.hasTens) {
           parts.push('TENS');
         }
 
         if (parts.length === 0) continue;
-        const dateParts = date?.slice(0, 10).split('-');
-        const dateBR =
-          dateParts?.length === 3 && dateParts[0] && dateParts[1] && dateParts[2]
-            ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`
-            : date;
+        const dateBR = formatDisplayDate(date.slice(0, 10));
         const line = `- ${dateBR}: ${parts.join(', ')}\n`;
         if (noteContent.length + line.length > maxNoteLength) break;
         noteContent += line;
@@ -544,7 +532,7 @@ export class PatientService {
       await this.patientNoteService.create(id, noteDto);
     } else {
       const noteDto: CreatePatientNoteDto = {
-        note_content: `Alteração de status do paciente para ${statusLabel} em ${triggerDateBR}.\nMotivo: ${cancellationReason}\nTodos os atendimentos abertos foram cancelados.`,
+        note_content: `Patient status changed to ${statusLabel} on ${triggerDateBR}.\nReason: ${cancellationReason}\nAll open attendances were cancelled.`,
         category: noteCategory,
       };
       await this.patientNoteService.create(id, noteDto);
@@ -558,9 +546,7 @@ export class PatientService {
     const blockingAttendancesCount = await this.attendanceRepository.count({
       where: {
         patient_id: id,
-        status: Not(
-          In([AttendanceStatus.CANCELLED, AttendanceStatus.MISSED]),
-        ),
+        status: Not(In([AttendanceStatus.CANCELLED, AttendanceStatus.MISSED])),
       },
     });
 

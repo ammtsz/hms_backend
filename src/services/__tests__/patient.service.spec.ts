@@ -48,7 +48,7 @@ describe('PatientService', () => {
     priority: PatientPriority.LEVEL_3,
     patient_status: PatientStatus.IN_TREATMENT,
     birth_date: '1990-01-01',
-    main_complaint: 'Test complaint',
+    main_concern: 'Test complaint',
     start_date: '2025-07-22',
     discharge_date: null,
     missing_appointments_streak: 0,
@@ -334,8 +334,13 @@ describe('PatientService', () => {
     });
 
     it('should update treatment status with valid transition (non-A/F)', async () => {
-      const patientInTreatment = { ...mockPatient, patient_status: PatientStatus.IN_TREATMENT };
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientInTreatment);
+      const patientInTreatment = {
+        ...mockPatient,
+        patient_status: PatientStatus.IN_TREATMENT,
+      };
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(patientInTreatment);
       mockAttendanceRepository.count.mockResolvedValueOnce(0);
       const updateDto: Partial<UpdatePatientDto> = {
         patient_status: PatientStatus.NEW_PATIENT,
@@ -351,8 +356,13 @@ describe('PatientService', () => {
     });
 
     it('should throw PatientStatusUpdateException for invalid transition', async () => {
-      const patientDischarged = { ...mockPatient, patient_status: PatientStatus.DISCHARGED };
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientDischarged);
+      const patientDischarged = {
+        ...mockPatient,
+        patient_status: PatientStatus.DISCHARGED,
+      };
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(patientDischarged);
       const updateDto: Partial<UpdatePatientDto> = {
         patient_status: PatientStatus.NEW_PATIENT,
       };
@@ -411,7 +421,10 @@ describe('PatientService', () => {
       const updateDto: Partial<UpdatePatientDto> = {
         patient_status: PatientStatus.NEW_PATIENT,
       };
-      const patientAsNew = { ...mockPatient, patient_status: PatientStatus.IN_TREATMENT };
+      const patientAsNew = {
+        ...mockPatient,
+        patient_status: PatientStatus.IN_TREATMENT,
+      };
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientAsNew);
 
       await expect(
@@ -428,7 +441,10 @@ describe('PatientService', () => {
       const updateDto: Partial<UpdatePatientDto> = {
         patient_status: PatientStatus.NEW_PATIENT,
       };
-      const patientAsNew = { ...mockPatient, patient_status: PatientStatus.IN_TREATMENT };
+      const patientAsNew = {
+        ...mockPatient,
+        patient_status: PatientStatus.IN_TREATMENT,
+      };
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientAsNew);
 
       await service.update(1, updateDto as UpdatePatientDto);
@@ -448,9 +464,11 @@ describe('PatientService', () => {
       await expect(
         service.update(1, updateDto as UpdatePatientDto),
       ).rejects.toThrow(
-        'Use setPatientStatus to set status to Alta (A) or Faltas consecutivas (F).',
+        'Use setPatientStatus to set status to Discharged (A) or Missed (F).',
       );
-      expect(mockAttendanceService.cancelOpenAttendancesForPatient).not.toHaveBeenCalled();
+      expect(
+        mockAttendanceService.cancelOpenAttendancesForPatient,
+      ).not.toHaveBeenCalled();
     });
 
     it('should throw ValidationException when transitioning to ABSENT via update', async () => {
@@ -461,11 +479,16 @@ describe('PatientService', () => {
       await expect(
         service.update(1, updateDto as UpdatePatientDto),
       ).rejects.toThrow(ValidationException);
-      expect(mockAttendanceService.cancelOpenAttendancesForPatient).not.toHaveBeenCalled();
+      expect(
+        mockAttendanceService.cancelOpenAttendancesForPatient,
+      ).not.toHaveBeenCalled();
     });
 
     it('should throw PatientStatusUpdateException when transitioning from DISCHARGED to ABSENT via setPatientStatus', async () => {
-      const patientDischarged = { ...mockPatient, patient_status: PatientStatus.DISCHARGED };
+      const patientDischarged = {
+        ...mockPatient,
+        patient_status: PatientStatus.DISCHARGED,
+      };
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(patientDischarged)
@@ -477,7 +500,10 @@ describe('PatientService', () => {
     });
 
     it('should throw PatientStatusUpdateException when transitioning from ABSENT to DISCHARGED via setPatientStatus', async () => {
-      const patientAbsent = { ...mockPatient, patient_status: PatientStatus.ABSENT };
+      const patientAbsent = {
+        ...mockPatient,
+        patient_status: PatientStatus.ABSENT,
+      };
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(patientAbsent)
@@ -498,7 +524,10 @@ describe('PatientService', () => {
     });
 
     it('should cancel open attendances and treatment sessions and return patient and list when transitioning to ABSENT', async () => {
-      const patientInTreatment = { ...mockPatient, patient_status: PatientStatus.IN_TREATMENT };
+      const patientInTreatment = {
+        ...mockPatient,
+        patient_status: PatientStatus.IN_TREATMENT,
+      };
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(patientInTreatment)
@@ -514,30 +543,33 @@ describe('PatientService', () => {
         cancelledList,
       );
 
-      const result = await service.setPatientStatus(
-        1,
-        PatientStatus.ABSENT,
-        { cancellationReason: 'Faltas consecutivas - teste' },
-      );
+      const result = await service.setPatientStatus(1, PatientStatus.ABSENT, {
+        cancellationReason: 'Missed — consecutive - test',
+      });
 
-      expect(mockAttendanceService.cancelOpenAttendancesForPatient).toHaveBeenCalledWith(
-        1,
-        'Faltas consecutivas - teste',
-        { excludeAttendanceIds: undefined },
-      );
+      expect(
+        mockAttendanceService.cancelOpenAttendancesForPatient,
+      ).toHaveBeenCalledWith(1, 'Missed — consecutive - test', {
+        excludeAttendanceIds: undefined,
+      });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
-          category: 'alteracao_de_status',
+          category: 'status_change',
         }),
       );
-      expect(mockTreatmentService.getTreatmentsByPatient).toHaveBeenCalledWith(1);
+      expect(mockTreatmentService.getTreatmentsByPatient).toHaveBeenCalledWith(
+        1,
+      );
       expect(result.patient.patient_status).toBe(PatientStatus.ABSENT);
       expect(result.cancelledAttendances).toEqual(cancelledList);
     });
 
     it('should call cancelTreatment with cancelLinkedOpenAttendances: false when transitioning', async () => {
-      const patientInTreatment = { ...mockPatient, patient_status: PatientStatus.IN_TREATMENT };
+      const patientInTreatment = {
+        ...mockPatient,
+        patient_status: PatientStatus.IN_TREATMENT,
+      };
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(patientInTreatment)
@@ -546,7 +578,9 @@ describe('PatientService', () => {
         ...patientInTreatment,
         patient_status: PatientStatus.ABSENT,
       });
-      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce([]);
+      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce(
+        [],
+      );
       mockTreatmentService.getTreatmentsByPatient.mockResolvedValueOnce([
         { id: 5, status: 'active', patient_id: 1 },
       ]);
@@ -561,7 +595,10 @@ describe('PatientService', () => {
     });
 
     it('should set discharge_date when transitioning to DISCHARGED', async () => {
-      const patientInTreatment = { ...mockPatient, patient_status: PatientStatus.IN_TREATMENT };
+      const patientInTreatment = {
+        ...mockPatient,
+        patient_status: PatientStatus.IN_TREATMENT,
+      };
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(patientInTreatment)
@@ -572,22 +609,24 @@ describe('PatientService', () => {
         discharge_date: '2026-03-04',
       };
       mockRepository.save.mockResolvedValueOnce(savedPatient);
-      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce([]);
+      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce(
+        [],
+      );
 
       const result = await service.setPatientStatus(
         1,
         PatientStatus.DISCHARGED,
       );
 
-      expect(mockAttendanceService.cancelOpenAttendancesForPatient).toHaveBeenLastCalledWith(
-        1,
-        'Alta do tratamento',
-        { excludeAttendanceIds: undefined },
-      );
+      expect(
+        mockAttendanceService.cancelOpenAttendancesForPatient,
+      ).toHaveBeenLastCalledWith(1, 'Discharged', {
+        excludeAttendanceIds: undefined,
+      });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
-          category: 'alteracao_de_status',
+          category: 'status_change',
         }),
       );
       expect(result.patient.patient_status).toBe(PatientStatus.DISCHARGED);
@@ -609,18 +648,18 @@ describe('PatientService', () => {
       });
 
       await service.setPatientStatus(1, PatientStatus.ABSENT, {
-        cancellationReason: '  Motivo personalizado  ',
+        cancellationReason: '  Custom reason  ',
       });
 
-      expect(mockAttendanceService.cancelOpenAttendancesForPatient).toHaveBeenCalledWith(
-        1,
-        'Motivo personalizado',
-        { excludeAttendanceIds: undefined },
-      );
+      expect(
+        mockAttendanceService.cancelOpenAttendancesForPatient,
+      ).toHaveBeenCalledWith(1, 'Custom reason', {
+        excludeAttendanceIds: undefined,
+      });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
-          note_content: expect.stringContaining('Motivo: Motivo personalizado'),
+          note_content: expect.stringContaining('Reason: Custom reason'),
         }),
       );
     });
@@ -653,7 +692,7 @@ describe('PatientService', () => {
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
-          note_content: expect.stringContaining('em 10/03/2026.'),
+          note_content: expect.stringContaining('on 03/10/2026.'),
         }),
       );
     });
@@ -668,49 +707,76 @@ describe('PatientService', () => {
     });
 
     it('should return unchanged when patient already has target status (A)', async () => {
-      const patientDischarged = { ...mockPatient, patient_status: PatientStatus.DISCHARGED };
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientDischarged);
+      const patientDischarged = {
+        ...mockPatient,
+        patient_status: PatientStatus.DISCHARGED,
+      };
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(patientDischarged);
 
-      const result = await service.setPatientStatus(1, PatientStatus.DISCHARGED);
+      const result = await service.setPatientStatus(
+        1,
+        PatientStatus.DISCHARGED,
+      );
 
       expect(result.patient).toEqual(patientDischarged);
       expect(result.unchanged).toBe(true);
       expect(result.cancelledAttendances).toEqual([]);
-      expect(mockAttendanceService.cancelOpenAttendancesForPatient).not.toHaveBeenCalled();
+      expect(
+        mockAttendanceService.cancelOpenAttendancesForPatient,
+      ).not.toHaveBeenCalled();
     });
 
     it('should return unchanged when patient already has target status (F)', async () => {
-      const patientAbsent = { ...mockPatient, patient_status: PatientStatus.ABSENT };
+      const patientAbsent = {
+        ...mockPatient,
+        patient_status: PatientStatus.ABSENT,
+      };
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientAbsent);
 
       const result = await service.setPatientStatus(1, PatientStatus.ABSENT);
 
       expect(result.unchanged).toBe(true);
       expect(result.cancelledAttendances).toEqual([]);
-      expect(mockAttendanceService.cancelOpenAttendancesForPatient).not.toHaveBeenCalled();
+      expect(
+        mockAttendanceService.cancelOpenAttendancesForPatient,
+      ).not.toHaveBeenCalled();
     });
 
     it('should call internal transition and return result when transitioning to ABSENT', async () => {
-      const patientInTreatment = { ...mockPatient, patient_status: PatientStatus.IN_TREATMENT };
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientInTreatment);
-      const savedPatient = { ...patientInTreatment, patient_status: PatientStatus.ABSENT };
+      const patientInTreatment = {
+        ...mockPatient,
+        patient_status: PatientStatus.IN_TREATMENT,
+      };
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(patientInTreatment);
+      const savedPatient = {
+        ...patientInTreatment,
+        patient_status: PatientStatus.ABSENT,
+      };
       mockRepository.save.mockResolvedValueOnce(savedPatient);
-      const cancelledList = [{ id: 10, type: 'assessment', scheduled_date: '2024-01-20' }];
-      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce(cancelledList);
+      const cancelledList = [
+        { id: 10, type: 'assessment', scheduled_date: '2024-01-20' },
+      ];
+      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce(
+        cancelledList,
+      );
 
       const result = await service.setPatientStatus(1, PatientStatus.ABSENT, {
         cancellationReason: 'Test reason',
       });
 
-      expect(mockAttendanceService.cancelOpenAttendancesForPatient).toHaveBeenCalledWith(
-        1,
-        'Test reason',
-        { excludeAttendanceIds: undefined },
-      );
+      expect(
+        mockAttendanceService.cancelOpenAttendancesForPatient,
+      ).toHaveBeenCalledWith(1, 'Test reason', {
+        excludeAttendanceIds: undefined,
+      });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
-          category: 'alteracao_de_status',
+          category: 'status_change',
         }),
       );
       expect(result.patient.patient_status).toBe(PatientStatus.ABSENT);
@@ -719,7 +785,10 @@ describe('PatientService', () => {
     });
 
     it('should pass excludeAttendanceIds to transition when provided', async () => {
-      const patientInTreatment = { ...mockPatient, patient_status: PatientStatus.IN_TREATMENT };
+      const patientInTreatment = {
+        ...mockPatient,
+        patient_status: PatientStatus.IN_TREATMENT,
+      };
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(patientInTreatment)
@@ -728,31 +797,39 @@ describe('PatientService', () => {
         ...patientInTreatment,
         patient_status: PatientStatus.DISCHARGED,
       });
-      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce([]);
+      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce(
+        [],
+      );
 
       await service.setPatientStatus(1, PatientStatus.DISCHARGED, {
         excludeAttendanceIds: [100],
       });
 
-      expect(mockAttendanceService.cancelOpenAttendancesForPatient).toHaveBeenCalledWith(
-        1,
-        'Alta do tratamento',
-        { excludeAttendanceIds: [100] },
-      );
+      expect(
+        mockAttendanceService.cancelOpenAttendancesForPatient,
+      ).toHaveBeenCalledWith(1, 'Discharged', {
+        excludeAttendanceIds: [100],
+      });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
-          category: 'alteracao_de_status',
+          category: 'status_change',
         }),
       );
     });
 
     it('should return unchanged when patient already has target status N', async () => {
       mockRepository.merge.mockClear();
-      const patientNew = { ...mockPatient, patient_status: PatientStatus.NEW_PATIENT };
+      const patientNew = {
+        ...mockPatient,
+        patient_status: PatientStatus.NEW_PATIENT,
+      };
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientNew);
 
-      const result = await service.setPatientStatus(1, PatientStatus.NEW_PATIENT);
+      const result = await service.setPatientStatus(
+        1,
+        PatientStatus.NEW_PATIENT,
+      );
 
       expect(result.patient).toEqual(patientNew);
       expect(result.unchanged).toBe(true);
@@ -760,13 +837,24 @@ describe('PatientService', () => {
     });
 
     it('should validate and update when transitioning to N and patient has no completed attendances', async () => {
-      const patientInTreatment = { ...mockPatient, patient_status: PatientStatus.IN_TREATMENT };
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientInTreatment);
+      const patientInTreatment = {
+        ...mockPatient,
+        patient_status: PatientStatus.IN_TREATMENT,
+      };
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(patientInTreatment);
       mockAttendanceRepository.count.mockResolvedValueOnce(0);
-      const savedPatient = { ...patientInTreatment, patient_status: PatientStatus.NEW_PATIENT };
+      const savedPatient = {
+        ...patientInTreatment,
+        patient_status: PatientStatus.NEW_PATIENT,
+      };
       mockRepository.save.mockResolvedValueOnce(savedPatient);
 
-      const result = await service.setPatientStatus(1, PatientStatus.NEW_PATIENT);
+      const result = await service.setPatientStatus(
+        1,
+        PatientStatus.NEW_PATIENT,
+      );
 
       expect(repository.merge).toHaveBeenCalledWith(patientInTreatment, {
         patient_status: PatientStatus.NEW_PATIENT,
@@ -777,8 +865,13 @@ describe('PatientService', () => {
 
     it('should throw when transitioning to N and patient has completed attendances', async () => {
       mockRepository.save.mockClear();
-      const patientInTreatment = { ...mockPatient, patient_status: PatientStatus.IN_TREATMENT };
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientInTreatment);
+      const patientInTreatment = {
+        ...mockPatient,
+        patient_status: PatientStatus.IN_TREATMENT,
+      };
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(patientInTreatment);
       mockAttendanceRepository.count.mockResolvedValueOnce(1);
 
       await expect(
@@ -788,8 +881,13 @@ describe('PatientService', () => {
     });
 
     it('should throw PatientStatusUpdateException for invalid N/T transition', async () => {
-      const patientDischarged = { ...mockPatient, patient_status: PatientStatus.DISCHARGED };
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientDischarged);
+      const patientDischarged = {
+        ...mockPatient,
+        patient_status: PatientStatus.DISCHARGED,
+      };
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValueOnce(patientDischarged);
 
       await expect(
         service.setPatientStatus(1, PatientStatus.NEW_PATIENT),

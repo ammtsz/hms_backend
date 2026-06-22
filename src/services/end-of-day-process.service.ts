@@ -47,7 +47,7 @@ export class EndOfDayProcessService {
     // 1. Idempotency check
     const isFinalized = await this.dayFinalizationService.isDayFinalized(date);
     if (isFinalized) {
-      throw new ConflictException('Dia já finalizado.');
+      throw new ConflictException('Day already finalized.');
     }
 
     const summary: ProcessEndOfDayResponseDto = {
@@ -60,7 +60,7 @@ export class EndOfDayProcessService {
     if (absence_justifications.length === 0) {
       await this.dayFinalizationService.finalizeDay(
         date,
-        'Dia finalizado sem ausências',
+        'Day finalized without absences',
       );
       return summary;
     }
@@ -110,7 +110,7 @@ export class EndOfDayProcessService {
       try {
         const patient = await this.patientService.findOne(attendance.patient_id);
         const streak = patient.missing_appointments_streak;
-        const patientName = attendance.patient?.name ?? patient.name ?? 'Paciente';
+        const patientName = attendance.patient?.name ?? patient.name ?? 'Patient';
 
         if (streak === threshold) {
           // Rule 2: Set patient to F and cancel all future (dedupe by patient)
@@ -120,7 +120,7 @@ export class EndOfDayProcessService {
               const result = await this.patientService.setPatientStatus(
                 attendance.patient_id,
                 PatientStatus.ABSENT,
-                { cancellationReason: `${threshold} faltas consecutivas sem justificativa` },
+                { cancellationReason: `${threshold} consecutive unjustified absences` },
               );
               const cancelledAttendances = result.cancelledAttendances ?? [];
 
@@ -154,7 +154,7 @@ export class EndOfDayProcessService {
               patient_id: attendance.patient_id,
               patient_name: patientName,
               type: attendance.type,
-              reason: 'Paciente não está em tratamento ativo',
+                reason: "Patient doesn't have an active treatment",
             });
             continue;
           }
@@ -206,20 +206,20 @@ export class EndOfDayProcessService {
               patient_name: patientName,
               type: attendance.type,
               reason:
-                'Não foi possível encontrar data disponível em 52 semanas',
+                'Could not find an available date within 52 weeks',
             });
           }
         }
       } catch (err) {
         this.logger.error(
-          `Erro ao processar ausência do atendimento ${attendance.id} (paciente ${attendance.patient_id}): ${err instanceof Error ? err.message : String(err)}`,
+          `Error processing absence for attendance ${attendance.id} (patient ${attendance.patient_id}): ${err instanceof Error ? err.message : String(err)}`,
         );
         summary.could_not_reschedule.push({
           attendance_id: attendance.id,
           patient_id: attendance.patient_id,
-          patient_name: attendance.patient?.name ?? 'Paciente',
+          patient_name: attendance.patient?.name ?? 'Patient',
           type: attendance.type,
-          reason: 'Erro interno ao processar ausência',
+          reason: 'Internal error while processing absence',
         });
       }
     }
@@ -235,7 +235,7 @@ export class EndOfDayProcessService {
         summary.rescheduled.push({
           attendance_id: assessmentAttId,
           patient_id: assessmentAtt.patient_id,
-          patient_name: assessmentAtt.patient?.name ?? 'Paciente',
+          patient_name: assessmentAtt.patient?.name ?? 'Patient',
           type: AttendanceType.ASSESSMENT,
           old_date: assessmentAtt.scheduled_date,
           new_date: newDate,
@@ -250,7 +250,7 @@ export class EndOfDayProcessService {
     // 5. Finalize the day
     await this.dayFinalizationService.finalizeDay(
       date,
-      `Finalizado com ${absence_justifications.length} ausência(s) processada(s)`,
+      `Finalized with ${absence_justifications.length} processed absence(s)`,
     );
 
     return summary;

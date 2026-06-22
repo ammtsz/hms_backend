@@ -294,13 +294,13 @@ export class TreatmentService {
         ) ?? false;
       if (hasCompletedSession) {
         throw new BadRequestException(
-          'O tratamento não pode ser editado porque já possui uma sessão finalizada',
+          'The treatment cannot be edited because it already has a completed session',
         );
       }
       if (treatment.treatment_type === TreatmentType.TENS) {
         if (dto.duration_minutes !== undefined || dto.color !== undefined) {
           throw new BadRequestException(
-            'A duração e cor são permitidas apenas para tratamentos de fisioterapia',
+            'Duration and color are only allowed for physiotherapy treatments',
           );
         }
       }
@@ -315,7 +315,7 @@ export class TreatmentService {
           effectiveColor === ''
         ) {
           throw new BadRequestException(
-            'O tratamento de fisioterapia requer duração quanto a cor',
+            'Physiotherapy treatment requires both duration and color',
           );
         }
       }
@@ -706,7 +706,7 @@ export class TreatmentService {
         type: 'assessment' as AttendanceType,
         scheduled_date: adjustedDate,
         scheduled_time: consultation.attendance.scheduled_time,
-        notes: `Retorno agendado automaticamente - após criação do tratamento`,
+        notes: `Return automatically scheduled - after treatment creation`,
         parent_attendance_id: parentAttendanceId,
       });
 

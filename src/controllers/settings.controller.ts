@@ -76,7 +76,7 @@ export class SettingsController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   async deleteBodyLocation(@Param('id') id: string) {
     await this.systemOptionService.delete(+id);
-    return { message: 'Local do corpo excluído com sucesso' };
+    return { message: 'Body location deleted successfully' };
   }
 
   @Get('colors')
@@ -122,7 +122,7 @@ export class SettingsController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   async deleteColor(@Param('id') id: string) {
     await this.systemOptionService.delete(+id);
-    return { message: 'Cor excluída com sucesso' };
+    return { message: 'Color deleted successfully' };
   }
 
   @Get('appointments-threshold')
@@ -219,6 +219,6 @@ export class SettingsController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   async deleteNoteCategory(@Param("id") id: string) {
     await this.systemOptionService.delete(+id);
-    return { message: "Categoria excluída com sucesso" };
+    return { message: "Note category deleted successfully" };
   }
 }

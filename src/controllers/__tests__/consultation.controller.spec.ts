@@ -57,7 +57,7 @@ describe('ConsultationController', () => {
     id: 1,
     attendance_id: 1,
     attendance: mockAttendance,
-    main_complaint: 'Test complaint',
+    main_concern: 'Test complaint',
     patient_status: null,
     food: 'Test food recommendations',
     water: 'Test water recommendations',

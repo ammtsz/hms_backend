@@ -35,12 +35,10 @@ export class PatientNoteService {
     });
 
     if (!patient) {
-      throw new NotFoundException(
-        `Paciente com ID ${patientId} não encontrado`,
-      );
+      throw new NotFoundException(`Patient with ID ${patientId} not found`);
     }
 
-    const category = createPatientNoteDto.category || 'geral';
+    const category = createPatientNoteDto.category || 'general';
     await this.validateActiveNoteCategory(category);
 
     // Create the note
@@ -61,9 +59,7 @@ export class PatientNoteService {
     });
 
     if (!patient) {
-      throw new NotFoundException(
-        `Paciente com ID ${patientId} não encontrado`,
-      );
+      throw new NotFoundException(`Patient with ID ${patientId} not found`);
     }
 
     const notes = await this.patientNoteRepository.find({
@@ -87,7 +83,7 @@ export class PatientNoteService {
 
     if (!note) {
       throw new NotFoundException(
-        `Nota com ID ${noteId} não encontrada para o paciente ${patientId}`,
+        `Note with ID ${noteId} not found for patient ${patientId}`,
       );
     }
 
@@ -105,7 +101,7 @@ export class PatientNoteService {
 
     if (!note) {
       throw new NotFoundException(
-        `Nota com ID ${noteId} não encontrada para o paciente ${patientId}`,
+        `Note with ID ${noteId} not found for patient ${patientId}`,
       );
     }
 
@@ -129,7 +125,7 @@ export class PatientNoteService {
 
     if (!note) {
       throw new NotFoundException(
-        `Nota com ID ${noteId} não encontrada para o paciente ${patientId}`,
+        `Note with ID ${noteId} not found for patient ${patientId}`,
       );
     }
 
@@ -160,7 +156,7 @@ export class PatientNoteService {
 
     if (!option) {
       throw new ValidationException(
-        `Categoria inválida ou inativa: ${category}`,
+        `Invalid or inactive category: ${category}`,
       );
     }
   }

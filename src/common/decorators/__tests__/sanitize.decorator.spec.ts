@@ -49,7 +49,7 @@ describe('Sanitize Decorator', () => {
 
   it('should preserve normal text', async () => {
     const input = {
-      name: 'João Silva',
+      name: 'John Smith',
       note: 'Regular note with normal text',
     };
 
@@ -57,19 +57,19 @@ describe('Sanitize Decorator', () => {
     const errors = await validate(dto);
 
     expect(errors.length).toBe(0);
-    expect(dto.name).toBe('João Silva');
+    expect(dto.name).toBe('John Smith');
     expect(dto.note).toBe('Regular note with normal text');
   });
 
   it('should preserve special characters and accents', async () => {
     const input = {
-      name: "O'Brien & María José (Test)",
+      name: "O'Brien & Emily James (Test)",
     };
 
     const dto = plainToInstance(TestDto, input);
     const errors = await validate(dto);
 
-    expect(dto.name).toBe("O'Brien & María José (Test)");
+    expect(dto.name).toBe("O'Brien & Emily James (Test)");
   });
 
   it('should handle unicode characters', async () => {

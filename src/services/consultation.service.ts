@@ -55,8 +55,8 @@ export class ConsultationService {
       const savedConsultation =
         await this.consultationRepository.save(consultationEntity);
 
-      // Update patient's main_complaint if this is a new treatment episode or new patient
-      await this.updatePatientMainComplaint(savedConsultation, attendance);
+      // Update patient's main_concern if this is a new treatment episode or new patient
+      await this.updatePatientMainConcern(savedConsultation, attendance);
 
       const { patient_status } = createConsultationDto;
       if (patient_status) {
@@ -350,7 +350,7 @@ export class ConsultationService {
         type: AttendanceType.ASSESSMENT, // Follow-up is always assessment consultation
         scheduled_date: adjustedDate,
         scheduled_time: currentAttendance.scheduled_time, // Same time as current
-        notes: `Retorno agendado automaticamente - ${consultation.return_weeks} semana(s) após consulta anterior`,
+        notes: `Return automatically scheduled - ${consultation.return_weeks} week(s) after previous consultation`,
         parent_attendance_id: parentAttendanceId, // Link to original consultation
       });
 
@@ -369,19 +369,19 @@ export class ConsultationService {
   }
 
   /**
-   * Updates the patient's main_complaint based on consultation logic
+   * Updates the patient's main_concern based on consultation logic
    * Updates when:
    * - New patient (patient_status = 'N')
    * - New treatment episode (attendance.parent_attendance_id is null)
    * - Complaint is different from current patient complaint
    */
-  private async updatePatientMainComplaint(
+  private async updatePatientMainConcern(
     consultation: Consultation,
     attendance: Attendance,
   ): Promise<void> {
     try {
-      // Only update if there's a main_complaint in the consultation
-      if (!consultation.main_complaint?.trim()) {
+      // Only update if there's a main_concern in the consultation
+      if (!consultation.main_concern?.trim()) {
         return;
       }
 
@@ -395,20 +395,20 @@ export class ConsultationService {
         return;
       }
 
-      // Determine if we should update the patient's main_complaint
+      // Determine if we should update the patient's main_concern
       const shouldUpdate =
         // New patient
         patient.patient_status === 'N' ||
         // New treatment episode (not a follow-up - attendance has no parent)
         !attendance.parent_attendance_id ||
         // Complaint is different from current patient complaint
-        patient.main_complaint !== consultation.main_complaint;
+        patient.main_concern !== consultation.main_concern;
 
       if (shouldUpdate) {
         await this.patientRepository.update(
           { id: attendance.patient_id },
           {
-            main_complaint: consultation.main_complaint,
+            main_concern: consultation.main_concern,
             updated_date: new Date().toISOString().split('T')[0],
             updated_time: new Date()
               .toTimeString()
@@ -418,16 +418,16 @@ export class ConsultationService {
         );
 
         console.log(
-          `✅ Updated patient ${attendance.patient_id} main_complaint: "${consultation.main_complaint}"`,
+          `✅ Updated patient ${attendance.patient_id} main_concern: "${consultation.main_concern}"`,
         );
       } else {
         console.log(
-          `ℹ️ Patient ${attendance.patient_id} main_complaint unchanged (follow-up or same complaint)`,
+          `ℹ️ Patient ${attendance.patient_id} main_concern unchanged (follow-up or same complaint)`,
         );
       }
     } catch (error) {
       console.error(
-        `❌ Error updating patient main_complaint for patient ${attendance.patient_id}:`,
+        `❌ Error updating patient main_concern for patient ${attendance.patient_id}:`,
         error,
       );
       // Don't throw - this shouldn't break the consultation creation

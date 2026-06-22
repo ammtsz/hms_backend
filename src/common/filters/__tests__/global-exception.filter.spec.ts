@@ -104,7 +104,7 @@ describe('GlobalExceptionFilter', () => {
     it('should merge extra fields from HttpException object response', () => {
       const exception = new HttpException(
         {
-          message: 'Não é possível desativar',
+          message: 'Cannot deactivate',
           error: 'Conflict',
           blocking_patients: [{ id: 1, name: 'A' }],
         },
@@ -116,7 +116,7 @@ describe('GlobalExceptionFilter', () => {
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: HttpStatus.CONFLICT,
-          message: 'Não é possível desativar',
+          message: 'Cannot deactivate',
           blocking_patients: [{ id: 1, name: 'A' }],
         }),
       );

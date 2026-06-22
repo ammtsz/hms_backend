@@ -196,9 +196,9 @@ describe('SystemOptionService', () => {
     it('should block is_active false for priority value 1', async () => {
       systemOptionRepo.findOne.mockResolvedValueOnce(priorityOption('1'));
 
-      await expect(
-        service.update(1, { is_active: false }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.update(1, { is_active: false })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should block is_active false when patients use that priority', async () => {
@@ -237,11 +237,11 @@ describe('SystemOptionService', () => {
   });
 
   describe('delete', () => {
-    it("should block deleting default 'geral' note category", async () => {
+    it("should block deleting default 'general' note category", async () => {
       systemOptionRepo.findOne.mockResolvedValueOnce({
         id: 11,
         type: SystemOptionType.NOTE_CATEGORY,
-        value: 'geral',
+        value: 'general',
       });
 
       await expect(service.delete(11)).rejects.toThrow(BadRequestException);
@@ -252,7 +252,7 @@ describe('SystemOptionService', () => {
       const option = {
         id: 12,
         type: SystemOptionType.NOTE_CATEGORY,
-        value: 'tratamento',
+        value: 'treatment',
       } as SystemOption;
       systemOptionRepo.findOne.mockResolvedValueOnce(option);
 

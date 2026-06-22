@@ -16,7 +16,7 @@ describe('Patient DTOs', () => {
       dto.priority = PatientPriority.LEVEL_3;
       dto.patient_status = PatientStatus.IN_TREATMENT;
       dto.birth_date = '1990-01-01';
-      dto.main_complaint = 'Frequent headaches';
+      dto.main_concern = 'Frequent headaches';
 
       const errors = await validate(dto);
       expect(errors).toHaveLength(0);
@@ -186,7 +186,7 @@ describe('Patient DTOs', () => {
       dto.priority = PatientPriority.LEVEL_3;
       dto.patient_status = PatientStatus.IN_TREATMENT;
       dto.birth_date = '1990-01-01'; // Set optional property
-      dto.main_complaint = 'Test complaint'; // Set optional property
+      dto.main_concern = 'Test complaint'; // Set optional property
       dto.discharge_date = '2025-12-31'; // Set optional property
       dto.start_date = '2025-07-22';
       dto.created_date = '2025-07-22';
@@ -200,7 +200,7 @@ describe('Patient DTOs', () => {
       expect(dto).toHaveProperty('priority');
       expect(dto).toHaveProperty('patient_status');
       expect(dto).toHaveProperty('birth_date');
-      expect(dto).toHaveProperty('main_complaint');
+      expect(dto).toHaveProperty('main_concern');
       expect(dto).toHaveProperty('discharge_date');
       expect(dto).toHaveProperty('start_date');
       expect(dto).toHaveProperty('created_date');
@@ -217,7 +217,7 @@ describe('Patient DTOs', () => {
       dto.priority = PatientPriority.LEVEL_1;
       dto.patient_status = PatientStatus.DISCHARGED;
       dto.birth_date = '1990-01-01';
-      dto.main_complaint = 'Frequent headaches';
+      dto.main_concern = 'Frequent headaches';
       dto.discharge_date = '2025-12-31';
       dto.start_date = '2025-07-22';
       dto.created_date = '2025-07-22';
