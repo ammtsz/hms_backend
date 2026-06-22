@@ -1227,7 +1227,7 @@ export class AttendanceService {
   /**
    * Cap inclusive range at 90 days (from fromDate through fromDate+89).
    */
-  private clampAgendaDateRange(
+  private clampScheduleDateRange(
     fromDate: string,
     toDate: string,
   ): { fromDate: string; toDate: string } {
@@ -1241,8 +1241,8 @@ export class AttendanceService {
     };
   }
 
-  // Get all attendances with minimal data for agenda view
-  async findAllForAgenda(filters?: {
+  // Get all attendances with minimal data for schedule view
+  async findAllForSchedule(filters?: {
     statuses?: AttendanceStatus[];
     type?: string;
     limit?: number;
@@ -1274,7 +1274,7 @@ export class AttendanceService {
     }
 
     if (filters?.fromDate && filters?.toDate) {
-      const { fromDate, toDate } = this.clampAgendaDateRange(
+      const { fromDate, toDate } = this.clampScheduleDateRange(
         filters.fromDate,
         filters.toDate,
       );

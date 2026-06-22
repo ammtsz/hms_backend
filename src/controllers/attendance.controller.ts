@@ -21,7 +21,7 @@ import {
   CreateAttendanceDto,
   UpdateAttendanceDto,
   AttendanceResponseDto,
-  AttendanceAgendaDto,
+  AttendanceScheduleDto,
   NextAttendanceDateDto,
   BulkCancelAttendancesDto,
   BulkPostponeAttendancesDto,
@@ -42,9 +42,9 @@ import {
 import { ResourceNotFoundException } from '../common/exceptions/base.exception';
 import { AttendanceStatus } from '../common/enums';
 import {
-  parseAgendaDateRange,
-  parseAgendaStatusQuery,
-} from '../common/utils/agenda-query.utils';
+  parseScheduleDateRange,
+  parseScheduleStatusQuery,
+} from '../common/utils/schedule-query.utils';
 
 @ApiTags('Attendances')
 @UseGuards(JwtAuthGuard)
@@ -122,8 +122,8 @@ export class AttendanceController {
     return AttendanceTransformer.toResponseDtoList(attendances);
   }
 
-  @Get('agenda')
-  @ApiAttendanceOperation('Get all attendances for agenda view')
+  @Get('schedule')
+  @ApiAttendanceOperation('Get all attendances for schedule view')
   @ApiQuery({
     name: 'status',
     required: false,
@@ -163,14 +163,14 @@ export class AttendanceController {
     description: 'Inclusive end of scheduled_date range (YYYY-MM-DD); max 90-day span enforced server-side',
     type: 'string',
   })
-  async findAllForAgenda(
+  async findAllForSchedule(
     @Query('status') statusQuery?: string | string[],
     @Query('type') type?: string,
     @Query('limit') limit?: string,
     @Query('from_date') fromDate?: string,
     @Query('to_date') toDate?: string,
-  ): Promise<AttendanceAgendaDto[]> {
-    const statuses = parseAgendaStatusQuery(statusQuery);
+  ): Promise<AttendanceScheduleDto[]> {
+    const statuses = parseScheduleStatusQuery(statusQuery);
     const parsedLimit = limit ? parseInt(limit, 10) : undefined;
     const safeLimit =
       parsedLimit !== undefined &&
@@ -179,9 +179,9 @@ export class AttendanceController {
         ? parsedLimit
         : undefined;
 
-    const range = parseAgendaDateRange(fromDate, toDate);
+    const range = parseScheduleDateRange(fromDate, toDate);
 
-    this.logger.log('Fetching all attendances for agenda view', {
+    this.logger.log('Fetching all attendances for schedule view', {
       statuses,
       type,
       limit: safeLimit,
@@ -189,14 +189,14 @@ export class AttendanceController {
       toDate: range.toDate,
     });
 
-    const rawData = await this.attendanceService.findAllForAgenda({
+    const rawData = await this.attendanceService.findAllForSchedule({
       statuses,
       type,
       limit: safeLimit,
       fromDate: range.fromDate,
       toDate: range.toDate,
     });
-    return AttendanceTransformer.toAgendaDtoList(rawData);
+    return AttendanceTransformer.toScheduleDtoList(rawData);
   }
 
   @Get('next-date')

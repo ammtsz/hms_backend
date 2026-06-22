@@ -1,7 +1,7 @@
 import { Attendance } from '../entities/attendance.entity';
 import {
   AttendanceResponseDto,
-  AttendanceAgendaDto,
+  AttendanceScheduleDto,
   NextAttendanceDateDto,
 } from '../dtos/attendance.dto';
 import { combineDateTimeToTimestamp } from '../utils/datetime-helpers';
@@ -64,8 +64,8 @@ export class AttendanceTransformer {
     return attendances.map((attendance) => this.toResponseDto(attendance));
   }
 
-  // Transform raw query result to agenda DTO
-  static toAgendaDto(rawData: any): AttendanceAgendaDto {
+  // Transform raw query result to schedule DTO
+  static toScheduleDto(rawData: any): AttendanceScheduleDto {
     return {
       id: rawData.attendance_id,
       patient_id: rawData.attendance_patient_id,
@@ -82,8 +82,8 @@ export class AttendanceTransformer {
     };
   }
 
-  static toAgendaDtoList(rawDataList: any[]): AttendanceAgendaDto[] {
-    return rawDataList.map((rawData) => this.toAgendaDto(rawData));
+  static toScheduleDtoList(rawDataList: any[]): AttendanceScheduleDto[] {
+    return rawDataList.map((rawData) => this.toScheduleDto(rawData));
   }
 
   // Transform date string to next attendance date DTO

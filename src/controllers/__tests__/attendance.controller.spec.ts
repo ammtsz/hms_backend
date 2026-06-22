@@ -62,7 +62,7 @@ describe('AttendanceController', () => {
         },
       ]),
     ),
-    findAllForAgenda: jest.fn(() =>
+    findAllForSchedule: jest.fn(() =>
       Promise.resolve([
         {
           attendance_id: 1,
@@ -240,9 +240,9 @@ describe('AttendanceController', () => {
     });
   });
 
-  describe('findAllForAgenda', () => {
-    it('should return agenda attendances without filters', async () => {
-      const result = await controller.findAllForAgenda();
+  describe('findAllForSchedule', () => {
+    it('should return schedule attendances without filters', async () => {
+      const result = await controller.findAllForSchedule();
 
       expect(result).toEqual([
         {
@@ -256,7 +256,7 @@ describe('AttendanceController', () => {
           patient_priority: '2',
         },
       ]);
-      expect(service.findAllForAgenda).toHaveBeenCalledWith({
+      expect(service.findAllForSchedule).toHaveBeenCalledWith({
         statuses: undefined,
         type: undefined,
         limit: undefined,
@@ -265,8 +265,8 @@ describe('AttendanceController', () => {
       });
     });
 
-    it('should return agenda attendances with filters', async () => {
-      const result = await controller.findAllForAgenda(
+    it('should return schedule attendances with filters', async () => {
+      const result = await controller.findAllForSchedule(
         'scheduled',
         'assessment',
         '10',
@@ -286,7 +286,7 @@ describe('AttendanceController', () => {
           patient_priority: '2',
         },
       ]);
-      expect(service.findAllForAgenda).toHaveBeenCalledWith({
+      expect(service.findAllForSchedule).toHaveBeenCalledWith({
         statuses: [AttendanceStatus.SCHEDULED],
         type: 'assessment',
         limit: 10,
@@ -296,7 +296,7 @@ describe('AttendanceController', () => {
     });
 
     it('should pass multiple status query values', async () => {
-      await controller.findAllForAgenda(
+      await controller.findAllForSchedule(
         ['scheduled', 'completed'],
         undefined,
         undefined,
@@ -304,7 +304,7 @@ describe('AttendanceController', () => {
         '2025-07-15',
       );
 
-      expect(service.findAllForAgenda).toHaveBeenCalledWith({
+      expect(service.findAllForSchedule).toHaveBeenCalledWith({
         statuses: [AttendanceStatus.SCHEDULED, AttendanceStatus.COMPLETED],
         type: undefined,
         limit: undefined,
@@ -314,7 +314,7 @@ describe('AttendanceController', () => {
     });
 
     it('should omit statuses when none valid after parse', async () => {
-      await controller.findAllForAgenda(
+      await controller.findAllForSchedule(
         ['not-a-status'],
         undefined,
         undefined,
@@ -322,7 +322,7 @@ describe('AttendanceController', () => {
         '2025-07-15',
       );
 
-      expect(service.findAllForAgenda).toHaveBeenCalledWith({
+      expect(service.findAllForSchedule).toHaveBeenCalledWith({
         statuses: undefined,
         type: undefined,
         limit: undefined,
@@ -332,7 +332,7 @@ describe('AttendanceController', () => {
     });
 
     it('should handle invalid limit parameter gracefully', async () => {
-      await controller.findAllForAgenda(
+      await controller.findAllForSchedule(
         undefined,
         undefined,
         'invalid',
@@ -340,7 +340,7 @@ describe('AttendanceController', () => {
         '2025-07-15',
       );
 
-      expect(service.findAllForAgenda).toHaveBeenCalledWith({
+      expect(service.findAllForSchedule).toHaveBeenCalledWith({
         statuses: undefined,
         type: undefined,
         limit: undefined,

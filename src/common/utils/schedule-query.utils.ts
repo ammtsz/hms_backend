@@ -2,10 +2,10 @@ import { BadRequestException } from '@nestjs/common';
 import { AttendanceStatus } from '../enums';
 
 /**
- * Parses repeated `status` query params for GET /attendances/agenda.
+ * Parses repeated `status` query params for GET /attendances/schedule.
  * Unknown values are dropped; empty after filter → undefined (all statuses).
  */
-export function parseAgendaStatusQuery(
+export function parseScheduleStatusQuery(
   statusQuery?: string | string[],
 ): AttendanceStatus[] | undefined {
   if (statusQuery === undefined) {
@@ -20,19 +20,19 @@ export function parseAgendaStatusQuery(
   return parsed.length > 0 ? parsed : undefined;
 }
 
-export interface AgendaDateRange {
+export interface ScheduleDateRange {
   fromDate?: string;
   toDate?: string;
 }
 
 /**
- * Validates optional inclusive scheduled_date range for agenda queries.
+ * Validates optional inclusive scheduled_date range for schedule queries.
  * Both bounds required together; must be YYYY-MM-DD; from ≤ to.
  */
-export function parseAgendaDateRange(
+export function parseScheduleDateRange(
   fromDate?: string,
   toDate?: string,
-): AgendaDateRange {
+): ScheduleDateRange {
   if (!fromDate && !toDate) {
     return {};
   }

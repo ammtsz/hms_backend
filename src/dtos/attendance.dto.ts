@@ -319,8 +319,8 @@ export class AttendanceResponseDto {
   patient?: PatientResponseDto;
 }
 
-// Simplified DTO for agenda view - contains only essential information
-export class AttendanceAgendaDto {
+// Simplified DTO for schedule view - contains only essential information
+export class AttendanceScheduleDto {
   @ApiProperty({ description: 'Attendance ID', example: 1 })
   id: number;
 

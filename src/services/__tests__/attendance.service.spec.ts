@@ -1776,9 +1776,9 @@ describe('AttendanceService', () => {
     });
   });
 
-  describe('findAllForAgenda', () => {
-    it('should return raw agenda data without filters', async () => {
-      const result = await service.findAllForAgenda();
+  describe('findAllForSchedule', () => {
+    it('should return raw schedule data without filters', async () => {
+      const result = await service.findAllForSchedule();
 
       expect(result).toEqual([
         {
@@ -1827,7 +1827,7 @@ describe('AttendanceService', () => {
         .spyOn(repository, 'createQueryBuilder')
         .mockReturnValueOnce(mockQueryBuilderForFilters as any);
 
-      const result = await service.findAllForAgenda(filters);
+      const result = await service.findAllForSchedule(filters);
 
       expect(mockQueryBuilderForFilters.andWhere).toHaveBeenCalledWith(
         'attendance.status IN (:...statuses)',
@@ -1865,7 +1865,7 @@ describe('AttendanceService', () => {
         .spyOn(repository, 'createQueryBuilder')
         .mockReturnValueOnce(mockQueryBuilderForFilters as any);
 
-      await service.findAllForAgenda({
+      await service.findAllForSchedule({
         statuses: [AttendanceStatus.SCHEDULED, AttendanceStatus.COMPLETED],
       });
 
@@ -1879,7 +1879,7 @@ describe('AttendanceService', () => {
 
     it('should handle empty filters', async () => {
       const filters = {};
-      const result = await service.findAllForAgenda(filters);
+      const result = await service.findAllForSchedule(filters);
 
       expect(result).toBeDefined();
       expect(repository.createQueryBuilder).toHaveBeenCalled();
