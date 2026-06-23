@@ -12,7 +12,7 @@ describe('PatientController', () => {
   const mockPatient = {
     id: 1,
     name: 'John Doe',
-    phone: '(11) 99999-9999',
+    phone: '(555) 123-4567',
     priority: PatientPriority.LEVEL_3,
     patient_status: PatientStatus.IN_TREATMENT,
     birth_date: '1990-01-01',
@@ -74,7 +74,7 @@ describe('PatientController', () => {
     it('should create a new patient', async () => {
       const createDto: CreatePatientDto = {
         name: 'John Doe',
-        phone: '(11) 99999-9999',
+        phone: '(555) 123-4567',
         priority: PatientPriority.LEVEL_3,
       };
 
@@ -110,7 +110,7 @@ describe('PatientController', () => {
     it('should update a patient', async () => {
       const updateDto: UpdatePatientDto = {
         name: 'John Doe Updated',
-        phone: '(11) 99999-9999',
+        phone: '(555) 123-4567',
         priority: PatientPriority.LEVEL_3,
       };
 
@@ -231,7 +231,7 @@ describe('PatientController', () => {
     it('should call setPatientStatus then update with other fields when patient_status is CONSECUTIVE_NO_SHOWS and other fields provided', async () => {
       const updateDto: UpdatePatientDto = {
         patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
-        phone: '(11) 88888-8888',
+        phone: '(555) 987-6543',
       };
       const absentPatient = {
         ...mockPatient,
@@ -239,7 +239,7 @@ describe('PatientController', () => {
       };
       const updatedPatient = {
         ...absentPatient,
-        phone: '(11) 88888-8888',
+        phone: '(555) 987-6543',
       };
       mockPatientService.setPatientStatus.mockResolvedValueOnce({
         patient: absentPatient,
@@ -253,7 +253,7 @@ describe('PatientController', () => {
         PatientStatus.CONSECUTIVE_NO_SHOWS,
         undefined,
       );
-      expect(service.update).toHaveBeenCalledWith(1, { phone: '(11) 88888-8888' });
+      expect(service.update).toHaveBeenCalledWith(1, { phone: '(555) 987-6543' });
       expect(result).toEqual(updatedPatient);
     });
   });

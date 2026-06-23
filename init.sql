@@ -87,7 +87,7 @@ updated_date DATE DEFAULT CURRENT_DATE,
 updated_time TIME DEFAULT CURRENT_TIME,
 
 -- Validation constraints
-CONSTRAINT valid_phone CHECK (phone ~ '^\(\d{2}\)\s\d{4,5}-\d{4}$'),
+CONSTRAINT valid_phone CHECK (phone ~ '^\(\d{3}\) \d{3}-\d{4}$'),
     CONSTRAINT valid_birth_date CHECK (birth_date <= CURRENT_DATE)
 );
 

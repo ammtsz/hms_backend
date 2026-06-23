@@ -44,7 +44,7 @@ describe('PatientService', () => {
   const mockPatient = {
     id: 1,
     name: 'John Doe',
-    phone: '(11) 99999-9999',
+    phone: '(555) 123-4567',
     priority: PatientPriority.LEVEL_3,
     patient_status: PatientStatus.IN_TREATMENT,
     birth_date: '1990-01-01',
@@ -154,7 +154,7 @@ describe('PatientService', () => {
     it('should create a new patient', async () => {
       const createDto: CreatePatientDto = {
         name: 'John Doe',
-        phone: '(11) 99999-9999',
+        phone: '(555) 123-4567',
         priority: PatientPriority.LEVEL_3,
       };
 
@@ -187,7 +187,7 @@ describe('PatientService', () => {
     it('should throw DuplicatePatientException when patient already exists', async () => {
       const createDto: CreatePatientDto = {
         name: 'John Doe',
-        phone: '(11) 99999-9999',
+        phone: '(555) 123-4567',
         priority: PatientPriority.LEVEL_3,
       };
 
@@ -202,7 +202,7 @@ describe('PatientService', () => {
     it('should throw InvalidPatientPriorityException for invalid priority', async () => {
       const createDto: CreatePatientDto = {
         name: 'John Doe',
-        phone: '(11) 99999-9999',
+        phone: '(555) 123-4567',
         priority: 'INVALID_PRIORITY' as any, // Force invalid priority
       };
 
@@ -217,7 +217,7 @@ describe('PatientService', () => {
     it('should set start_date based on patient timezone (not database server timezone)', async () => {
       const createDto: CreatePatientDto = {
         name: 'Jane Doe',
-        phone: '(11) 98888-8888',
+        phone: '(555) 888-7777',
         priority: PatientPriority.LEVEL_3,
         timezone: 'America/Sao_Paulo',
       };
@@ -250,7 +250,7 @@ describe('PatientService', () => {
     it('should use default timezone when creating patient without explicit timezone', async () => {
       const createDto: CreatePatientDto = {
         name: 'Bob Smith',
-        phone: '(21) 97777-7777',
+        phone: '(718) 456-7890',
         priority: PatientPriority.LEVEL_3,
       };
 
@@ -314,7 +314,7 @@ describe('PatientService', () => {
     it('should update a patient', async () => {
       const updateDto: Partial<UpdatePatientDto> = {
         name: 'John Doe Updated',
-        phone: '(11) 99999-9999',
+        phone: '(555) 123-4567',
         priority: PatientPriority.LEVEL_3,
       };
 

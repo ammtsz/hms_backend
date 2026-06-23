@@ -11,12 +11,12 @@ describe('Patient Exceptions', () => {
     it('should create exception with correct message and status', () => {
       const exception = new DuplicatePatientException(
         'John Doe',
-        '(11) 99999-9999',
+        '(555) 123-4567',
         123,
       );
 
       expect(exception.message).toContain('John Doe');
-      expect(exception.message).toContain('(11) 99999-9999');
+      expect(exception.message).toContain('(555) 123-4567');
       expect(exception.message).toContain('123');
       expect(exception.getStatus()).toBe(HttpStatus.CONFLICT);
 
@@ -24,7 +24,7 @@ describe('Patient Exceptions', () => {
       expect(response.error).toBe('Duplicate Patient');
       expect(response.details).toEqual({
         patientName: 'John Doe',
-        phone: '(11) 99999-9999',
+        phone: '(555) 123-4567',
         existingPatientId: 123,
       });
     });
@@ -32,7 +32,7 @@ describe('Patient Exceptions', () => {
     it('should be instance of Error', () => {
       const exception = new DuplicatePatientException(
         'Jane Doe',
-        '(11) 88888-8888',
+        '(555) 987-6543',
         456,
       );
 

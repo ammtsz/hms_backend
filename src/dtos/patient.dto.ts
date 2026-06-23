@@ -24,14 +24,14 @@ export class CreatePatientDto {
 
   @ApiPropertyOptional({
     description: 'Patient phone number',
-    example: '(11) 99999-9999',
-    pattern: '(XX) XXXXX-XXXX or (XX) XXXX-XXXX',
+    example: '(555) 123-4567',
+    pattern: '(XXX) XXX-XXXX',
   })
   @Sanitize()
   @IsString()
   @IsOptional()
-  @Matches(/^\(\d{2}\)\s\d{4,5}-\d{4}$/, {
-    message: 'Phone must be in format (XX) XXXXX-XXXX or (XX) XXXX-XXXX',
+  @Matches(/^\(\d{3}\) \d{3}-\d{4}$/, {
+    message: 'Phone must be in format (XXX) XXX-XXXX',
   })
   phone?: string;
 
@@ -95,14 +95,14 @@ export class UpdatePatientDto {
 
   @ApiPropertyOptional({
     description: 'Patient phone number',
-    example: '(11) 99999-9999',
-    pattern: '(XX) XXXXX-XXXX or (XX) XXXX-XXXX',
+    example: '(555) 123-4567',
+    pattern: '(XXX) XXX-XXXX',
   })
   @Sanitize()
   @IsString()
   @IsOptional()
-  @Matches(/^\(\d{2}\)\s\d{4,5}-\d{4}$/, {
-    message: 'Phone must be in format (XX) XXXXX-XXXX or (XX) XXXX-XXXX',
+  @Matches(/^\(\d{3}\) \d{3}-\d{4}$/, {
+    message: 'Phone must be in format (XXX) XXX-XXXX',
   })
   phone?: string;
 
@@ -186,7 +186,7 @@ export class PatientResponseDto {
 
   @ApiPropertyOptional({
     description: 'Patient phone number',
-    example: '(11) 99999-9999',
+    example: '(555) 123-4567',
   })
   phone?: string;
 

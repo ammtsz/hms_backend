@@ -12,7 +12,7 @@ describe('Patient DTOs', () => {
     it('should validate with valid data', async () => {
       const dto = new CreatePatientDto();
       dto.name = 'John Doe';
-      dto.phone = '(11) 99999-9999';
+      dto.phone = '(555) 123-4567';
       dto.priority = PatientPriority.LEVEL_3;
       dto.patient_status = PatientStatus.IN_TREATMENT;
       dto.birth_date = '1990-01-01';
@@ -56,26 +56,27 @@ describe('Patient DTOs', () => {
       expect(errors).toHaveLength(1);
       expect(errors[0].property).toBe('phone');
       expect(errors[0].constraints?.matches).toContain(
-        'format (XX) XXXXX-XXXX or (XX) XXXX-XXXX',
+        'format (XXX) XXX-XXXX',
       );
     });
 
-    it('should validate with valid phone format (8 digits)', async () => {
+    it('should validate with valid US phone format', async () => {
       const dto = new CreatePatientDto();
       dto.name = 'John Doe';
-      dto.phone = '(11) 9999-9999';
+      dto.phone = '(555) 123-4567';
 
       const errors = await validate(dto);
       expect(errors).toHaveLength(0);
     });
 
-    it('should validate with valid phone format (9 digits)', async () => {
+    it('should fail validation with wrong digit grouping', async () => {
       const dto = new CreatePatientDto();
       dto.name = 'John Doe';
-      dto.phone = '(11) 99999-9999';
+      dto.phone = '(55) 123-4567';
 
       const errors = await validate(dto);
-      expect(errors).toHaveLength(0);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].property).toBe('phone');
     });
 
     it('should fail validation with invalid priority enum', async () => {
@@ -182,7 +183,7 @@ describe('Patient DTOs', () => {
       const dto = new PatientResponseDto();
       dto.id = 1;
       dto.name = 'Test';
-      dto.phone = '(11) 99999-9999'; // Set optional property
+      dto.phone = '(555) 123-4567'; // Set optional property
       dto.priority = PatientPriority.LEVEL_3;
       dto.patient_status = PatientStatus.IN_TREATMENT;
       dto.birth_date = '1990-01-01'; // Set optional property
@@ -213,7 +214,7 @@ describe('Patient DTOs', () => {
       const dto = new PatientResponseDto();
       dto.id = 1;
       dto.name = 'John Doe';
-      dto.phone = '(11) 99999-9999';
+      dto.phone = '(555) 123-4567';
       dto.priority = PatientPriority.LEVEL_1;
       dto.patient_status = PatientStatus.DISCHARGED;
       dto.birth_date = '1990-01-01';
