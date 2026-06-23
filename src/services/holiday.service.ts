@@ -15,15 +15,15 @@ import {
   CreateHolidayPeriodDto,
 } from '../dtos/holiday.dto';
 import { Holiday } from '../entities/holiday.entity';
-import { Attendance } from '../entities/attendance.entity';
-import { AttendanceStatus } from '../common/enums';
+import { Appointment } from '../entities/appointment.entity';
+import { AppointmentStatus } from '../common/enums';
 import { v4 as uuidv4 } from 'uuid';
 
-/** Attendance statuses that block holiday creation (open attendances) */
-const OPEN_ATTENDANCE_STATUSES: AttendanceStatus[] = [
-  AttendanceStatus.SCHEDULED,
-  AttendanceStatus.CHECKED_IN,
-  AttendanceStatus.IN_PROGRESS,
+/** Appointment statuses that block holiday creation (open appointments) */
+const OPEN_APPOINTMENT_STATUSES: AppointmentStatus[] = [
+  AppointmentStatus.SCHEDULED,
+  AppointmentStatus.CHECKED_IN,
+  AppointmentStatus.IN_PROGRESS,
 ];
 
 @Injectable()
@@ -33,8 +33,8 @@ export class HolidayService {
   constructor(
     @InjectRepository(Holiday)
     private holidayRepository: Repository<Holiday>,
-    @InjectRepository(Attendance)
-    private attendanceRepository: Repository<Attendance>,
+    @InjectRepository(Appointment)
+    private appointmentRepository: Repository<Appointment>,
   ) {}
 
   async findAll(year?: number): Promise<HolidayResponseDto[]> {
@@ -68,20 +68,20 @@ export class HolidayService {
   }
 
   async checkConflicts(date: string): Promise<HolidayConflictDto> {
-    const attendances = await this.attendanceRepository
-      .createQueryBuilder('attendance')
-      .leftJoinAndSelect('attendance.patient', 'patient')
-      .where('attendance.scheduled_date = :date', { date })
-      .andWhere('attendance.status IN (:...openStatuses)', {
-        openStatuses: OPEN_ATTENDANCE_STATUSES,
+    const appointments = await this.appointmentRepository
+      .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.patient', 'patient')
+      .where('appointment.scheduled_date = :date', { date })
+      .andWhere('appointment.status IN (:...openStatuses)', {
+        openStatuses: OPEN_APPOINTMENT_STATUSES,
       })
       .orderBy('patient.name', 'ASC')
       .getMany();
 
     return {
-      hasConflict: attendances.length > 0,
-      attendanceCount: attendances.length,
-      attendances: attendances.map((a) => ({
+      hasConflict: appointments.length > 0,
+      appointmentCount: appointments.length,
+      appointments: appointments.map((a) => ({
         id: a.id,
         patient_name: a.patient.name,
         treatment_type: a.type,
@@ -107,10 +107,10 @@ export class HolidayService {
 
     if (conflicts.hasConflict) {
       this.logger.warn(
-        `Cannot create holiday: ${conflicts.attendanceCount} attendance(s) scheduled for ${dateString}`,
+        `Cannot create holiday: ${conflicts.appointmentCount} appointment(s) scheduled for ${dateString}`,
       );
       throw new ConflictException(
-        `ATTENDANCE_CONFLICT:${conflicts.attendanceCount}`,
+        `APPOINTMENT_CONFLICT:${conflicts.appointmentCount}`,
       );
     }
 
@@ -308,22 +308,22 @@ export class HolidayService {
       throw new ConflictException('End date must be after or equal to start date');
     }
 
-    const attendanceCount = await this.attendanceRepository
-      .createQueryBuilder('attendance')
-      .where('attendance.scheduled_date BETWEEN :start AND :end', {
+    const appointmentCount = await this.appointmentRepository
+      .createQueryBuilder('appointment')
+      .where('appointment.scheduled_date BETWEEN :start AND :end', {
         start: start_date,
         end: end_date,
       })
-      .andWhere('attendance.status IN (:...openStatuses)', {
-        openStatuses: OPEN_ATTENDANCE_STATUSES,
+      .andWhere('appointment.status IN (:...openStatuses)', {
+        openStatuses: OPEN_APPOINTMENT_STATUSES,
       })
       .getCount();
 
-    if (attendanceCount > 0) {
+    if (appointmentCount > 0) {
       this.logger.warn(
-        `Cannot create holiday period: ${attendanceCount} attendance(s) scheduled between ${start_date} and ${end_date}`,
+        `Cannot create holiday period: ${appointmentCount} appointment(s) scheduled between ${start_date} and ${end_date}`,
       );
-      throw new ConflictException(`ATTENDANCE_CONFLICT:${attendanceCount}`);
+      throw new ConflictException(`APPOINTMENT_CONFLICT:${appointmentCount}`);
     }
 
     const existingHolidayCount = await this.holidayRepository

@@ -45,7 +45,7 @@ export function ApiCreateTreatmentOperation() {
     ApiOperation({
       summary: 'Create treatment',
       description:
-        'Creates a physiotherapy or tens treatment for a patient with the given consultation, attendance, and schedule.',
+        'Creates a physiotherapy or tens treatment for a patient with the given consultation, appointment, and schedule.',
     }),
     ApiBody({ type: CreateTreatmentDto }),
     ApiResponse({
@@ -63,7 +63,7 @@ export function ApiCreateTreatmentOperation() {
     }),
     ApiResponse({
       status: 404,
-      description: 'Not found - Related consultation, attendance, or patient not found',
+      description: 'Not found - Related consultation, appointment, or patient not found',
     }),
     ApiResponse({
       status: 409,

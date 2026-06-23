@@ -4,7 +4,7 @@ Swagger helpers for the current API controllers in the backend.
 
 ## Vocabulary
 
-- **Attendance** — scheduled or in-progress visit record (`hms_attendance`). Routes: `/attendances`.
+- **Appointment** — scheduled or in-progress visit record (`hms_appointment`). Routes: `/appointments`.
 - **Consultation** — assessment visit record (`hms_consultation`). Routes: `/consultations`.
 - **Patient** — registered person receiving care (`hms_patient`). Routes: `/patients`.
 - **Schedule setting** — daily capacity and time window configuration (`hms_schedule_setting`). Routes: `/schedule-settings`.
@@ -13,15 +13,15 @@ Swagger helpers for the current API controllers in the backend.
 
 ## Decorator Groups
 
-### Attendance Decorators
+### Appointment Decorators
 
-**File:** `src/decorators/api-attendance.decorator.ts`
+**File:** `src/decorators/api-appointment.decorator.ts`
 
 | Decorator                         | Role                                               |
 | --------------------------------- | -------------------------------------------------- |
-| `ApiAttendanceOperation(summary)` | Shared responses for generic attendance operations |
-| `ApiCreateAttendanceOperation()`  | `POST /attendances` — create attendance            |
-| `ApiUpdateAttendanceOperation()`  | `PUT /attendances/:id` — update attendance         |
+| `ApiAppointmentOperation(summary)` | Shared responses for generic appointment operations |
+| `ApiCreateAppointmentOperation()`  | `POST /appointments` — create appointment            |
+| `ApiUpdateAppointmentOperation()`  | `PUT /appointments/:id` — update appointment         |
 
 ### Patient Decorators
 
@@ -58,7 +58,7 @@ Swagger helpers for the current API controllers in the backend.
 | `ApiDeleteConsultationOperation()`           | `DELETE /consultations/:id` — delete consultation    |
 | `ApiFindAllConsultationsOperation()`         | `GET /consultations`                                 |
 | `ApiFindOneConsultationOperation()`          | `GET /consultations/:id`                             |
-| `ApiFindConsultationByAttendanceOperation()` | `GET /consultations/attendance/:attendanceId`        |
+| `ApiFindConsultationByAppointmentOperation()` | `GET /consultations/appointment/:appointmentId`        |
 
 ## Treatment Decorators
 
@@ -135,7 +135,7 @@ export class SessionController {
 
 Decorator tests are located in:
 
-- `src/decorators/__tests__/api-attendance.decorator.spec.ts`
+- `src/decorators/__tests__/api-appointment.decorator.spec.ts`
 - `src/decorators/__tests__/api-patient.decorator.spec.ts`
 - `src/decorators/__tests__/api-consultation.decorator.spec.ts`
 - `src/decorators/__tests__/api-treatment.decorator.spec.ts`

@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { AttendanceStatus } from '../../enums';
+import { AppointmentStatus } from '../../enums';
 import {
   parseScheduleDateRange,
   parseScheduleStatusQuery,
@@ -13,14 +13,14 @@ describe('schedule-query.utils', () => {
 
     it('parses a single valid status', () => {
       expect(parseScheduleStatusQuery('scheduled')).toEqual([
-        AttendanceStatus.SCHEDULED,
+        AppointmentStatus.SCHEDULED,
       ]);
     });
 
     it('trims and filters invalid values', () => {
       expect(
         parseScheduleStatusQuery(['  scheduled  ', 'invalid', 'completed']),
-      ).toEqual([AttendanceStatus.SCHEDULED, AttendanceStatus.COMPLETED]);
+      ).toEqual([AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED]);
     });
 
     it('returns undefined when no valid statuses remain', () => {

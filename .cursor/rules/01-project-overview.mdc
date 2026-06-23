@@ -7,6 +7,6 @@ alwaysApply: true
 - Backend for the HMS physiotherapy workflow.
 - Stack: NestJS, TypeScript, PostgreSQL, TypeORM, Jest.
 - Source of truth: `README.md` plus the docs in `docs/`.
-- Main domains: auth, users, patients, attendance, consultation, treatment, session, schedule-setting, day-finalization, holidays, holiday templates, and settings.
+- Main domains: auth, users, patients, appointment, consultation, treatment, session, schedule-setting, day-finalization, holidays, holiday templates, and settings.
 - Main folders: `src/controllers`, `src/services`, `src/dtos`, `src/entities`, `src/modules`, `src/common`, `src/config`, `src/transformers`, and `test`.
 - Keep tests close to the code they cover and prefer small, focused changes.

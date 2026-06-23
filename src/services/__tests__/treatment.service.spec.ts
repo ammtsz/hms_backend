@@ -5,12 +5,12 @@ import { TreatmentService } from '../treatment.service';
 import { Treatment, TreatmentType, TreatmentPlanStatus } from '../../entities/treatment.entity';
 import {
   Session,
-  SessionAttendanceStatus,
+  SessionAppointmentStatus,
 } from '../../entities/session.entity';
 import { Consultation } from '../../entities/consultation.entity';
-import { Attendance } from '../../entities/attendance.entity';
+import { Appointment } from '../../entities/appointment.entity';
 import { Patient } from '../../entities/patient.entity';
-import { AttendanceService } from '../attendance.service';
+import { AppointmentService } from '../appointment.service';
 import { UpdateTreatmentDto } from '../../dtos/treatment.dto';
 describe('TreatmentService', () => {
   let service: TreatmentService;
@@ -19,7 +19,7 @@ describe('TreatmentService', () => {
     ({
       id: 1,
       consultation_id: 1,
-      attendance_id: 1,
+      appointment_id: 1,
       patient_id: 1,
       treatment_type: TreatmentType.PHYSIOTHERAPY,
       body_location: 'head',
@@ -73,7 +73,7 @@ describe('TreatmentService', () => {
           useValue: { findOne: jest.fn().mockResolvedValue(null), find: jest.fn().mockResolvedValue([]) },
         },
         {
-          provide: getRepositoryToken(Attendance),
+          provide: getRepositoryToken(Appointment),
           useValue: { findOne: jest.fn().mockResolvedValue(null) },
         },
         {
@@ -81,9 +81,9 @@ describe('TreatmentService', () => {
           useValue: { findOne: jest.fn().mockResolvedValue(null) },
         },
         {
-          provide: AttendanceService,
+          provide: AppointmentService,
           useValue: {
-            cancelOpenAttendancesByIds: jest.fn().mockResolvedValue([]),
+            cancelOpenAppointmentsByIds: jest.fn().mockResolvedValue([]),
           },
         },
       ],
@@ -111,7 +111,7 @@ describe('TreatmentService', () => {
     it('should allow body_location, duration_minutes, color when no treatment session is completed', async () => {
       const session = createMockSession({
         sessions: [
-          { id: 1, status: SessionAttendanceStatus.SCHEDULED } as Session,
+          { id: 1, status: SessionAppointmentStatus.SCHEDULED } as Session,
         ],
       });
       mockFindOne.mockResolvedValue(session);
@@ -135,7 +135,7 @@ describe('TreatmentService', () => {
     it('should throw BadRequestException when config edit and a treatment session is completed', async () => {
       const session = createMockSession({
         sessions: [
-          { id: 1, status: SessionAttendanceStatus.COMPLETED } as Session,
+          { id: 1, status: SessionAppointmentStatus.COMPLETED } as Session,
         ],
       });
       mockFindOne.mockResolvedValue(session);

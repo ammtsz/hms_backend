@@ -17,7 +17,7 @@ import { Sanitize } from '../common/decorators/sanitize.decorator';
 
 export class AbsenceJustificationItemDto {
   @IsInt()
-  attendance_id: number;
+  appointment_id: number;
 
   @IsBoolean()
   justified: boolean;
@@ -40,7 +40,7 @@ export class ProcessEndOfDayRequestDto {
 }
 
 export interface RescheduledItemDto {
-  attendance_id: number;
+  appointment_id: number;
   patient_id: number;
   patient_name: string;
   type: string;
@@ -53,7 +53,7 @@ export interface StatusChangedToCItemDto {
   patient_name: string;
 }
 
-export interface CancelledAttendanceDto {
+export interface CancelledAppointmentDto {
   id: number;
   type: string;
   scheduled_date: string;
@@ -62,11 +62,11 @@ export interface CancelledAttendanceDto {
 export interface CancelledForCItemDto {
   patient_id: number;
   patient_name: string;
-  attendances: CancelledAttendanceDto[];
+  appointments: CancelledAppointmentDto[];
 }
 
 export interface CouldNotRescheduleItemDto {
-  attendance_id: number;
+  appointment_id: number;
   patient_id: number;
   patient_name: string;
   type: string;

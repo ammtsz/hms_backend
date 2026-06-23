@@ -6,12 +6,12 @@ import {
   OneToOne,
   JoinColumn,
 } from 'typeorm';
-import { AttendanceType, AttendanceStatus } from '../common/enums';
+import { AppointmentType, AppointmentStatus } from '../common/enums';
 import { Patient } from './patient.entity';
 import { Consultation } from './consultation.entity';
 
-@Entity('hms_attendance')
-export class Attendance {
+@Entity('hms_appointment')
+export class Appointment {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -24,16 +24,16 @@ export class Attendance {
 
   @Column({
     type: 'enum',
-    enum: AttendanceType,
+    enum: AppointmentType,
   })
-  type: AttendanceType;
+  type: AppointmentType;
 
   @Column({
     type: 'enum',
-    enum: AttendanceStatus,
-    default: AttendanceStatus.SCHEDULED,
+    enum: AppointmentStatus,
+    default: AppointmentStatus.SCHEDULED,
   })
-  status: AttendanceStatus;
+  status: AppointmentStatus;
 
   // Timezone-agnostic scheduled date/time
   @Column({ type: 'date' })
@@ -67,13 +67,13 @@ export class Attendance {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  // Parent/child relationship for linking follow-up attendances and generated treatments
+  // Parent/child relationship for linking follow-up appointments and generated treatments
   @Column({ nullable: true })
-  parent_attendance_id: number;
+  parent_appointment_id: number;
 
-  // Reschedule: links this (new) attendance to the original cancelled/missed one. Unique per original.
+  // Reschedule: links this (new) appointment to the original cancelled/missed one. Unique per original.
   @Column({ nullable: true, unique: true })
-  rescheduled_from_attendance_id: number;
+  rescheduled_from_appointment_id: number;
 
   @Column({ nullable: true })
   timezone_override?: string;
@@ -91,6 +91,6 @@ export class Attendance {
   @Column({ type: 'time', default: () => 'CURRENT_TIME' })
   updated_time: string;
 
-  @OneToOne(() => Consultation, (consultation) => consultation.attendance)
+  @OneToOne(() => Consultation, (consultation) => consultation.appointment)
   consultation: Consultation;
 }

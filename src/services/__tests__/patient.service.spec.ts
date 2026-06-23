@@ -2,13 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PatientService } from '../patient.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Patient } from '../../entities/patient.entity';
-import { Attendance } from '../../entities/attendance.entity';
+import { Appointment } from '../../entities/appointment.entity';
 import { SystemOption } from '../../entities/system-option.entity';
 import { CreatePatientDto, UpdatePatientDto } from '../../dtos/patient.dto';
 import {
   PatientPriority,
   PatientStatus,
-  AttendanceStatus,
+  AppointmentStatus,
 } from '../../common/enums';
 import { Repository, DeleteResult, In, Not } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
@@ -17,10 +17,10 @@ import {
   DuplicatePatientException,
   InvalidPatientPriorityException,
   PatientStatusUpdateException,
-  PatientHasActiveAttendancesException,
+  PatientHasActiveAppointmentsException,
 } from '../../common/exceptions';
 import * as timezoneUtils from '../../common/utils/timezone.utils';
-import { AttendanceService } from '../attendance.service';
+import { AppointmentService } from '../appointment.service';
 import { TreatmentService } from '../treatment.service';
 import { PatientNoteService } from '../patient-note.service';
 
@@ -28,8 +28,8 @@ describe('PatientService', () => {
   let service: PatientService;
   let repository: Repository<Patient>;
 
-  const mockAttendanceService = {
-    cancelOpenAttendancesForPatient: jest.fn().mockResolvedValue([]),
+  const mockAppointmentService = {
+    cancelOpenAppointmentsForPatient: jest.fn().mockResolvedValue([]),
   };
 
   const mockTreatmentService = {
@@ -92,7 +92,7 @@ describe('PatientService', () => {
   };
 
   const mockGetRawOne = jest.fn().mockResolvedValue({ maxDate: null });
-  const mockAttendanceRepository = {
+  const mockAppointmentRepository = {
     find: jest.fn().mockResolvedValue([]),
     findOne: jest.fn().mockResolvedValue(null),
     count: jest.fn().mockResolvedValue(0),
@@ -105,11 +105,11 @@ describe('PatientService', () => {
   };
 
   beforeEach(async () => {
-    mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValue([]);
+    mockAppointmentService.cancelOpenAppointmentsForPatient.mockResolvedValue([]);
     mockTreatmentService.getTreatmentsByPatient.mockResolvedValue([]);
     mockTreatmentService.cancelTreatment.mockResolvedValue(undefined);
     mockPatientNoteService.create.mockResolvedValue(undefined);
-    mockAttendanceRepository.findOne.mockResolvedValue(null);
+    mockAppointmentRepository.findOne.mockResolvedValue(null);
     mockSystemOptionRepository.find.mockResolvedValue(mockActivePriorityRows);
 
     const module: TestingModule = await Test.createTestingModule({
@@ -124,12 +124,12 @@ describe('PatientService', () => {
           useValue: mockSystemOptionRepository,
         },
         {
-          provide: getRepositoryToken(Attendance),
-          useValue: mockAttendanceRepository,
+          provide: getRepositoryToken(Appointment),
+          useValue: mockAppointmentRepository,
         },
         {
-          provide: AttendanceService,
-          useValue: mockAttendanceService,
+          provide: AppointmentService,
+          useValue: mockAppointmentService,
         },
         {
           provide: TreatmentService,
@@ -341,7 +341,7 @@ describe('PatientService', () => {
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(patientInTreatment);
-      mockAttendanceRepository.count.mockResolvedValueOnce(0);
+      mockAppointmentRepository.count.mockResolvedValueOnce(0);
       const updateDto: Partial<UpdatePatientDto> = {
         patient_status: PatientStatus.NEW_PATIENT,
       };
@@ -393,7 +393,7 @@ describe('PatientService', () => {
       expect(repository.save).toHaveBeenCalled();
     });
 
-    it('should throw ValidationException when discharge_date is before last completed attendance', async () => {
+    it('should throw ValidationException when discharge_date is before last completed appointment', async () => {
       mockGetRawOne.mockResolvedValueOnce({ maxDate: '2025-02-15' });
       const updateDto: Partial<UpdatePatientDto> = {
         discharge_date: '2025-02-01',
@@ -404,7 +404,7 @@ describe('PatientService', () => {
       ).rejects.toThrow(ValidationException);
     });
 
-    it('should allow discharge_date when on or after last completed attendance', async () => {
+    it('should allow discharge_date when on or after last completed appointment', async () => {
       mockGetRawOne.mockResolvedValueOnce({ maxDate: '2025-02-15' });
       const updateDto: Partial<UpdatePatientDto> = {
         discharge_date: '2025-02-15',
@@ -416,8 +416,8 @@ describe('PatientService', () => {
       expect(repository.save).toHaveBeenCalled();
     });
 
-    it('should throw ValidationException when changing to NEW_PATIENT and patient has completed attendances', async () => {
-      mockAttendanceRepository.count.mockResolvedValueOnce(1);
+    it('should throw ValidationException when changing to NEW_PATIENT and patient has completed appointments', async () => {
+      mockAppointmentRepository.count.mockResolvedValueOnce(1);
       const updateDto: Partial<UpdatePatientDto> = {
         patient_status: PatientStatus.NEW_PATIENT,
       };
@@ -431,13 +431,13 @@ describe('PatientService', () => {
         service.update(1, updateDto as UpdatePatientDto),
       ).rejects.toThrow(ValidationException);
 
-      expect(mockAttendanceRepository.count).toHaveBeenCalledWith({
-        where: { patient_id: 1, status: AttendanceStatus.COMPLETED },
+      expect(mockAppointmentRepository.count).toHaveBeenCalledWith({
+        where: { patient_id: 1, status: AppointmentStatus.COMPLETED },
       });
     });
 
-    it('should allow changing to NEW_PATIENT when patient has no completed attendances', async () => {
-      mockAttendanceRepository.count.mockResolvedValueOnce(0);
+    it('should allow changing to NEW_PATIENT when patient has no completed appointments', async () => {
+      mockAppointmentRepository.count.mockResolvedValueOnce(0);
       const updateDto: Partial<UpdatePatientDto> = {
         patient_status: PatientStatus.NEW_PATIENT,
       };
@@ -467,7 +467,7 @@ describe('PatientService', () => {
         'Use setPatientStatus to set status to Discharged (D) or Consecutive no-shows (C).',
       );
       expect(
-        mockAttendanceService.cancelOpenAttendancesForPatient,
+        mockAppointmentService.cancelOpenAppointmentsForPatient,
       ).not.toHaveBeenCalled();
     });
 
@@ -480,7 +480,7 @@ describe('PatientService', () => {
         service.update(1, updateDto as UpdatePatientDto),
       ).rejects.toThrow(ValidationException);
       expect(
-        mockAttendanceService.cancelOpenAttendancesForPatient,
+        mockAppointmentService.cancelOpenAppointmentsForPatient,
       ).not.toHaveBeenCalled();
     });
 
@@ -517,13 +517,13 @@ describe('PatientService', () => {
 
   describe('setPatientStatus D/C transition behavior', () => {
     beforeEach(() => {
-      mockAttendanceService.cancelOpenAttendancesForPatient.mockClear();
+      mockAppointmentService.cancelOpenAppointmentsForPatient.mockClear();
       mockTreatmentService.getTreatmentsByPatient.mockClear();
       mockTreatmentService.cancelTreatment.mockClear();
       mockRepository.findOne.mockResolvedValue(mockPatient);
     });
 
-    it('should cancel open attendances and treatment sessions and return patient and list when transitioning to CONSECUTIVE_NO_SHOWS', async () => {
+    it('should cancel open appointments and treatment sessions and return patient and list when transitioning to CONSECUTIVE_NO_SHOWS', async () => {
       const patientInTreatment = {
         ...mockPatient,
         patient_status: PatientStatus.IN_TREATMENT,
@@ -539,7 +539,7 @@ describe('PatientService', () => {
       const cancelledList = [
         { id: 10, type: 'assessment', scheduled_date: '2024-01-20' },
       ];
-      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce(
+      mockAppointmentService.cancelOpenAppointmentsForPatient.mockResolvedValueOnce(
         cancelledList,
       );
 
@@ -552,9 +552,9 @@ describe('PatientService', () => {
       );
 
       expect(
-        mockAttendanceService.cancelOpenAttendancesForPatient,
+        mockAppointmentService.cancelOpenAppointmentsForPatient,
       ).toHaveBeenCalledWith(1, 'Consecutive no-shows - test', {
-        excludeAttendanceIds: undefined,
+        excludeAppointmentIds: undefined,
       });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
         1,
@@ -568,10 +568,10 @@ describe('PatientService', () => {
       expect(result.patient.patient_status).toBe(
         PatientStatus.CONSECUTIVE_NO_SHOWS,
       );
-      expect(result.cancelledAttendances).toEqual(cancelledList);
+      expect(result.cancelledAppointments).toEqual(cancelledList);
     });
 
-    it('should call cancelTreatment with cancelLinkedOpenAttendances: false when transitioning', async () => {
+    it('should call cancelTreatment with cancelLinkedOpenAppointments: false when transitioning', async () => {
       const patientInTreatment = {
         ...mockPatient,
         patient_status: PatientStatus.IN_TREATMENT,
@@ -584,7 +584,7 @@ describe('PatientService', () => {
         ...patientInTreatment,
         patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       });
-      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce(
+      mockAppointmentService.cancelOpenAppointmentsForPatient.mockResolvedValueOnce(
         [],
       );
       mockTreatmentService.getTreatmentsByPatient.mockResolvedValueOnce([
@@ -596,7 +596,7 @@ describe('PatientService', () => {
       expect(mockTreatmentService.cancelTreatment).toHaveBeenCalledWith(
         5,
         expect.any(String),
-        { cancelLinkedOpenAttendances: false },
+        { cancelLinkedOpenAppointments: false },
       );
     });
 
@@ -615,7 +615,7 @@ describe('PatientService', () => {
         discharge_date: '2026-03-04',
       };
       mockRepository.save.mockResolvedValueOnce(savedPatient);
-      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce(
+      mockAppointmentService.cancelOpenAppointmentsForPatient.mockResolvedValueOnce(
         [],
       );
 
@@ -625,9 +625,9 @@ describe('PatientService', () => {
       );
 
       expect(
-        mockAttendanceService.cancelOpenAttendancesForPatient,
+        mockAppointmentService.cancelOpenAppointmentsForPatient,
       ).toHaveBeenLastCalledWith(1, 'Discharged', {
-        excludeAttendanceIds: undefined,
+        excludeAppointmentIds: undefined,
       });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
         1,
@@ -658,9 +658,9 @@ describe('PatientService', () => {
       });
 
       expect(
-        mockAttendanceService.cancelOpenAttendancesForPatient,
+        mockAppointmentService.cancelOpenAppointmentsForPatient,
       ).toHaveBeenCalledWith(1, 'Custom reason', {
-        excludeAttendanceIds: undefined,
+        excludeAppointmentIds: undefined,
       });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
         1,
@@ -670,7 +670,7 @@ describe('PatientService', () => {
       );
     });
 
-    it('should use triggerAttendanceIds date in generated note when provided', async () => {
+    it('should use triggerAppointmentIds date in generated note when provided', async () => {
       const patientInTreatment = {
         ...mockPatient,
         patient_status: PatientStatus.IN_TREATMENT,
@@ -683,16 +683,16 @@ describe('PatientService', () => {
         ...patientInTreatment,
         patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       });
-      mockAttendanceRepository.findOne.mockResolvedValueOnce({
+      mockAppointmentRepository.findOne.mockResolvedValueOnce({
         id: 44,
         scheduled_date: '2026-03-10',
       });
 
       await service.setPatientStatus(1, PatientStatus.CONSECUTIVE_NO_SHOWS, {
-        triggerAttendanceIds: [44],
+        triggerAppointmentIds: [44],
       });
 
-      expect(mockAttendanceRepository.findOne).toHaveBeenCalledWith({
+      expect(mockAppointmentRepository.findOne).toHaveBeenCalledWith({
         where: { id: 44 },
       });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
@@ -706,7 +706,7 @@ describe('PatientService', () => {
 
   describe('setPatientStatus', () => {
     beforeEach(() => {
-      mockAttendanceService.cancelOpenAttendancesForPatient.mockClear();
+      mockAppointmentService.cancelOpenAppointmentsForPatient.mockClear();
       mockRepository.merge.mockClear();
       mockRepository.save.mockClear();
       mockRepository.findOne.mockResolvedValue(mockPatient);
@@ -728,9 +728,9 @@ describe('PatientService', () => {
 
       expect(result.patient).toEqual(patientDischarged);
       expect(result.unchanged).toBe(true);
-      expect(result.cancelledAttendances).toEqual([]);
+      expect(result.cancelledAppointments).toEqual([]);
       expect(
-        mockAttendanceService.cancelOpenAttendancesForPatient,
+        mockAppointmentService.cancelOpenAppointmentsForPatient,
       ).not.toHaveBeenCalled();
     });
 
@@ -747,9 +747,9 @@ describe('PatientService', () => {
       );
 
       expect(result.unchanged).toBe(true);
-      expect(result.cancelledAttendances).toEqual([]);
+      expect(result.cancelledAppointments).toEqual([]);
       expect(
-        mockAttendanceService.cancelOpenAttendancesForPatient,
+        mockAppointmentService.cancelOpenAppointmentsForPatient,
       ).not.toHaveBeenCalled();
     });
 
@@ -769,7 +769,7 @@ describe('PatientService', () => {
       const cancelledList = [
         { id: 10, type: 'assessment', scheduled_date: '2024-01-20' },
       ];
-      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce(
+      mockAppointmentService.cancelOpenAppointmentsForPatient.mockResolvedValueOnce(
         cancelledList,
       );
 
@@ -782,9 +782,9 @@ describe('PatientService', () => {
       );
 
       expect(
-        mockAttendanceService.cancelOpenAttendancesForPatient,
+        mockAppointmentService.cancelOpenAppointmentsForPatient,
       ).toHaveBeenCalledWith(1, 'Test reason', {
-        excludeAttendanceIds: undefined,
+        excludeAppointmentIds: undefined,
       });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
         1,
@@ -795,11 +795,11 @@ describe('PatientService', () => {
       expect(result.patient.patient_status).toBe(
         PatientStatus.CONSECUTIVE_NO_SHOWS,
       );
-      expect(result.cancelledAttendances).toEqual(cancelledList);
+      expect(result.cancelledAppointments).toEqual(cancelledList);
       expect(result.unchanged).toBe(false);
     });
 
-    it('should pass excludeAttendanceIds to transition when provided', async () => {
+    it('should pass excludeAppointmentIds to transition when provided', async () => {
       const patientInTreatment = {
         ...mockPatient,
         patient_status: PatientStatus.IN_TREATMENT,
@@ -812,18 +812,18 @@ describe('PatientService', () => {
         ...patientInTreatment,
         patient_status: PatientStatus.DISCHARGED,
       });
-      mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce(
+      mockAppointmentService.cancelOpenAppointmentsForPatient.mockResolvedValueOnce(
         [],
       );
 
       await service.setPatientStatus(1, PatientStatus.DISCHARGED, {
-        excludeAttendanceIds: [100],
+        excludeAppointmentIds: [100],
       });
 
       expect(
-        mockAttendanceService.cancelOpenAttendancesForPatient,
+        mockAppointmentService.cancelOpenAppointmentsForPatient,
       ).toHaveBeenCalledWith(1, 'Discharged', {
-        excludeAttendanceIds: [100],
+        excludeAppointmentIds: [100],
       });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
         1,
@@ -851,7 +851,7 @@ describe('PatientService', () => {
       expect(mockRepository.merge).not.toHaveBeenCalled();
     });
 
-    it('should validate and update when transitioning to N and patient has no completed attendances', async () => {
+    it('should validate and update when transitioning to N and patient has no completed appointments', async () => {
       const patientInTreatment = {
         ...mockPatient,
         patient_status: PatientStatus.IN_TREATMENT,
@@ -859,7 +859,7 @@ describe('PatientService', () => {
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(patientInTreatment);
-      mockAttendanceRepository.count.mockResolvedValueOnce(0);
+      mockAppointmentRepository.count.mockResolvedValueOnce(0);
       const savedPatient = {
         ...patientInTreatment,
         patient_status: PatientStatus.NEW_PATIENT,
@@ -878,7 +878,7 @@ describe('PatientService', () => {
       expect(result.unchanged).toBe(false);
     });
 
-    it('should throw when transitioning to N and patient has completed attendances', async () => {
+    it('should throw when transitioning to N and patient has completed appointments', async () => {
       mockRepository.save.mockClear();
       const patientInTreatment = {
         ...mockPatient,
@@ -887,7 +887,7 @@ describe('PatientService', () => {
       jest
         .spyOn(repository, 'findOne')
         .mockResolvedValueOnce(patientInTreatment);
-      mockAttendanceRepository.count.mockResolvedValueOnce(1);
+      mockAppointmentRepository.count.mockResolvedValueOnce(1);
 
       await expect(
         service.setPatientStatus(1, PatientStatus.NEW_PATIENT),
@@ -912,29 +912,29 @@ describe('PatientService', () => {
 
   describe('remove', () => {
     beforeEach(() => {
-      mockAttendanceRepository.count.mockReset();
-      mockAttendanceRepository.count.mockResolvedValue(0);
+      mockAppointmentRepository.count.mockReset();
+      mockAppointmentRepository.count.mockResolvedValue(0);
     });
 
-    it('should remove a patient when there are no blocking attendances', async () => {
+    it('should remove a patient when there are no blocking appointments', async () => {
       await service.remove(1);
 
-      expect(mockAttendanceRepository.count).toHaveBeenCalledWith({
+      expect(mockAppointmentRepository.count).toHaveBeenCalledWith({
         where: {
           patient_id: 1,
           status: Not(
-            In([AttendanceStatus.CANCELLED, AttendanceStatus.MISSED]),
+            In([AppointmentStatus.CANCELLED, AppointmentStatus.MISSED]),
           ),
         },
       });
       expect(repository.delete).toHaveBeenCalledWith(1);
     });
 
-    it('should throw PatientHasActiveAttendancesException when patient has blocking attendances', async () => {
-      mockAttendanceRepository.count.mockResolvedValue(2);
+    it('should throw PatientHasActiveAppointmentsException when patient has blocking appointments', async () => {
+      mockAppointmentRepository.count.mockResolvedValue(2);
 
       await expect(service.remove(1)).rejects.toThrow(
-        PatientHasActiveAttendancesException,
+        PatientHasActiveAppointmentsException,
       );
     });
 

@@ -62,9 +62,9 @@ export class DayFinalizationController {
           type: 'array',
           items: {
             type: 'object',
-            required: ['attendance_id', 'justified'],
+            required: ['appointment_id', 'justified'],
             properties: {
-              attendance_id: { type: 'number', example: 1 },
+              appointment_id: { type: 'number', example: 1 },
               justified: { type: 'boolean', example: false },
               notes: { type: 'string', example: 'Optional notes' },
             },

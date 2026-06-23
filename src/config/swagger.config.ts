@@ -3,11 +3,11 @@ import { DocumentBuilder } from '@nestjs/swagger';
 export const swaggerConfig = new DocumentBuilder()
   .setTitle('HMS API')
   .setDescription(
-    `The HMS API provides endpoints for managing patient attendances, consultations, treatments (physiotherapy / tens), sessions, and scheduling.
+    `The HMS API provides endpoints for managing patient appointments, consultations, treatments (physiotherapy / tens), sessions, and scheduling.
 
     ## Features
     - Patient Management
-    - Attendance Scheduling
+    - Appointment Scheduling
     - Consultations (assessment) and treatments with per-date sessions
     - Schedule Settings
     
@@ -20,8 +20,8 @@ export const swaggerConfig = new DocumentBuilder()
   .setVersion('1.0')
   .addBearerAuth()
   .addTag(
-    'Attendances',
-    'Manage patient attendances including scheduling, check-in, and completion',
+    'Appointments',
+    'Manage patient appointments including scheduling, check-in, and completion',
   )
   .addTag(
     'Patients',
@@ -29,7 +29,7 @@ export const swaggerConfig = new DocumentBuilder()
   )
   .addTag(
     'Consultations',
-    'Assessment consultations per attendance and follow-up',
+    'Assessment consultations per appointment and follow-up',
   )
   .addTag(
     'treatments',

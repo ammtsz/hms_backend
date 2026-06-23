@@ -3,10 +3,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConsultationService } from '../services/consultation.service';
 import { Consultation } from '../entities/consultation.entity';
-import { Attendance } from '../entities/attendance.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { Patient } from '../entities/patient.entity';
 import { TreatmentService } from '../services/treatment.service';
-import { AttendanceService } from '../services/attendance.service';
+import { AppointmentService } from '../services/appointment.service';
 import { PatientService } from '../services/patient.service';
 import { PatientStatus } from '../common/enums';
 import { CreateConsultationDto } from '../dtos/consultation.dto';
@@ -14,12 +14,12 @@ import { CreateConsultationDto } from '../dtos/consultation.dto';
 describe('Consultation - patient_status field', () => {
   let service: ConsultationService;
   let consultationRepository: Repository<Consultation>;
-  let attendanceRepository: Repository<Attendance>;
+  let appointmentRepository: Repository<Appointment>;
   let patientRepository: Repository<Patient>;
 
   const mockTreatmentService: Partial<TreatmentService> = {};
 
-  const mockAttendanceService = {
+  const mockAppointmentService = {
     create: jest.fn(),
     findOne: jest.fn(),
   };
@@ -27,7 +27,7 @@ describe('Consultation - patient_status field', () => {
   const mockPatientService = {
     setPatientStatus: jest.fn().mockResolvedValue({
       patient: { id: 1, patient_status: 'D' },
-      cancelledAttendances: [],
+      cancelledAppointments: [],
     }),
   };
 
@@ -45,7 +45,7 @@ describe('Consultation - patient_status field', () => {
           },
         },
         {
-          provide: getRepositoryToken(Attendance),
+          provide: getRepositoryToken(Appointment),
           useValue: {
             findOne: jest.fn(),
           },
@@ -66,8 +66,8 @@ describe('Consultation - patient_status field', () => {
           useValue: mockTreatmentService,
         },
         {
-          provide: AttendanceService,
-          useValue: mockAttendanceService,
+          provide: AppointmentService,
+          useValue: mockAppointmentService,
         },
         {
           provide: PatientService,
@@ -80,8 +80,8 @@ describe('Consultation - patient_status field', () => {
     consultationRepository = module.get<Repository<Consultation>>(
       getRepositoryToken(Consultation),
     );
-    attendanceRepository = module.get<Repository<Attendance>>(
-      getRepositoryToken(Attendance),
+    appointmentRepository = module.get<Repository<Appointment>>(
+      getRepositoryToken(Appointment),
     );
     patientRepository = module.get<Repository<Patient>>(
       getRepositoryToken(Patient),
@@ -94,7 +94,7 @@ describe('Consultation - patient_status field', () => {
 
   describe('create consultation with patient_status', () => {
     it('should store patient_status in the consultation', async () => {
-      const mockAttendance = {
+      const mockAppointment = {
         id: 1,
         patient_id: 1,
         type: 'assessment',
@@ -105,10 +105,10 @@ describe('Consultation - patient_status field', () => {
           name: 'Test Patient',
           patient_status: 'N',
         },
-      } as Attendance;
+      } as Appointment;
 
       const createDto: CreateConsultationDto = {
-        attendance_id: 1,
+        appointment_id: 1,
         main_concern: 'Back pain',
         patient_status: 'T',
         return_weeks: 2,
@@ -116,8 +116,8 @@ describe('Consultation - patient_status field', () => {
 
       jest.spyOn(consultationRepository, 'findOne').mockResolvedValue(null);
       jest
-        .spyOn(attendanceRepository, 'findOne')
-        .mockResolvedValue(mockAttendance);
+        .spyOn(appointmentRepository, 'findOne')
+        .mockResolvedValue(mockAppointment);
 
       const mockCreatedConsultation = {
         id: 1,
@@ -132,14 +132,14 @@ describe('Consultation - patient_status field', () => {
       jest
         .spyOn(consultationRepository, 'save')
         .mockResolvedValue(mockCreatedConsultation);
-      jest.spyOn(mockAttendanceService, 'create').mockResolvedValue({} as any);
+      jest.spyOn(mockAppointmentService, 'create').mockResolvedValue({} as any);
 
       const result = await service.create(createDto);
 
       // Verify that the consultation was created with patient_status
       expect(consultationRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          attendance_id: 1,
+          appointment_id: 1,
           main_concern: 'Back pain',
           patient_status: 'T',
           return_weeks: 2,
@@ -157,12 +157,12 @@ describe('Consultation - patient_status field', () => {
       expect(mockPatientService.setPatientStatus).toHaveBeenCalledWith(
         1,
         PatientStatus.IN_TREATMENT,
-        { excludeAttendanceIds: [1] },
+        { excludeAppointmentIds: [1] },
       );
     });
 
     it('should store patient_status "N" for new patients', async () => {
-      const mockAttendance = {
+      const mockAppointment = {
         id: 1,
         patient_id: 1,
         type: 'assessment',
@@ -173,10 +173,10 @@ describe('Consultation - patient_status field', () => {
           name: 'New Patient',
           patient_status: 'N',
         },
-      } as Attendance;
+      } as Appointment;
 
       const createDto: CreateConsultationDto = {
-        attendance_id: 1,
+        appointment_id: 1,
         main_concern: 'First consultation',
         patient_status: 'N',
         return_weeks: 1,
@@ -184,8 +184,8 @@ describe('Consultation - patient_status field', () => {
 
       jest.spyOn(consultationRepository, 'findOne').mockResolvedValue(null);
       jest
-        .spyOn(attendanceRepository, 'findOne')
-        .mockResolvedValue(mockAttendance);
+        .spyOn(appointmentRepository, 'findOne')
+        .mockResolvedValue(mockAppointment);
 
       const mockCreatedConsultation = {
         id: 1,
@@ -200,7 +200,7 @@ describe('Consultation - patient_status field', () => {
       jest
         .spyOn(consultationRepository, 'save')
         .mockResolvedValue(mockCreatedConsultation);
-      jest.spyOn(mockAttendanceService, 'create').mockResolvedValue({} as any);
+      jest.spyOn(mockAppointmentService, 'create').mockResolvedValue({} as any);
 
       const result = await service.create(createDto);
 
@@ -208,7 +208,7 @@ describe('Consultation - patient_status field', () => {
     });
 
     it('should store patient_status "D" for discharged patients', async () => {
-      const mockAttendance = {
+      const mockAppointment = {
         id: 1,
         patient_id: 1,
         type: 'assessment',
@@ -219,18 +219,18 @@ describe('Consultation - patient_status field', () => {
           name: 'Test Patient',
           patient_status: 'T',
         },
-      } as Attendance;
+      } as Appointment;
 
       const createDto: CreateConsultationDto = {
-        attendance_id: 1,
+        appointment_id: 1,
         main_concern: 'Final consultation',
         patient_status: 'D',
       };
 
       jest.spyOn(consultationRepository, 'findOne').mockResolvedValue(null);
       jest
-        .spyOn(attendanceRepository, 'findOne')
-        .mockResolvedValue(mockAttendance);
+        .spyOn(appointmentRepository, 'findOne')
+        .mockResolvedValue(mockAppointment);
 
       const mockCreatedConsultation = {
         id: 1,
@@ -249,18 +249,18 @@ describe('Consultation - patient_status field', () => {
       const result = await service.create(createDto);
 
       expect(result.consultation.patient_status).toBe('D');
-      expect(result.cancelledAttendances).toBeDefined();
+      expect(result.cancelledAppointments).toBeDefined();
 
-      // When status is D, setPatientStatus is used (cancels open attendances)
+      // When status is D, setPatientStatus is used (cancels open appointments)
       expect(mockPatientService.setPatientStatus).toHaveBeenCalledWith(
         1,
         PatientStatus.DISCHARGED,
-        { excludeAttendanceIds: [1] },
+        { excludeAppointmentIds: [1] },
       );
     });
 
     it('should handle null patient_status', async () => {
-      const mockAttendance = {
+      const mockAppointment = {
         id: 1,
         patient_id: 1,
         type: 'assessment',
@@ -271,10 +271,10 @@ describe('Consultation - patient_status field', () => {
           name: 'Test Patient',
           patient_status: 'T',
         },
-      } as Attendance;
+      } as Appointment;
 
       const createDto: CreateConsultationDto = {
-        attendance_id: 1,
+        appointment_id: 1,
         main_concern: 'Back pain',
         return_weeks: 2,
         // patient_status is optional/undefined
@@ -282,8 +282,8 @@ describe('Consultation - patient_status field', () => {
 
       jest.spyOn(consultationRepository, 'findOne').mockResolvedValue(null);
       jest
-        .spyOn(attendanceRepository, 'findOne')
-        .mockResolvedValue(mockAttendance);
+        .spyOn(appointmentRepository, 'findOne')
+        .mockResolvedValue(mockAppointment);
 
       const mockCreatedConsultation = {
         id: 1,
@@ -298,7 +298,7 @@ describe('Consultation - patient_status field', () => {
       jest
         .spyOn(consultationRepository, 'save')
         .mockResolvedValue(mockCreatedConsultation);
-      jest.spyOn(mockAttendanceService, 'create').mockResolvedValue({} as any);
+      jest.spyOn(mockAppointmentService, 'create').mockResolvedValue({} as any);
 
       const result = await service.create(createDto);
 
@@ -313,10 +313,10 @@ describe('Consultation - patient_status field', () => {
     it('should update patient_status in the consultation', async () => {
       const mockExistingConsultation = {
         id: 1,
-        attendance_id: 1,
+        appointment_id: 1,
         main_concern: 'Back pain',
         patient_status: 'N',
-        attendance: {
+        appointment: {
           patient_id: 1,
           patient: {
             id: 1,
@@ -334,14 +334,14 @@ describe('Consultation - patient_status field', () => {
         ...mockExistingConsultation,
         patient_status: 'T',
       } as Consultation);
-      jest.spyOn(attendanceRepository, 'findOne').mockResolvedValue({
+      jest.spyOn(appointmentRepository, 'findOne').mockResolvedValue({
         id: 1,
         patient_id: 1,
         patient: {
           id: 1,
           patient_status: 'N',
         },
-      } as Attendance);
+      } as Appointment);
 
       await service.update(1, updateDto);
 
@@ -357,7 +357,7 @@ describe('Consultation - patient_status field', () => {
       expect(mockPatientService.setPatientStatus).toHaveBeenCalledWith(
         1,
         PatientStatus.IN_TREATMENT,
-        { excludeAttendanceIds: [1] },
+        { excludeAppointmentIds: [1] },
       );
     });
   });

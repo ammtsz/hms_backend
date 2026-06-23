@@ -3,22 +3,22 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
 import {
   Session,
-  SessionAttendanceStatus,
+  SessionAppointmentStatus,
 } from '../entities/session.entity';
 import {
   Treatment,
   TreatmentPlanStatus,
   TreatmentType,
 } from '../entities/treatment.entity';
-import { Attendance } from '../entities/attendance.entity';
+import { Appointment } from '../entities/appointment.entity';
 import {
   CreateSessionDto,
   UpdateSessionDto,
   SessionResponseDto,
 } from '../dtos/session.dto';
 import { toDateStringOnly } from '../utils/date-string-helpers';
-import { AttendanceService } from './attendance.service';
-import { AttendanceStatus } from '../common/enums';
+import { AppointmentService } from './appointment.service';
+import { AppointmentStatus } from '../common/enums';
 
 @Injectable()
 export class SessionService {
@@ -27,10 +27,10 @@ export class SessionService {
     private sessionRepository: Repository<Session>,
     @InjectRepository(Treatment)
     private treatmentRepository: Repository<Treatment>,
-    @InjectRepository(Attendance)
-    private attendanceRepository: Repository<Attendance>,
-    @Inject(forwardRef(() => AttendanceService))
-    private attendanceService: AttendanceService,
+    @InjectRepository(Appointment)
+    private appointmentRepository: Repository<Appointment>,
+    @Inject(forwardRef(() => AppointmentService))
+    private appointmentService: AppointmentService,
   ) {}
 
   // ========================
@@ -54,10 +54,10 @@ export class SessionService {
       treatment_id: dto.treatment_id,
       session_number: dto.session_number,
       scheduled_date: dto.scheduled_date, // Already a string in YYYY-MM-DD format
-      status: SessionAttendanceStatus.SCHEDULED,
+      status: SessionAppointmentStatus.SCHEDULED,
       notes: dto.notes,
       performed_by: dto.performed_by,
-      attendance_id: dto.attendance_id,
+      appointment_id: dto.appointment_id,
     });
 
     const saved = await this.sessionRepository.save(session);
@@ -75,11 +75,11 @@ export class SessionService {
     return sessions.map((session) => this.toResponseDto(session));
   }
 
-  async getSessionsByAttendance(
-    attendanceId: number,
+  async getSessionsByAppointment(
+    appointmentId: number,
   ): Promise<SessionResponseDto[]> {
     const sessions = await this.sessionRepository.find({
-      where: { attendance_id: attendanceId },
+      where: { appointment_id: appointmentId },
       relations: ['treatment'],
       order: { session_number: 'ASC' },
     });
@@ -88,19 +88,19 @@ export class SessionService {
   }
 
   /**
-   * Get sessions to clone when rescheduling a cancelled/missed attendance.
-   * First tries by attendance_id; if none found (e.g. session row was never linked or link was cleared),
+   * Get sessions to clone when rescheduling a cancelled/missed appointment.
+   * First tries by appointment_id; if none found (e.g. session row was never linked or link was cleared),
    * finds by patient + type + scheduled_date so we still have treatment_id and session_number.
    */
   async getSessionsForReschedule(
-    attendanceId: number,
+    appointmentId: number,
     patientId: number,
     type: 'physiotherapy' | 'tens',
     scheduledDate: string,
   ): Promise<SessionResponseDto[]> {
-    const byAttendance = await this.getSessionsByAttendance(attendanceId);
-    if (byAttendance.length > 0) {
-      return byAttendance;
+    const byAppointment = await this.getSessionsByAppointment(appointmentId);
+    if (byAppointment.length > 0) {
+      return byAppointment;
     }
     const sessionIds = await this.treatmentRepository
       .createQueryBuilder('ts')
@@ -141,11 +141,11 @@ export class SessionService {
 
     const treatmentIds = treatmentsForPatient.map((t) => t.id);
 
-    // Get all sessions for these treatments, including each treatment and the session's attendance (cancellation reason fallback)
+    // Get all sessions for these treatments, including each treatment and the session's appointment (cancellation reason fallback)
     const sessions = await this.sessionRepository
       .createQueryBuilder('session')
       .leftJoinAndSelect('session.treatment', 'treatment')
-      .leftJoinAndSelect('session.attendance', 'sessionAttendance')
+      .leftJoinAndSelect('session.appointment', 'sessionAppointment')
       .where('session.treatment_id IN (:...treatmentIds)', { treatmentIds })
       .orderBy('session.scheduled_date', 'DESC')
       .addOrderBy('session.session_number', 'DESC')
@@ -187,27 +187,27 @@ export class SessionService {
     if (dto.missed_reason !== undefined)
       session.missed_reason = dto.missed_reason;
     if (dto.performed_by !== undefined) session.performed_by = dto.performed_by;
-    if (dto.attendance_id !== undefined)
-      session.attendance_id = dto.attendance_id;
+    if (dto.appointment_id !== undefined)
+      session.appointment_id = dto.appointment_id;
 
     const updated = await this.sessionRepository.save(session);
 
-    // Sync linked attendance status when session status changes (session → attendance)
+    // Sync linked appointment status when session status changes (session → appointment)
     if (
       dto.status !== undefined &&
       dto.status !== previousStatus &&
-      updated.attendance_id
+      updated.appointment_id
     ) {
-      const attendanceStatus = this.mapSessionStatusToAttendanceStatus(
+      const appointmentStatus = this.mapSessionStatusToAppointmentStatus(
         updated.status,
       );
-      if (attendanceStatus !== null) {
-        await this.attendanceService.syncStatusFromSession(
-          updated.attendance_id,
-          attendanceStatus,
+      if (appointmentStatus !== null) {
+        await this.appointmentService.syncStatusFromSession(
+          updated.appointment_id,
+          appointmentStatus,
           {
             cancellationReason:
-              updated.status === SessionAttendanceStatus.MISSED
+              updated.status === SessionAppointmentStatus.MISSED
                 ? updated.missed_reason ?? undefined
                 : undefined,
           },
@@ -219,19 +219,19 @@ export class SessionService {
   }
 
   /**
-   * Map session status to attendance status for session→attendance sync.
+   * Map session status to appointment status for session→appointment sync.
    * Returns null for SCHEDULED (no sync needed).
    */
-  private mapSessionStatusToAttendanceStatus(
-    status: SessionAttendanceStatus,
-  ): AttendanceStatus | null {
+  private mapSessionStatusToAppointmentStatus(
+    status: SessionAppointmentStatus,
+  ): AppointmentStatus | null {
     switch (status) {
-      case SessionAttendanceStatus.COMPLETED:
-        return AttendanceStatus.COMPLETED;
-      case SessionAttendanceStatus.MISSED:
-        return AttendanceStatus.MISSED;
-      case SessionAttendanceStatus.CANCELLED:
-        return AttendanceStatus.CANCELLED;
+      case SessionAppointmentStatus.COMPLETED:
+        return AppointmentStatus.COMPLETED;
+      case SessionAppointmentStatus.MISSED:
+        return AppointmentStatus.MISSED;
+      case SessionAppointmentStatus.CANCELLED:
+        return AppointmentStatus.CANCELLED;
       default:
         return null;
     }
@@ -250,7 +250,7 @@ export class SessionService {
 
   async completeSession(
     id: number,
-    attendanceId?: number,
+    appointmentId?: number,
     notes?: string,
   ): Promise<SessionResponseDto> {
     const session = await this.sessionRepository.findOne({
@@ -262,20 +262,20 @@ export class SessionService {
       throw new NotFoundException(`Session with ID ${id} not found`);
     }
 
-    // Validate attendance if provided
-    if (attendanceId) {
-      const attendance = await this.attendanceRepository.findOne({
-        where: { id: attendanceId },
+    // Validate appointment if provided
+    if (appointmentId) {
+      const appointment = await this.appointmentRepository.findOne({
+        where: { id: appointmentId },
       });
-      if (!attendance) {
+      if (!appointment) {
         throw new NotFoundException(
-          `Attendance with ID ${attendanceId} not found`,
+          `Appointment with ID ${appointmentId} not found`,
         );
       }
-      session.attendance_id = attendanceId;
+      session.appointment_id = appointmentId;
     }
 
-    session.status = SessionAttendanceStatus.COMPLETED;
+    session.status = SessionAppointmentStatus.COMPLETED;
 
     // Set start_time if not already set
     if (!session.start_time) {
@@ -309,7 +309,7 @@ export class SessionService {
       throw new NotFoundException(`Session with ID ${id} not found`);
     }
 
-    session.status = SessionAttendanceStatus.MISSED;
+    session.status = SessionAppointmentStatus.MISSED;
     session.missed_reason = reason;
 
     const updated = await this.sessionRepository.save(session);
@@ -330,25 +330,25 @@ export class SessionService {
     }
 
     session.scheduled_date = newDate; // newDate should already be in YYYY-MM-DD format
-    session.status = SessionAttendanceStatus.SCHEDULED;
+    session.status = SessionAppointmentStatus.SCHEDULED;
 
     const updated = await this.sessionRepository.save(session);
     return this.toResponseDto(updated);
   }
 
   /**
-   * Mark all `hms_session` rows linked to an attendance as MISSED.
-   * Used when a physiotherapy/tens attendance is marked as MISSED so that
+   * Mark all `hms_session` rows linked to an appointment as MISSED.
+   * Used when a physiotherapy/tens appointment is marked as MISSED so that
    * `hms_session.status` stays in sync.
    */
-  async markSessionsAsMissedByAttendanceId(
-    attendanceId: number,
+  async markSessionsAsMissedByAppointmentId(
+    appointmentId: number,
     reason: string,
   ): Promise<void> {
     const sessions = await this.sessionRepository.find({
       where: {
-        attendance_id: attendanceId,
-        status: SessionAttendanceStatus.SCHEDULED,
+        appointment_id: appointmentId,
+        status: SessionAppointmentStatus.SCHEDULED,
       },
     });
 
@@ -366,7 +366,7 @@ export class SessionService {
     const sessions = await this.sessionRepository.find({
       where: {
         treatment_id: treatmentId,
-        status: SessionAttendanceStatus.SCHEDULED,
+        status: SessionAppointmentStatus.SCHEDULED,
       },
       select: ['scheduled_date'],
     });
@@ -384,17 +384,17 @@ export class SessionService {
   }
 
   /**
-   * Set all `hms_session` rows linked to an attendance to cancelled.
-   * Used when an attendance (physiotherapy or tens) is cancelled so that
+   * Set all `hms_session` rows linked to an appointment to cancelled.
+   * Used when an appointment (physiotherapy or tens) is cancelled so that
    * `hms_session.status` stays in sync.
    */
-  async cancelSessionsByAttendanceId(attendanceId: number): Promise<void> {
+  async cancelSessionsByAppointmentId(appointmentId: number): Promise<void> {
     await this.sessionRepository.update(
       {
-        attendance_id: attendanceId,
-        status: Not(SessionAttendanceStatus.COMPLETED),
+        appointment_id: appointmentId,
+        status: Not(SessionAppointmentStatus.COMPLETED),
       },
-      { status: SessionAttendanceStatus.CANCELLED },
+      { status: SessionAppointmentStatus.CANCELLED },
     );
   }
 
@@ -408,7 +408,7 @@ export class SessionService {
     const completedCount = await this.sessionRepository.count({
       where: {
         treatment_id: treatmentId,
-        status: SessionAttendanceStatus.COMPLETED,
+        status: SessionAppointmentStatus.COMPLETED,
       },
     });
 
@@ -434,11 +434,11 @@ export class SessionService {
   }
 
   /**
-   * Create a `hms_session` row from a completed attendance.
+   * Create a `hms_session` row from a completed appointment.
    */
-  async createSessionFromAttendance(
+  async createSessionFromAppointment(
     treatmentId: number,
-    attendance: Attendance,
+    appointment: Appointment,
   ): Promise<SessionResponseDto> {
     // Find the next session number for this treatment
     const existingSessions = await this.sessionRepository.find({
@@ -451,13 +451,13 @@ export class SessionService {
 
     const session = this.sessionRepository.create({
       treatment_id: treatmentId,
-      attendance_id: attendance.id,
+      appointment_id: appointment.id,
       session_number: nextSessionNumber,
-      scheduled_date: attendance.scheduled_date,
+      scheduled_date: appointment.scheduled_date,
       start_time: null, // Will be set separately if needed
       end_time: null, // Will be set separately if needed
-      status: SessionAttendanceStatus.COMPLETED,
-      notes: `Session automatically completed via attendance #${attendance.id}`,
+      status: SessionAppointmentStatus.COMPLETED,
+      notes: `Session automatically completed via appointment #${appointment.id}`,
       performed_by: 'System', // Could be enhanced to track actual user
     });
 
@@ -477,7 +477,7 @@ export class SessionService {
     const dto: SessionResponseDto = {
       id: session.id,
       treatment_id: session.treatment_id,
-      attendance_id: session.attendance_id,
+      appointment_id: session.appointment_id,
       session_number: session.session_number,
       scheduled_date: session.scheduled_date,
       start_time: session.start_time,
@@ -490,7 +490,7 @@ export class SessionService {
       created_time: session.created_time,
       updated_date: session.updated_date,
       updated_time: session.updated_time,
-      cancellation_reason: session.attendance?.absence_notes ?? undefined,
+      cancellation_reason: session.appointment?.absence_notes ?? undefined,
     };
 
     // Include parent treatment when loaded

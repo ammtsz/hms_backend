@@ -4,7 +4,7 @@ import { DayFinalization } from '../entities/day-finalization.entity';
 import { DayFinalizationService } from '../services/day-finalization.service';
 import { EndOfDayProcessService } from '../services/end-of-day-process.service';
 import { DayFinalizationController } from '../controllers/day-finalization.controller';
-import { AttendanceModule } from './attendance.module';
+import { AppointmentModule } from './appointment.module';
 import { PatientModule } from './patient.module';
 import { TreatmentModule } from './treatment.module';
 import { SessionModule } from './session.module';
@@ -20,7 +20,7 @@ import { SystemSettingsModule } from './system-settings.module';
     TypeOrmModule.forFeature([DayFinalization]),
     HolidayModule,
     SystemSettingsModule,
-    forwardRef(() => AttendanceModule),
+    forwardRef(() => AppointmentModule),
     forwardRef(() => PatientModule),
     forwardRef(() => TreatmentModule),
     SessionModule,

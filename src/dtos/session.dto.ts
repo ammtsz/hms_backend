@@ -7,7 +7,7 @@ import {
   IsDateString,
 } from 'class-validator';
 import { Sanitize } from '../common/decorators/sanitize.decorator';
-import { SessionAttendanceStatus } from '../entities/session.entity';
+import { SessionAppointmentStatus } from '../entities/session.entity';
 import { TreatmentPlanStatus } from '../entities/treatment.entity';
 
 export class CreateSessionDto {
@@ -17,7 +17,7 @@ export class CreateSessionDto {
 
   @IsNumber()
   @IsOptional()
-  attendance_id?: number;
+  appointment_id?: number;
 
   @IsNumber()
   @IsNotEmpty()
@@ -47,9 +47,9 @@ export class UpdateSessionDto {
   @IsOptional()
   end_time?: string;
 
-  @IsEnum(SessionAttendanceStatus)
+  @IsEnum(SessionAppointmentStatus)
   @IsOptional()
-  status?: SessionAttendanceStatus;
+  status?: SessionAppointmentStatus;
 
   @Sanitize()
   @IsString()
@@ -68,19 +68,19 @@ export class UpdateSessionDto {
 
   @IsNumber()
   @IsOptional()
-  attendance_id?: number;
+  appointment_id?: number;
 }
 
 /** One `hms_session` row, optionally hydrated with parent `hms_treatment` fields. */
 export class SessionResponseDto {
   id: number;
   treatment_id: number;
-  attendance_id?: number;
+  appointment_id?: number;
   session_number: number;
   scheduled_date: string;
   start_time?: string;
   end_time?: string;
-  status: SessionAttendanceStatus;
+  status: SessionAppointmentStatus;
   notes?: string;
   missed_reason?: string;
   performed_by?: string;

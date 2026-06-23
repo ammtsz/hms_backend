@@ -5,12 +5,12 @@ import { CreateHolidayPeriodDto } from '../../dtos/holiday.dto';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Holiday } from '../../entities/holiday.entity';
-import { Attendance } from '../../entities/attendance.entity';
-import { AttendanceStatus } from '../../common/enums';
+import { Appointment } from '../../entities/appointment.entity';
+import { AppointmentStatus } from '../../common/enums';
 
 describe('HolidayService - generateDateRange', () => {
   let service: HolidayService;
-  let attendanceQueryBuilder: {
+  let appointmentQueryBuilder: {
     where: jest.Mock;
     andWhere: jest.Mock;
     getCount: jest.Mock;
@@ -21,7 +21,7 @@ describe('HolidayService - generateDateRange', () => {
   };
 
   beforeEach(async () => {
-    attendanceQueryBuilder = {
+    appointmentQueryBuilder = {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       getCount: jest.fn().mockResolvedValue(0),
@@ -45,9 +45,9 @@ describe('HolidayService - generateDateRange', () => {
           },
         },
         {
-          provide: getRepositoryToken(Attendance),
+          provide: getRepositoryToken(Appointment),
           useValue: {
-            createQueryBuilder: jest.fn(() => attendanceQueryBuilder),
+            createQueryBuilder: jest.fn(() => appointmentQueryBuilder),
           },
         },
       ],
@@ -159,8 +159,8 @@ describe('HolidayService - generateDateRange', () => {
     });
   });
 
-  it('should block period creation when attendances exist in range', async () => {
-    attendanceQueryBuilder.getCount.mockResolvedValueOnce(2);
+  it('should block period creation when appointments exist in range', async () => {
+    appointmentQueryBuilder.getCount.mockResolvedValueOnce(2);
 
     const createPeriodDto: CreateHolidayPeriodDto = {
       start_date: '2026-02-08',
@@ -171,11 +171,11 @@ describe('HolidayService - generateDateRange', () => {
     };
 
     await expect(service.createHolidayPeriod(createPeriodDto)).rejects.toThrow(
-      'ATTENDANCE_CONFLICT:2',
+      'APPOINTMENT_CONFLICT:2',
     );
   });
 
-  it('should only count open attendances (scheduled, checked_in, in_progress) for period conflict', async () => {
+  it('should only count open appointments (scheduled, checked_in, in_progress) for period conflict', async () => {
     await service.createHolidayPeriod({
       start_date: '2026-02-08',
       end_date: '2026-02-14',
@@ -184,13 +184,13 @@ describe('HolidayService - generateDateRange', () => {
       blocked_treatment_types: null,
     });
 
-    expect(attendanceQueryBuilder.andWhere).toHaveBeenCalledWith(
-      'attendance.status IN (:...openStatuses)',
+    expect(appointmentQueryBuilder.andWhere).toHaveBeenCalledWith(
+      'appointment.status IN (:...openStatuses)',
       {
         openStatuses: [
-          AttendanceStatus.SCHEDULED,
-          AttendanceStatus.CHECKED_IN,
-          AttendanceStatus.IN_PROGRESS,
+          AppointmentStatus.SCHEDULED,
+          AppointmentStatus.CHECKED_IN,
+          AppointmentStatus.IN_PROGRESS,
         ],
       },
     );

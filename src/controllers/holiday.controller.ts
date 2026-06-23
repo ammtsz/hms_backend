@@ -101,7 +101,7 @@ export class HolidayController {
 
   @Get('conflicts/:date')
   @UseGuards(AdminGuard)
-  @ApiOperation({ summary: 'Check for attendance conflicts on date (admin only)' })
+  @ApiOperation({ summary: 'Check for appointment conflicts on date (admin only)' })
   async checkConflicts(@Param('date') date: string) {
     this.logger.log(`Checking conflicts for date ${date}`);
     return this.holidayService.checkConflicts(date);

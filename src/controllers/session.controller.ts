@@ -55,13 +55,13 @@ export class SessionController {
     return this.sessionService.getSessionsByTreatment(treatmentId);
   }
 
-  @Get('attendance/:attendanceId')
-  @ApiSessionOperation('Get sessions by attendance ID')
-  async getSessionsByAttendance(
-    @Param('attendanceId', ParseIntPipe) attendanceId: number,
+  @Get('appointment/:appointmentId')
+  @ApiSessionOperation('Get sessions by appointment ID')
+  async getSessionsByAppointment(
+    @Param('appointmentId', ParseIntPipe) appointmentId: number,
   ): Promise<SessionResponseDto[]> {
-    return this.sessionService.getSessionsByAttendance(
-      attendanceId,
+    return this.sessionService.getSessionsByAppointment(
+      appointmentId,
     );
   }
 
@@ -108,11 +108,11 @@ export class SessionController {
   @ApiCompleteSessionOperation()
   async completeSession(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { attendanceId?: number; notes?: string },
+    @Body() body: { appointmentId?: number; notes?: string },
   ): Promise<SessionResponseDto> {
     return this.sessionService.completeSession(
       id,
-      body.attendanceId,
+      body.appointmentId,
       body.notes,
     );
   }

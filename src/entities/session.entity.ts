@@ -6,10 +6,10 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Treatment } from './treatment.entity';
-import { Attendance } from './attendance.entity';
+import { Appointment } from './appointment.entity';
 
 /** Row status for `hms_session` (PostgreSQL `SESSION_STATUS`). */
-export enum SessionAttendanceStatus {
+export enum SessionAppointmentStatus {
   SCHEDULED = 'scheduled',
   COMPLETED = 'completed',
   MISSED = 'missed',
@@ -32,11 +32,11 @@ export class Session {
   treatment: Treatment;
 
   @Column({ nullable: true })
-  attendance_id: number;
+  appointment_id: number;
 
-  @ManyToOne(() => Attendance, { onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'attendance_id' })
-  attendance: Attendance;
+  @ManyToOne(() => Appointment, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'appointment_id' })
+  appointment: Appointment;
 
   @Column({ type: 'integer' })
   session_number: number;
@@ -52,11 +52,11 @@ export class Session {
 
   @Column({
     type: 'enum',
-    enum: SessionAttendanceStatus,
+    enum: SessionAppointmentStatus,
     enumName: 'SESSION_STATUS',
-    default: SessionAttendanceStatus.SCHEDULED,
+    default: SessionAppointmentStatus.SCHEDULED,
   })
-  status: SessionAttendanceStatus;
+  status: SessionAppointmentStatus;
 
   @Column({ type: 'text', nullable: true })
   notes: string;

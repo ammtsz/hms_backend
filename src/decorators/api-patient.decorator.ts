@@ -100,7 +100,7 @@ export function ApiDeletePatientOperation() {
     ApiOperation({
       summary: 'Delete patient',
       description:
-        'Deletes a patient if they have no active attendances.',
+        'Deletes a patient if they have no active appointments.',
     }),
     ApiParam({ name: 'id', description: 'Patient ID' }),
     ApiResponse({
@@ -113,7 +113,7 @@ export function ApiDeletePatientOperation() {
     }),
     ApiResponse({
       status: 409,
-      description: 'Conflict - Patient has active attendances',
+      description: 'Conflict - Patient has active appointments',
     }),
   );
 }

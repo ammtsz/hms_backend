@@ -6,7 +6,7 @@ import {
   UpdateSessionDto,
   SessionResponseDto,
 } from '../../dtos/session.dto';
-import { SessionAttendanceStatus } from '../../entities/session.entity';
+import { SessionAppointmentStatus } from '../../entities/session.entity';
 
 describe('SessionController', () => {
   let controller: SessionController;
@@ -57,12 +57,12 @@ describe('SessionController', () => {
         const expected: SessionResponseDto = {
           id: 1,
           treatment_id: 1,
-          attendance_id: undefined,
+          appointment_id: undefined,
           session_number: 1,
           scheduled_date: '2024-01-01',
           start_time: undefined,
           end_time: undefined,
-          status: SessionAttendanceStatus.SCHEDULED,
+          status: SessionAppointmentStatus.SCHEDULED,
           notes: 'First session',
           missed_reason: undefined,
           performed_by: undefined,
@@ -89,12 +89,12 @@ describe('SessionController', () => {
         const expected: SessionResponseDto = {
           id: 1,
           treatment_id: 1,
-          attendance_id: 1,
+          appointment_id: 1,
           session_number: 1,
           scheduled_date: '2024-01-01',
           start_time: '10:00:00',
           end_time: '10:30:00',
-          status: SessionAttendanceStatus.COMPLETED,
+          status: SessionAppointmentStatus.COMPLETED,
           notes: 'Session completed successfully',
           missed_reason: undefined,
           performed_by: 'Dr. Smith',
@@ -122,12 +122,12 @@ describe('SessionController', () => {
           {
             id: 1,
             treatment_id: 1,
-            attendance_id: 1,
+            appointment_id: 1,
             session_number: 1,
             scheduled_date: '2024-01-01',
             start_time: '10:00:00',
             end_time: '10:30:00',
-            status: SessionAttendanceStatus.COMPLETED,
+            status: SessionAppointmentStatus.COMPLETED,
             notes: 'Session completed',
             missed_reason: undefined,
             performed_by: 'Dr. Smith',
@@ -162,12 +162,12 @@ describe('SessionController', () => {
         const expected: SessionResponseDto = {
           id: 1,
           treatment_id: 1,
-          attendance_id: 1,
+          appointment_id: 1,
           session_number: 1,
           scheduled_date: '2024-01-01',
           start_time: '10:00:00',
           end_time: '10:30:00',
-          status: SessionAttendanceStatus.COMPLETED,
+          status: SessionAppointmentStatus.COMPLETED,
           notes: 'Updated session notes',
           missed_reason: undefined,
           performed_by: 'Dr. Smith',
@@ -208,19 +208,19 @@ describe('SessionController', () => {
       it('should complete a session', async () => {
         const recordId = 1;
         const completeDto = {
-          attendanceId: 1,
+          appointmentId: 1,
           notes: 'Session completed successfully',
         };
 
         const expected: SessionResponseDto = {
           id: 1,
           treatment_id: 1,
-          attendance_id: 1,
+          appointment_id: 1,
           session_number: 1,
           scheduled_date: '2024-01-01',
           start_time: '10:00:00',
           end_time: '10:30:00',
-          status: SessionAttendanceStatus.COMPLETED,
+          status: SessionAppointmentStatus.COMPLETED,
           notes: 'Session completed successfully',
           missed_reason: undefined,
           performed_by: 'Dr. Smith',
@@ -238,7 +238,7 @@ describe('SessionController', () => {
 
         expect(service.completeSession).toHaveBeenCalledWith(
           recordId,
-          completeDto.attendanceId,
+          completeDto.appointmentId,
           completeDto.notes,
         );
         expect(result).toEqual(expected);

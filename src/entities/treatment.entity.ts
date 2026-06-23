@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { Patient } from './patient.entity';
 import { Consultation } from './consultation.entity';
-import { Attendance } from './attendance.entity';
+import { Appointment } from './appointment.entity';
 import { Session } from './session.entity';
 
 export enum TreatmentType {
@@ -49,11 +49,11 @@ export class Treatment {
   consultation: Consultation;
 
   @Column()
-  attendance_id: number;
+  appointment_id: number;
 
-  @ManyToOne(() => Attendance, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'attendance_id' })
-  attendance: Attendance;
+  @ManyToOne(() => Appointment, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'appointment_id' })
+  appointment: Appointment;
 
   @Column()
   patient_id: number;

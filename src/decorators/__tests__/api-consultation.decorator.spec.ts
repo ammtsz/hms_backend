@@ -5,7 +5,7 @@ import {
   ApiDeleteConsultationOperation,
   ApiFindAllConsultationsOperation,
   ApiFindOneConsultationOperation,
-  ApiFindConsultationByAttendanceOperation,
+  ApiFindConsultationByAppointmentOperation,
 } from '../api-consultation.decorator';
 
 // Mock class to test decorators
@@ -40,9 +40,9 @@ class TestController {
     return 'findOne';
   }
 
-  @ApiFindConsultationByAttendanceOperation()
-  findByAttendanceConsultation() {
-    return 'findByAttendance';
+  @ApiFindConsultationByAppointmentOperation()
+  findByAppointmentConsultation() {
+    return 'findByAppointment';
   }
 }
 
@@ -100,12 +100,12 @@ describe('API Consultation Decorators', () => {
     });
   });
 
-  describe('ApiFindConsultationByAttendanceOperation', () => {
-    it('should apply decorators to findByAttendance method', () => {
-      expect(controller.findByAttendanceConsultation()).toBe(
-        'findByAttendance',
+  describe('ApiFindConsultationByAppointmentOperation', () => {
+    it('should apply decorators to findByAppointment method', () => {
+      expect(controller.findByAppointmentConsultation()).toBe(
+        'findByAppointment',
       );
-      expect(typeof ApiFindConsultationByAttendanceOperation).toBe(
+      expect(typeof ApiFindConsultationByAppointmentOperation).toBe(
         'function',
       );
     });
@@ -119,7 +119,7 @@ describe('API Consultation Decorators', () => {
       expect(typeof ApiDeleteConsultationOperation()).toBe('function');
       expect(typeof ApiFindAllConsultationsOperation()).toBe('function');
       expect(typeof ApiFindOneConsultationOperation()).toBe('function');
-      expect(typeof ApiFindConsultationByAttendanceOperation()).toBe(
+      expect(typeof ApiFindConsultationByAppointmentOperation()).toBe(
         'function',
       );
     });

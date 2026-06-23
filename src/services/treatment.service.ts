@@ -15,12 +15,12 @@ import {
 } from '../entities/treatment.entity';
 import {
   Session,
-  SessionAttendanceStatus,
+  SessionAppointmentStatus,
 } from '../entities/session.entity';
 import { Consultation } from '../entities/consultation.entity';
-import { Attendance } from '../entities/attendance.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { Patient } from '../entities/patient.entity';
-import { AttendanceType, AttendanceStatus } from '../common/enums';
+import { AppointmentType, AppointmentStatus } from '../common/enums';
 import {
   CreateTreatmentDto,
   UpdateTreatmentDto,
@@ -32,7 +32,7 @@ import {
   toDateStringOnly,
   compareDateStrings,
 } from '../utils/date-string-helpers';
-import { AttendanceService } from './attendance.service';
+import { AppointmentService } from './appointment.service';
 
 @Injectable()
 export class TreatmentService {
@@ -49,12 +49,12 @@ export class TreatmentService {
     private sessionRepository: Repository<Session>,
     @InjectRepository(Consultation)
     private consultationRepository: Repository<Consultation>,
-    @InjectRepository(Attendance)
-    private attendanceRepository: Repository<Attendance>,
+    @InjectRepository(Appointment)
+    private appointmentRepository: Repository<Appointment>,
     @InjectRepository(Patient)
     private patientRepository: Repository<Patient>,
-    @Inject(forwardRef(() => AttendanceService))
-    private attendanceService: AttendanceService,
+    @Inject(forwardRef(() => AppointmentService))
+    private appointmentService: AppointmentService,
   ) {}
 
   // ========================
@@ -74,13 +74,13 @@ export class TreatmentService {
       );
     }
 
-    // Validate that the attendance exists
-    const attendance = await this.attendanceRepository.findOne({
-      where: { id: dto.attendance_id },
+    // Validate that the appointment exists
+    const appointment = await this.appointmentRepository.findOne({
+      where: { id: dto.appointment_id },
     });
-    if (!attendance) {
+    if (!appointment) {
       throw new NotFoundException(
-        `Attendance with ID ${dto.attendance_id} not found`,
+        `Appointment with ID ${dto.appointment_id} not found`,
       );
     }
 
@@ -96,7 +96,7 @@ export class TreatmentService {
     // Use timezone-agnostic string dates
     const treatment = this.treatmentRepository.create({
       consultation_id: dto.consultation_id,
-      attendance_id: dto.attendance_id,
+      appointment_id: dto.appointment_id,
       patient_id: dto.patient_id,
       treatment_type: dto.treatment_type,
       body_location: dto.body_location,
@@ -118,8 +118,8 @@ export class TreatmentService {
         saved.id,
         dto.planned_sessions,
         dto.start_date,
-        dto.reuse_attendance_for_first_session
-          ? (dto.first_session_attendance_id ?? dto.attendance_id)
+        dto.reuse_appointment_for_first_session
+          ? (dto.first_session_appointment_id ?? dto.appointment_id)
           : undefined,
       );
     }
@@ -153,7 +153,7 @@ export class TreatmentService {
     // Validate schedulable dates (holiday/finalized-adjusted) before creating any session
     const allDates = await this.collectSchedulableDatesFromTreatmentDtos(treatments);
     if (allDates.length > 0) {
-      await this.attendanceService.validateTreatmentSlotsForDates(allDates);
+      await this.appointmentService.validateTreatmentSlotsForDates(allDates);
     }
 
     // Create all sessions sequentially to maintain order and ensure proper error tracking
@@ -205,7 +205,7 @@ export class TreatmentService {
   ): Promise<TreatmentResponseDto[]> {
     const treatments = await this.treatmentRepository.find({
       where: { patient_id: patientId },
-      relations: ['sessions', 'consultation', 'attendance'],
+      relations: ['sessions', 'consultation', 'appointment'],
       order: { created_date: 'DESC', created_time: 'DESC' },
     });
 
@@ -217,7 +217,7 @@ export class TreatmentService {
   ): Promise<TreatmentResponseDto> {
     const treatment = await this.treatmentRepository.findOne({
       where: { id },
-      relations: ['sessions', 'consultation', 'attendance'],
+      relations: ['sessions', 'consultation', 'appointment'],
     });
 
     if (!treatment) {
@@ -229,12 +229,12 @@ export class TreatmentService {
 
   /**
    * Get session info for return assessment rescheduling logic:
-   * attendance_id (episode root), patient_id, return_weeks and return_when_treatment_complete.
+   * appointment_id (episode root), patient_id, return_weeks and return_when_treatment_complete.
    */
   async getSessionWithReturnConfig(
     id: number,
   ): Promise<{
-    attendance_id: number;
+    appointment_id: number;
     patient_id: number;
     consultation_id: number | null;
     return_weeks: number | null;
@@ -248,7 +248,7 @@ export class TreatmentService {
     if (!treatment) return null;
 
     return {
-      attendance_id: treatment.attendance_id,
+      appointment_id: treatment.appointment_id,
       patient_id: treatment.patient_id,
       consultation_id: treatment.consultation_id ?? null,
       return_weeks: treatment.consultation?.return_weeks ?? null,
@@ -290,7 +290,7 @@ export class TreatmentService {
     if (isConfigEdit) {
       const hasCompletedSession =
         treatment.sessions?.some(
-          (s) => s.status === SessionAttendanceStatus.COMPLETED,
+          (s) => s.status === SessionAppointmentStatus.COMPLETED,
         ) ?? false;
       if (hasCompletedSession) {
         throw new BadRequestException(
@@ -345,15 +345,15 @@ export class TreatmentService {
 
   /**
    * Cancel a treatment and its non-completed session rows.
-   * Optionally cancel linked attendances that are still open (scheduled, checked_in, in_progress).
-   * Attendance status is owned by AttendanceService: we only delegate, never update directly.
-   * When cancelLinkedOpenAttendances is false (e.g. patient transition to D/C), caller has already
-   * cancelled open attendances; we must not overwrite MISSED or other statuses.
+   * Optionally cancel linked appointments that are still open (scheduled, checked_in, in_progress).
+   * Appointment status is owned by AppointmentService: we only delegate, never update directly.
+   * When cancelLinkedOpenAppointments is false (e.g. patient transition to D/C), caller has already
+   * cancelled open appointments; we must not overwrite MISSED or other statuses.
    */
   async cancelTreatment(
     id: number,
     cancellationReason?: string,
-    options?: { cancelLinkedOpenAttendances?: boolean },
+    options?: { cancelLinkedOpenAppointments?: boolean },
   ): Promise<TreatmentResponseDto> {
     const treatment = await this.treatmentRepository.findOne({
       where: { id },
@@ -371,34 +371,34 @@ export class TreatmentService {
       treatment.cancellation_reason = cancellationReason;
     }
 
-    // Update related session rows to cancelled and collect linked attendance IDs
-    const attendanceIds: number[] = [];
+    // Update related session rows to cancelled and collect linked appointment IDs
+    const appointmentIds: number[] = [];
     if (treatment.sessions && treatment.sessions.length > 0) {
       for (const session of treatment.sessions) {
         if (
-          session.status !== SessionAttendanceStatus.COMPLETED &&
-          session.status !== SessionAttendanceStatus.MISSED
+          session.status !== SessionAppointmentStatus.COMPLETED &&
+          session.status !== SessionAppointmentStatus.MISSED
         ) {
-          session.status = SessionAttendanceStatus.CANCELLED;
+          session.status = SessionAppointmentStatus.CANCELLED;
           await this.sessionRepository.save(session);
-          if (session.attendance_id) {
-            attendanceIds.push(session.attendance_id);
+          if (session.appointment_id) {
+            appointmentIds.push(session.appointment_id);
           }
         }
       }
     }
 
-    // Optionally cancel linked attendances that are still open (only SCHEDULED, CHECKED_IN, IN_PROGRESS).
-    // Delegated to AttendanceService so we never overwrite MISSED or COMPLETED.
-    const cancelLinked = options?.cancelLinkedOpenAttendances !== false;
-    if (cancelLinked && attendanceIds.length > 0) {
-      const cancelled = await this.attendanceService.cancelOpenAttendancesByIds(
-        attendanceIds,
+    // Optionally cancel linked appointments that are still open (only SCHEDULED, CHECKED_IN, IN_PROGRESS).
+    // Delegated to AppointmentService so we never overwrite MISSED or COMPLETED.
+    const cancelLinked = options?.cancelLinkedOpenAppointments !== false;
+    if (cancelLinked && appointmentIds.length > 0) {
+      const cancelled = await this.appointmentService.cancelOpenAppointmentsByIds(
+        appointmentIds,
         cancellationReason,
       );
       if (cancelled.length > 0) {
         this.logger.log(
-          `Cancelled ${cancelled.length} linked open attendances for treatment ${id}`,
+          `Cancelled ${cancelled.length} linked open appointments for treatment ${id}`,
         );
       }
     }
@@ -442,19 +442,19 @@ export class TreatmentService {
       throw new NotFoundException(`Treatment with ID ${id} not found`);
     }
 
-    // Delete all related attendances created for this treatment
+    // Delete all related appointments created for this treatment
     if (
       treatment.sessions &&
       treatment.sessions.length > 0
     ) {
-      const attendanceIds = treatment.sessions
-        .filter((session) => session.attendance_id)
-        .map((session) => session.attendance_id);
+      const appointmentIds = treatment.sessions
+        .filter((session) => session.appointment_id)
+        .map((session) => session.appointment_id);
 
-      if (attendanceIds.length > 0) {
-        await this.attendanceRepository.delete(attendanceIds);
+      if (appointmentIds.length > 0) {
+        await this.appointmentRepository.delete(appointmentIds);
         console.log(
-          `🗑️ Deleted ${attendanceIds.length} related attendances for treatment ${id}`,
+          `🗑️ Deleted ${appointmentIds.length} related appointments for treatment ${id}`,
         );
       }
     }
@@ -481,7 +481,7 @@ export class TreatmentService {
       let currentDate = treatment.start_date;
       for (let i = 0; i < treatment.planned_sessions; i++) {
         const adjustedDate =
-          await this.attendanceService.findNextSchedulableDate(
+          await this.appointmentService.findNextSchedulableDate(
             currentDate,
             treatment.treatment_type,
           );
@@ -496,7 +496,7 @@ export class TreatmentService {
     treatmentId: number,
     plannedSessions: number,
     startDate: string,
-    reuseAttendanceIdForFirst?: number,
+    reuseAppointmentIdForFirst?: number,
   ): Promise<void> {
     // Get the treatment to access patient_id and treatment_type
     const treatment = await this.treatmentRepository.findOne({
@@ -515,7 +515,7 @@ export class TreatmentService {
 
     for (let i = 1; i <= plannedSessions; i++) {
       const adjustedDate =
-        await this.attendanceService.findNextSchedulableDate(
+        await this.appointmentService.findNextSchedulableDate(
           currentDateStr,
           treatment.treatment_type,
         );
@@ -524,7 +524,7 @@ export class TreatmentService {
         treatment_id: treatmentId,
         session_number: i,
         scheduled_date: adjustedDate,
-        status: SessionAttendanceStatus.SCHEDULED,
+        status: SessionAppointmentStatus.SCHEDULED,
       });
 
       sessionsToPersist.push(sessionRow);
@@ -537,21 +537,21 @@ export class TreatmentService {
     const savedSessions =
       await this.sessionRepository.save(sessionsToPersist);
 
-    // Create attendances for each session row
-    const attendanceType =
+    // Create appointments for each session row
+    const appointmentType =
       treatment.treatment_type === TreatmentType.PHYSIOTHERAPY
-        ? AttendanceType.PHYSIOTHERAPY
-        : AttendanceType.TENS;
+        ? AppointmentType.PHYSIOTHERAPY
+        : AppointmentType.TENS;
 
     for (let idx = 0; idx < savedSessions.length; idx++) {
       const sessionRow = savedSessions[idx];
-      let attendanceId: number;
+      let appointmentId: number;
 
-      if (idx === 0 && reuseAttendanceIdForFirst !== undefined) {
-        // First session row links to the existing attendance (edit-modal context).
-        // No new attendance is created, so the session appears immediately in
-        // ExpandedTreatmentDetails for the current attendance card.
-        attendanceId = reuseAttendanceIdForFirst;
+      if (idx === 0 && reuseAppointmentIdForFirst !== undefined) {
+        // First session row links to the existing appointment (edit-modal context).
+        // No new appointment is created, so the session appears immediately in
+        // ExpandedTreatmentDetails for the current appointment card.
+        appointmentId = reuseAppointmentIdForFirst;
       } else {
         const treatmentSignature = {
           bodyLocation: treatment.body_location,
@@ -560,27 +560,27 @@ export class TreatmentService {
               ? treatment.color
               : undefined,
         };
-        await this.attendanceService.assertNoTreatmentSchedulingConflict(
+        await this.appointmentService.assertNoTreatmentSchedulingConflict(
           treatment.patient_id,
           sessionRow.scheduled_date,
-          attendanceType,
+          appointmentType,
           treatmentSignature,
         );
 
-        const attendance = this.attendanceRepository.create({
+        const appointment = this.appointmentRepository.create({
           patient_id: treatment.patient_id,
-          type: attendanceType,
+          type: appointmentType,
           scheduled_time: '19:30',
-          status: AttendanceStatus.SCHEDULED,
+          status: AppointmentStatus.SCHEDULED,
           notes: '',
-          parent_attendance_id: treatment.attendance_id,
+          parent_appointment_id: treatment.appointment_id,
           scheduled_date: sessionRow.scheduled_date,
         });
-        const savedAttendance = await this.attendanceRepository.save(attendance);
-        attendanceId = savedAttendance.id;
+        const savedAppointment = await this.appointmentRepository.save(appointment);
+        appointmentId = savedAppointment.id;
       }
 
-      sessionRow.attendance_id = attendanceId;
+      sessionRow.appointment_id = appointmentId;
       await this.sessionRepository.save(sessionRow);
     }
   }
@@ -616,7 +616,7 @@ export class TreatmentService {
       // Load consultation for return scheduling
       const consultation = await this.consultationRepository.findOne({
         where: { id: consultationId },
-        relations: ['attendance', 'attendance.patient'],
+        relations: ['appointment', 'appointment.patient'],
       });
 
       if (!consultation) {
@@ -626,7 +626,7 @@ export class TreatmentService {
       // Only process if flag is true and patient isn't dismissed
       if (
         !consultation.return_when_treatment_complete ||
-        consultation.attendance?.patient?.patient_status === 'D'
+        consultation.appointment?.patient?.patient_status === 'D'
       ) {
         return;
       }
@@ -690,24 +690,24 @@ export class TreatmentService {
 
       // Check for holidays and postpone if necessary
       const adjustedDate =
-        await this.attendanceService.findNextSchedulableDate(
+        await this.appointmentService.findNextSchedulableDate(
           returnDate,
           'assessment',
         );
 
-      // Determine parent attendance ID
-      const parentAttendanceId =
-        consultation.attendance?.parent_attendance_id ||
-        consultation.attendance?.id;
+      // Determine parent appointment ID
+      const parentAppointmentId =
+        consultation.appointment?.parent_appointment_id ||
+        consultation.appointment?.id;
 
-      // Create the return attendance
-      await this.attendanceService.create({
-        patient_id: consultation.attendance.patient_id,
-        type: 'assessment' as AttendanceType,
+      // Create the return appointment
+      await this.appointmentService.create({
+        patient_id: consultation.appointment.patient_id,
+        type: 'assessment' as AppointmentType,
         scheduled_date: adjustedDate,
-        scheduled_time: consultation.attendance.scheduled_time,
+        scheduled_time: consultation.appointment.scheduled_time,
         notes: `Return automatically scheduled - after treatment creation`,
-        parent_attendance_id: parentAttendanceId,
+        parent_appointment_id: parentAppointmentId,
       });
 
       this.logger.log(
@@ -728,7 +728,7 @@ export class TreatmentService {
     return {
       id: treatment.id,
       consultation_id: treatment.consultation_id,
-      attendance_id: treatment.attendance_id,
+      appointment_id: treatment.appointment_id,
       patient_id: treatment.patient_id,
       treatment_type: treatment.treatment_type,
       body_location: treatment.body_location,

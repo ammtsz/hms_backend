@@ -101,10 +101,10 @@ export class HolidayConflictDto {
   hasConflict: boolean;
 
   @ApiProperty()
-  attendanceCount: number;
+  appointmentCount: number;
 
   @ApiProperty({ type: [Object] })
-  attendances?: Array<{
+  appointments?: Array<{
     id: number;
     patient_name: string;
     treatment_type: string;

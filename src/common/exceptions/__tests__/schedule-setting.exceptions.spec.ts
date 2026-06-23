@@ -2,7 +2,7 @@ import { HttpStatus } from '@nestjs/common';
 import {
   InvalidScheduleTimeException,
   ScheduleSettingConflictException,
-  InvalidConcurrentAttendancesException,
+  InvalidConcurrentAppointmentsException,
   ScheduleSettingInUseException,
 } from '../schedule-setting.exceptions';
 
@@ -79,25 +79,25 @@ describe('Schedule Setting Exceptions', () => {
     });
   });
 
-  describe('InvalidConcurrentAttendancesException', () => {
+  describe('InvalidConcurrentAppointmentsException', () => {
     it('should create exception with correct message and properties', () => {
       const type = 'assessment';
       const requestedCount = 5;
       const maxAllowed = 3;
 
-      const exception = new InvalidConcurrentAttendancesException(
+      const exception = new InvalidConcurrentAppointmentsException(
         type,
         requestedCount,
         maxAllowed,
       );
 
       expect(exception.message).toBe(
-        `Invalid concurrent ${type} attendances: ${requestedCount} requested, maximum allowed is ${maxAllowed}`,
+        `Invalid concurrent ${type} appointments: ${requestedCount} requested, maximum allowed is ${maxAllowed}`,
       );
       expect(exception.getStatus()).toBe(HttpStatus.BAD_REQUEST);
 
       const response = exception.getResponse() as any;
-      expect(response.error).toBe('Invalid Concurrent Attendances');
+      expect(response.error).toBe('Invalid Concurrent Appointments');
       expect(response.details).toEqual({
         type,
         requestedCount,
@@ -106,27 +106,27 @@ describe('Schedule Setting Exceptions', () => {
     });
 
     it('should handle physiotherapy type', () => {
-      const exception = new InvalidConcurrentAttendancesException(
+      const exception = new InvalidConcurrentAppointmentsException(
         'physiotherapy',
         2,
         1,
       );
 
-      expect(exception.message).toContain('physiotherapy attendances');
+      expect(exception.message).toContain('physiotherapy appointments');
 
       const response = exception.getResponse() as any;
       expect(response.details.type).toBe('physiotherapy');
     });
 
     it('should handle zero values', () => {
-      const exception = new InvalidConcurrentAttendancesException(
+      const exception = new InvalidConcurrentAppointmentsException(
         'assessment',
         0,
         0,
       );
 
       expect(exception.message).toBe(
-        'Invalid concurrent assessment attendances: 0 requested, maximum allowed is 0',
+        'Invalid concurrent assessment appointments: 0 requested, maximum allowed is 0',
       );
 
       const response = exception.getResponse() as any;
@@ -138,15 +138,15 @@ describe('Schedule Setting Exceptions', () => {
   describe('ScheduleSettingInUseException', () => {
     it('should create exception with correct message and properties', () => {
       const settingId = 42;
-      const activeAttendancesCount = 5;
+      const activeAppointmentsCount = 5;
 
       const exception = new ScheduleSettingInUseException(
         settingId,
-        activeAttendancesCount,
+        activeAppointmentsCount,
       );
 
       expect(exception.message).toBe(
-        `Cannot delete schedule setting ${settingId}: Has ${activeAttendancesCount} active attendances`,
+        `Cannot delete schedule setting ${settingId}: Has ${activeAppointmentsCount} active appointments`,
       );
       expect(exception.getStatus()).toBe(HttpStatus.CONFLICT);
 
@@ -154,30 +154,30 @@ describe('Schedule Setting Exceptions', () => {
       expect(response.error).toBe('Setting In Use');
       expect(response.details).toEqual({
         settingId,
-        activeAttendancesCount,
+        activeAppointmentsCount,
       });
     });
 
-    it('should handle single active attendance', () => {
+    it('should handle single active appointment', () => {
       const exception = new ScheduleSettingInUseException(1, 1);
 
       expect(exception.message).toBe(
-        'Cannot delete schedule setting 1: Has 1 active attendances',
+        'Cannot delete schedule setting 1: Has 1 active appointments',
       );
 
       const response = exception.getResponse() as any;
-      expect(response.details.activeAttendancesCount).toBe(1);
+      expect(response.details.activeAppointmentsCount).toBe(1);
     });
 
-    it('should handle zero active attendances', () => {
+    it('should handle zero active appointments', () => {
       const exception = new ScheduleSettingInUseException(99, 0);
 
       expect(exception.message).toBe(
-        'Cannot delete schedule setting 99: Has 0 active attendances',
+        'Cannot delete schedule setting 99: Has 0 active appointments',
       );
 
       const response = exception.getResponse() as any;
-      expect(response.details.activeAttendancesCount).toBe(0);
+      expect(response.details.activeAppointmentsCount).toBe(0);
     });
   });
 });

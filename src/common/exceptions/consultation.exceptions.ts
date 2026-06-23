@@ -2,23 +2,23 @@ import { HttpStatus } from '@nestjs/common';
 import { BaseException } from './base.exception';
 
 export class DuplicateConsultationException extends BaseException {
-  constructor(attendanceId: number, existingConsultationId: number) {
+  constructor(appointmentId: number, existingConsultationId: number) {
     super(
-      `Cannot create consultation: Attendance (ID: ${attendanceId}) already has a consultation (ID: ${existingConsultationId})`,
+      `Cannot create consultation: Appointment (ID: ${appointmentId}) already has a consultation (ID: ${existingConsultationId})`,
       'Duplicate Consultation',
       HttpStatus.CONFLICT,
-      { attendanceId, existingConsultationId },
+      { appointmentId, existingConsultationId },
     );
   }
 }
 
-export class InvalidAttendanceStatusException extends BaseException {
-  constructor(attendanceId: number, status: string) {
+export class InvalidAppointmentStatusException extends BaseException {
+  constructor(appointmentId: number, status: string) {
     super(
-      `Cannot create consultation: Attendance (ID: ${attendanceId}) has invalid status: ${status}`,
-      'Invalid Attendance Status',
+      `Cannot create consultation: Appointment (ID: ${appointmentId}) has invalid status: ${status}`,
+      'Invalid Appointment Status',
       HttpStatus.BAD_REQUEST,
-      { attendanceId, status },
+      { appointmentId, status },
     );
   }
 }

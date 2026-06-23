@@ -68,17 +68,17 @@ src/
 ├── entities/               # TypeORM entities (database models)
 │   └── [domain]/
 │       ├── patient.entity.ts
-│       ├── attendance.entity.ts
+│       ├── appointment.entity.ts
 │       ├── treatment.entity.ts
 │       └── session.entity.ts
 │
 ├── modules/                # Feature modules (NestJS organization)
 │   ├── patients/
-│   ├── attendances/
+│   ├── appointments/
 │   └── [feature]/
 │
 ├── controllers/            # HTTP request handlers
-│   └── *.controller.ts     # attendance, auth, consultation, treatment, etc.
+│   └── *.controller.ts     # appointment, auth, consultation, treatment, etc.
 │
 ├── services/               # Business logic
 │   └── *.service.ts        # feature services and orchestration

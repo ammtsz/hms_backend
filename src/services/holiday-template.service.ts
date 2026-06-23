@@ -134,9 +134,9 @@ export class HolidayTemplateService {
             errorMessage = 'Cannot add holidays on past dates';
           } else if (error.message.includes('DUPLICATE_HOLIDAY')) {
             errorMessage = 'A holiday already exists for this date';
-          } else if (error.message.includes('ATTENDANCE_CONFLICT')) {
+          } else if (error.message.includes('APPOINTMENT_CONFLICT')) {
             const count = error.message.split(':')[1];
-            errorMessage = `There are ${count} scheduled attendance(s) for this date`;
+            errorMessage = `There are ${count} scheduled appointment(s) for this date`;
           } else if (error.message.includes('does not exist on the calendar')) {
             errorMessage = 'Invalid date (does not exist on the calendar)';
           } else {

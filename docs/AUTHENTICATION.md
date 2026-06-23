@@ -202,7 +202,7 @@ All protected controllers follow the same rule: they work only when the request 
 Examples:
 
 - Patients
-- Attendances
+- Appointments
 - Consultations
 - Treatments
 - Sessions

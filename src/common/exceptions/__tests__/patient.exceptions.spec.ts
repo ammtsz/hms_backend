@@ -2,7 +2,7 @@ import {
   DuplicatePatientException,
   InvalidPatientPriorityException,
   PatientStatusUpdateException,
-  PatientHasActiveAttendancesException,
+  PatientHasActiveAppointmentsException,
 } from '../patient.exceptions';
 import { HttpStatus } from '@nestjs/common';
 
@@ -112,40 +112,40 @@ describe('Patient Exceptions', () => {
     });
   });
 
-  describe('PatientHasActiveAttendancesException', () => {
+  describe('PatientHasActiveAppointmentsException', () => {
     it('should create exception with correct message and status', () => {
-      const exception = new PatientHasActiveAttendancesException(123, 5);
+      const exception = new PatientHasActiveAppointmentsException(123, 5);
 
       expect(exception.message).toContain('123');
       expect(exception.message).toContain('5');
       expect(exception.getStatus()).toBe(HttpStatus.CONFLICT);
 
       const response = exception.getResponse() as any;
-      expect(response.error).toBe('Active Attendances Exist');
+      expect(response.error).toBe('Active Appointments Exist');
       expect(response.details).toEqual({
         patientId: 123,
-        activeAttendancesCount: 5,
+        activeAppointmentsCount: 5,
       });
     });
 
-    it('should handle single active attendance', () => {
-      const exception = new PatientHasActiveAttendancesException(456, 1);
+    it('should handle single active appointment', () => {
+      const exception = new PatientHasActiveAppointmentsException(456, 1);
 
       expect(exception.message).toContain('456');
       expect(exception.message).toContain('1');
 
       const response = exception.getResponse() as any;
-      expect(response.details.activeAttendancesCount).toBe(1);
+      expect(response.details.activeAppointmentsCount).toBe(1);
     });
 
-    it('should handle zero active attendances (edge case)', () => {
-      const exception = new PatientHasActiveAttendancesException(789, 0);
+    it('should handle zero active appointments (edge case)', () => {
+      const exception = new PatientHasActiveAppointmentsException(789, 0);
 
       expect(exception.message).toContain('789');
       expect(exception.message).toContain('0');
 
       const response = exception.getResponse() as any;
-      expect(response.details.activeAttendancesCount).toBe(0);
+      expect(response.details.activeAppointmentsCount).toBe(0);
     });
   });
 });

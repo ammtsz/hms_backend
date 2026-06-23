@@ -7,27 +7,27 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Not, Repository } from 'typeorm';
-import { Attendance } from '../entities/attendance.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { Patient } from '../entities/patient.entity';
 import { TreatmentType } from '../entities/treatment.entity';
 import {
-  CreateAttendanceDto,
-  UpdateAttendanceDto,
-  AttendanceResponseDto,
-  RescheduleAttendancesDto,
+  CreateAppointmentDto,
+  UpdateAppointmentDto,
+  AppointmentResponseDto,
+  RescheduleAppointmentsDto,
   EligibleParentOptionDto,
   EligibleParentOptionsResponseDto,
-} from '../dtos/attendance.dto';
+} from '../dtos/appointment.dto';
 import { ScheduleSetting } from '../entities/schedule-setting.entity';
 import {
-  AttendanceStatus,
-  AttendanceType,
+  AppointmentStatus,
+  AppointmentType,
   PatientStatus,
 } from '../common/enums';
 import {
   ResourceNotFoundException,
-  InvalidAttendanceStatusTransitionException,
-  AttendanceTimeSlotUnavailableException,
+  InvalidAppointmentStatusTransitionException,
+  AppointmentTimeSlotUnavailableException,
 } from '../common/exceptions';
 import { SessionService } from './session.service';
 import { TreatmentService } from './treatment.service';
@@ -52,25 +52,25 @@ import {
 export type { TreatmentSchedulingSignature };
 
 /** Only these statuses are considered "open" and can be cancelled when patient goes to C/D. MISSED must never be cancelled. */
-const OPEN_ATTENDANCE_STATUSES = [
-  AttendanceStatus.SCHEDULED,
-  AttendanceStatus.CHECKED_IN,
-  AttendanceStatus.IN_PROGRESS,
+const OPEN_APPOINTMENT_STATUSES = [
+  AppointmentStatus.SCHEDULED,
+  AppointmentStatus.CHECKED_IN,
+  AppointmentStatus.IN_PROGRESS,
 ] as const;
 
 interface BulkPostponeSuccessItem {
-  attendance_id: number;
+  appointment_id: number;
   message: string;
   new_date: string;
 }
 
 interface BulkPostponeFailureItem {
-  attendance_id: number;
+  appointment_id: number;
   error: string;
 }
 
 interface AutoRescheduledReturnItem {
-  attendance_id: number;
+  appointment_id: number;
   patient_id: number;
   patient_name: string;
   old_date: string;
@@ -93,12 +93,12 @@ interface ReturnRescheduleContext {
 }
 
 @Injectable()
-export class AttendanceService {
-  private readonly logger = new Logger(AttendanceService.name);
+export class AppointmentService {
+  private readonly logger = new Logger(AppointmentService.name);
 
   constructor(
-    @InjectRepository(Attendance)
-    private attendanceRepository: Repository<Attendance>,
+    @InjectRepository(Appointment)
+    private appointmentRepository: Repository<Appointment>,
     @InjectRepository(ScheduleSetting)
     private scheduleSettingRepository: Repository<ScheduleSetting>,
     @InjectRepository(Patient)
@@ -110,32 +110,32 @@ export class AttendanceService {
     private dayFinalizationService: DayFinalizationService,
   ) {}
 
-  async create(createAttendanceDto: CreateAttendanceDto): Promise<Attendance> {
-    await this.validateScheduling(createAttendanceDto);
-    const attendance = this.attendanceRepository.create(createAttendanceDto);
+  async create(createAppointmentDto: CreateAppointmentDto): Promise<Appointment> {
+    await this.validateScheduling(createAppointmentDto);
+    const appointment = this.appointmentRepository.create(createAppointmentDto);
 
     // If creating as completed, set all required timestamps
-    if (createAttendanceDto.status === AttendanceStatus.COMPLETED) {
+    if (createAppointmentDto.status === AppointmentStatus.COMPLETED) {
       const currentDate = getCurrentDateString();
       const currentTime = getCurrentTimeString();
 
-      attendance.checked_in_time = currentTime;
-      attendance.started_time = currentTime;
-      attendance.completed_time = currentTime;
+      appointment.checked_in_time = currentTime;
+      appointment.started_time = currentTime;
+      appointment.completed_time = currentTime;
     }
 
-    return await this.attendanceRepository.save(attendance);
+    return await this.appointmentRepository.save(appointment);
   }
 
-  async findAll(): Promise<Attendance[]> {
-    return await this.attendanceRepository.find({
+  async findAll(): Promise<Appointment[]> {
+    return await this.appointmentRepository.find({
       relations: ['patient'],
     });
   }
 
-  async findByDate(date: string): Promise<Attendance[]> {
+  async findByDate(date: string): Promise<Appointment[]> {
     // Date is already in YYYY-MM-DD string format, use directly
-    return await this.attendanceRepository.find({
+    return await this.appointmentRepository.find({
       where: {
         scheduled_date: date,
       },
@@ -146,86 +146,86 @@ export class AttendanceService {
     });
   }
 
-  async findOne(id: number): Promise<Attendance> {
-    const attendance = await this.attendanceRepository.findOne({
+  async findOne(id: number): Promise<Appointment> {
+    const appointment = await this.appointmentRepository.findOne({
       where: { id },
       relations: ['patient'],
     });
-    if (!attendance) {
-      throw new ResourceNotFoundException('Attendance', id);
+    if (!appointment) {
+      throw new ResourceNotFoundException('Appointment', id);
     }
-    return attendance;
+    return appointment;
   }
 
   async findByPatientId(
     patientId: number,
     fromDate?: string,
-    status?: AttendanceStatus,
-  ): Promise<AttendanceResponseDto[]> {
-    const queryBuilder = this.attendanceRepository
-      .createQueryBuilder('attendance')
-      .leftJoinAndSelect('attendance.patient', 'patient')
-      .where('attendance.patient_id = :patientId', { patientId });
+    status?: AppointmentStatus,
+  ): Promise<AppointmentResponseDto[]> {
+    const queryBuilder = this.appointmentRepository
+      .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.patient', 'patient')
+      .where('appointment.patient_id = :patientId', { patientId });
 
     // Apply date filter if provided
     if (fromDate) {
-      queryBuilder.andWhere('attendance.scheduled_date >= :fromDate', {
+      queryBuilder.andWhere('appointment.scheduled_date >= :fromDate', {
         fromDate,
       });
     }
 
     // Apply status filter if provided
     if (status) {
-      queryBuilder.andWhere('attendance.status = :status', { status });
+      queryBuilder.andWhere('appointment.status = :status', { status });
     }
 
     queryBuilder
-      .orderBy('attendance.scheduled_date', 'ASC')
-      .addOrderBy('attendance.scheduled_time', 'ASC');
+      .orderBy('appointment.scheduled_date', 'ASC')
+      .addOrderBy('appointment.scheduled_time', 'ASC');
 
-    const attendances = await queryBuilder.getMany();
-    return attendances.map((attendance) =>
-      this.transformToResponseDto(attendance),
+    const appointments = await queryBuilder.getMany();
+    return appointments.map((appointment) =>
+      this.transformToResponseDto(appointment),
     );
   }
 
   /**
-   * Find all open (scheduled, checked_in, in_progress) attendances for a patient.
+   * Find all open (scheduled, checked_in, in_progress) appointments for a patient.
    * Used when changing patient status to Discharged (D) or Consecutive no-shows (C) to cancel them.
    */
-  async findOpenAttendancesByPatientId(
+  async findOpenAppointmentsByPatientId(
     patientId: number,
-  ): Promise<Attendance[]> {
-    return this.attendanceRepository.find({
+  ): Promise<Appointment[]> {
+    return this.appointmentRepository.find({
       where: {
         patient_id: patientId,
-        status: In([...OPEN_ATTENDANCE_STATUSES]),
+        status: In([...OPEN_APPOINTMENT_STATUSES]),
       },
       order: { scheduled_date: 'ASC', scheduled_time: 'ASC' },
     });
   }
 
   /**
-   * Cancel attendances by IDs only if they are open (scheduled, checked_in, in_progress).
+   * Cancel appointments by IDs only if they are open (scheduled, checked_in, in_progress).
    * Does not cancel MISSED or COMPLETED. Used when cancelling a treatment session so linked
-   * open attendances are cancelled via AttendanceService (single owner of attendance status).
+   * open appointments are cancelled via AppointmentService (single owner of appointment status).
    */
-  async cancelOpenAttendancesByIds(
-    attendanceIds: number[],
+  async cancelOpenAppointmentsByIds(
+    appointmentIds: number[],
     cancellationReason?: string,
   ): Promise<Array<{ id: number; type: string; scheduled_date: string }>> {
-    if (attendanceIds.length === 0) return [];
-    const attendances = await this.attendanceRepository.find({
-      where: { id: In(attendanceIds) },
+    if (appointmentIds.length === 0) return [];
+    const appointments = await this.appointmentRepository.find({
+      where: { id: In(appointmentIds) },
     });
-    const openStatusSet = new Set<string>(OPEN_ATTENDANCE_STATUSES);
-    const toCancel = attendances.filter((a) => openStatusSet.has(a.status));
+    const openStatusSet = new Set<string>(OPEN_APPOINTMENT_STATUSES);
+    const toCancel = appointments.filter((a) => openStatusSet.has(a.status));
     const ids = toCancel.map((a) => a.id);
 
     if (ids.length === 0) return [];
 
     const result = await this.bulkCancel(ids, cancellationReason);
-    const successIds = new Set(result.successes.map((s) => s.attendance_id));
+    const successIds = new Set(result.successes.map((s) => s.appointment_id));
 
     return toCancel
       .filter((a) => successIds.has(a.id))
@@ -237,21 +237,21 @@ export class AttendanceService {
   }
 
   /**
-   * Cancel all open attendances for a patient (scheduled, checked_in, in_progress).
-   * Returns the list of cancelled attendances (id, type, scheduled_date) for reporting.
-   * Optionally exclude specific attendance IDs (e.g. the one just completed via consultation flow).
+   * Cancel all open appointments for a patient (scheduled, checked_in, in_progress).
+   * Returns the list of cancelled appointments (id, type, scheduled_date) for reporting.
+   * Optionally exclude specific appointment IDs (e.g. the one just completed via consultation flow).
    */
-  async cancelOpenAttendancesForPatient(
+  async cancelOpenAppointmentsForPatient(
     patientId: number,
     cancellationReason: string,
-    options?: { excludeAttendanceIds?: number[] },
+    options?: { excludeAppointmentIds?: number[] },
   ): Promise<Array<{ id: number; type: string; scheduled_date: string }>> {
-    const openAttendances =
-      await this.findOpenAttendancesByPatientId(patientId);
+    const openAppointments =
+      await this.findOpenAppointmentsByPatientId(patientId);
     // Defensive: only cancel scheduled, checked_in, in_progress (never missed or completed)
-    const openStatusSet = new Set<string>(OPEN_ATTENDANCE_STATUSES);
-    let toCancel = openAttendances.filter((a) => openStatusSet.has(a.status));
-    const excludeIds = new Set(options?.excludeAttendanceIds ?? []);
+    const openStatusSet = new Set<string>(OPEN_APPOINTMENT_STATUSES);
+    let toCancel = openAppointments.filter((a) => openStatusSet.has(a.status));
+    const excludeIds = new Set(options?.excludeAppointmentIds ?? []);
 
     if (excludeIds.size > 0) {
       toCancel = toCancel.filter((a) => !excludeIds.has(a.id));
@@ -264,7 +264,7 @@ export class AttendanceService {
     }
 
     const result = await this.bulkCancel(ids, cancellationReason);
-    const successIds = new Set(result.successes.map((s) => s.attendance_id));
+    const successIds = new Set(result.successes.map((s) => s.appointment_id));
 
     return toCancel
       .filter((a) => successIds.has(a.id))
@@ -276,31 +276,31 @@ export class AttendanceService {
   }
 
   /**
-   * Returns eligible parent (root) attendances for linking a new assessment consultation.
-   * Excludes roots whose chain has any attendance with patient_status 'D' (Discharged) or 'C' (Consecutive no-shows).
+   * Returns eligible parent (root) appointments for linking a new assessment consultation.
+   * Excludes roots whose chain has any appointment with patient_status 'D' (Discharged) or 'C' (Consecutive no-shows).
    */
   async findEligibleParentOptions(
     patientId: number,
   ): Promise<EligibleParentOptionsResponseDto> {
-    const attendances = await this.attendanceRepository.find({
+    const appointments = await this.appointmentRepository.find({
       where: { patient_id: patientId },
       relations: ['consultation'],
       order: { scheduled_date: 'ASC', scheduled_time: 'ASC' },
     });
 
     const finishedRootIds = new Set<number>();
-    for (const att of attendances) {
+    for (const att of appointments) {
       const status = att.consultation?.patient_status;
       if (status === 'D' || status === 'C') {
-        const rootId = att.parent_attendance_id ?? att.id;
+        const rootId = att.parent_appointment_id ?? att.id;
         finishedRootIds.add(rootId);
       }
     }
 
-    const roots = attendances.filter(
+    const roots = appointments.filter(
       (a) =>
-        a.type === AttendanceType.ASSESSMENT &&
-        a.parent_attendance_id == null &&
+        a.type === AppointmentType.ASSESSMENT &&
+        a.parent_appointment_id == null &&
         !finishedRootIds.has(a.id),
     );
 
@@ -321,13 +321,13 @@ export class AttendanceService {
   }
 
   /**
-   * parent_attendance_id is only valid for patients in treatment (T).
+   * parent_appointment_id is only valid for patients in treatment (T).
    * For D/C (new complaint) or N, the client must not send a parent; stale tabs are rejected here.
    * Also verifies the parent row is an assessment root for this patient and is still eligible (same rules as eligible-parent-options).
    */
-  private async assertParentAttendanceAllowedForCreate(
+  private async assertParentAppointmentAllowedForCreate(
     patientId: number,
-    parentAttendanceId: number,
+    parentAppointmentId: number,
   ): Promise<void> {
     const patient = await this.patientRepository.findOne({
       where: { id: patientId },
@@ -342,8 +342,8 @@ export class AttendanceService {
       );
     }
 
-    const parentRow = await this.attendanceRepository.findOne({
-      where: { id: parentAttendanceId },
+    const parentRow = await this.appointmentRepository.findOne({
+      where: { id: parentAppointmentId },
     });
     if (!parentRow) {
       throw new BadRequestException('First consultation not found.');
@@ -353,12 +353,12 @@ export class AttendanceService {
         'The selected first consultation does not belong to this patient.',
       );
     }
-    if (parentRow.type !== AttendanceType.ASSESSMENT) {
+    if (parentRow.type !== AppointmentType.ASSESSMENT) {
       throw new BadRequestException(
         'The first consultation must be an assessment consultation.',
       );
     }
-    if (parentRow.parent_attendance_id != null) {
+    if (parentRow.parent_appointment_id != null) {
       throw new BadRequestException(
         'The first consultation must be the root consultation for the complaint.',
       );
@@ -366,7 +366,7 @@ export class AttendanceService {
 
     const eligible = await this.findEligibleParentOptions(patientId);
     const allowedIds = new Set(eligible.options.map((o) => o.id));
-    if (!allowedIds.has(parentAttendanceId)) {
+    if (!allowedIds.has(parentAppointmentId)) {
       throw new BadRequestException(
         'This first consultation is no longer available for new links (treatment closed). Refresh the page and choose another option.',
       );
@@ -374,48 +374,48 @@ export class AttendanceService {
   }
 
   private transformToResponseDto(
-    attendance: Attendance,
-  ): AttendanceResponseDto {
+    appointment: Appointment,
+  ): AppointmentResponseDto {
     return {
-      id: attendance.id,
-      patient_id: attendance.patient_id,
-      type: attendance.type,
-      status: attendance.status,
-      scheduled_date: attendance.scheduled_date,
-      scheduled_time: attendance.scheduled_time,
-      checked_in_time: attendance.checked_in_time,
-      started_time: attendance.started_time,
-      completed_time: attendance.completed_time,
-      cancelled_date: attendance.cancelled_date,
-      absence_justified: attendance.absence_justified,
-      absence_notes: attendance.absence_notes,
-      notes: attendance.notes,
-      parent_attendance_id: attendance.parent_attendance_id,
-      created_at: `${attendance.created_date}T${attendance.created_time}`,
-      updated_at: `${attendance.updated_date}T${attendance.updated_time}`,
-      patient: attendance.patient,
+      id: appointment.id,
+      patient_id: appointment.patient_id,
+      type: appointment.type,
+      status: appointment.status,
+      scheduled_date: appointment.scheduled_date,
+      scheduled_time: appointment.scheduled_time,
+      checked_in_time: appointment.checked_in_time,
+      started_time: appointment.started_time,
+      completed_time: appointment.completed_time,
+      cancelled_date: appointment.cancelled_date,
+      absence_justified: appointment.absence_justified,
+      absence_notes: appointment.absence_notes,
+      notes: appointment.notes,
+      parent_appointment_id: appointment.parent_appointment_id,
+      created_at: `${appointment.created_date}T${appointment.created_time}`,
+      updated_at: `${appointment.updated_date}T${appointment.updated_time}`,
+      patient: appointment.patient,
     };
   }
 
   async update(
     id: number,
-    updateAttendanceDto: UpdateAttendanceDto,
-  ): Promise<Attendance> {
-    const attendance = await this.findOne(id);
+    updateAppointmentDto: UpdateAppointmentDto,
+  ): Promise<Appointment> {
+    const appointment = await this.findOne(id);
 
     // Save the original status before any changes
-    const originalStatus = attendance.status;
+    const originalStatus = appointment.status;
 
-    if (updateAttendanceDto.status) {
+    if (updateAppointmentDto.status) {
       await this.validateStatusTransition(
-        attendance.status,
-        updateAttendanceDto.status,
+        appointment.status,
+        updateAppointmentDto.status,
       );
     }
 
     // Always update the updated_date and updated_time
     const updateData: any = {
-      ...updateAttendanceDto,
+      ...updateAppointmentDto,
       updated_date: getCurrentDateString(),
       updated_time: getCurrentTimeString(),
     };
@@ -423,24 +423,24 @@ export class AttendanceService {
     // If status is being changed and corresponding time fields aren't provided,
     // set them automatically (status changes happen on scheduled_date, so we only need time)
     if (
-      updateAttendanceDto.status &&
-      updateAttendanceDto.status !== attendance.status
+      updateAppointmentDto.status &&
+      updateAppointmentDto.status !== appointment.status
     ) {
       const currentTime = getCurrentTimeString();
 
-      switch (updateAttendanceDto.status) {
-        case AttendanceStatus.CHECKED_IN:
+      switch (updateAppointmentDto.status) {
+        case AppointmentStatus.CHECKED_IN:
           if (!updateData.checked_in_time)
             updateData.checked_in_time = currentTime;
           break;
-        case AttendanceStatus.IN_PROGRESS:
+        case AppointmentStatus.IN_PROGRESS:
           if (!updateData.started_time) updateData.started_time = currentTime;
           break;
-        case AttendanceStatus.COMPLETED:
+        case AppointmentStatus.COMPLETED:
           if (!updateData.completed_time)
             updateData.completed_time = currentTime;
           break;
-        case AttendanceStatus.CANCELLED:
+        case AppointmentStatus.CANCELLED:
           // Cancellation might happen on a different date
           if (!updateData.cancelled_date)
             updateData.cancelled_date = getCurrentDateString();
@@ -449,168 +449,168 @@ export class AttendanceService {
       }
     }
 
-    this.attendanceRepository.merge(attendance, updateData);
-    const updatedAttendance = await this.attendanceRepository.save(attendance);
+    this.appointmentRepository.merge(appointment, updateData);
+    const updatedAppointment = await this.appointmentRepository.save(appointment);
 
     // Update patient's missing_appointments_streak based on status change
     // Only update for MISSED and COMPLETED statuses
     if (
-      updateAttendanceDto.status &&
-      updateAttendanceDto.status !== originalStatus &&
-      (updateAttendanceDto.status === AttendanceStatus.MISSED ||
-        updateAttendanceDto.status === AttendanceStatus.COMPLETED)
+      updateAppointmentDto.status &&
+      updateAppointmentDto.status !== originalStatus &&
+      (updateAppointmentDto.status === AppointmentStatus.MISSED ||
+        updateAppointmentDto.status === AppointmentStatus.COMPLETED)
     ) {
       await this.updatePatientMissedStreak(
-        updatedAttendance,
-        updateAttendanceDto,
+        updatedAppointment,
+        updateAppointmentDto,
       );
     }
 
-    // When physiotherapy/tens attendance is marked MISSED, sync linked sessions
+    // When physiotherapy/tens appointment is marked MISSED, sync linked sessions
     if (
-      updateAttendanceDto.status === AttendanceStatus.MISSED &&
-      originalStatus !== AttendanceStatus.MISSED &&
-      (updatedAttendance.type === AttendanceType.PHYSIOTHERAPY ||
-        updatedAttendance.type === AttendanceType.TENS)
+      updateAppointmentDto.status === AppointmentStatus.MISSED &&
+      originalStatus !== AppointmentStatus.MISSED &&
+      (updatedAppointment.type === AppointmentType.PHYSIOTHERAPY ||
+        updatedAppointment.type === AppointmentType.TENS)
     ) {
       const reason =
-        updateAttendanceDto.absence_notes ||
+        updateAppointmentDto.absence_notes ||
         'Reason not provided at the time of registration';
-      await this.sessionService.markSessionsAsMissedByAttendanceId(
-        updatedAttendance.id,
+      await this.sessionService.markSessionsAsMissedByAppointmentId(
+        updatedAppointment.id,
         reason,
       );
     }
 
-    // Check if this is a physiotherapy/tens attendance being completed
+    // Check if this is a physiotherapy/tens appointment being completed
     if (
-      updateAttendanceDto.status === AttendanceStatus.COMPLETED &&
-      attendance.status !== AttendanceStatus.COMPLETED &&
-      (attendance.type === 'physiotherapy' || attendance.type === 'tens')
+      updateAppointmentDto.status === AppointmentStatus.COMPLETED &&
+      appointment.status !== AppointmentStatus.COMPLETED &&
+      (appointment.type === 'physiotherapy' || appointment.type === 'tens')
     ) {
-      await this.handlePhysiotherapyTensCompletion(updatedAttendance);
+      await this.handlePhysiotherapyTensCompletion(updatedAppointment);
     }
 
-    return updatedAttendance;
+    return updatedAppointment;
   }
 
   /**
-   * Sync attendance status when a linked `hms_session` row is updated (session → attendance).
+   * Sync appointment status when a linked `hms_session` row is updated (session → appointment).
    * Updates only status and required timestamps; does NOT run side effects (streak, session
    * sync, handlePhysiotherapyTensCompletion) to avoid loops when the change originated from the session/consultation flow.
    */
   async syncStatusFromSession(
-    attendanceId: number,
-    status: AttendanceStatus,
+    appointmentId: number,
+    status: AppointmentStatus,
     options?: { cancellationReason?: string },
-  ): Promise<Attendance> {
-    const attendance = await this.findOne(attendanceId);
+  ): Promise<Appointment> {
+    const appointment = await this.findOne(appointmentId);
     const currentTime = getCurrentTimeString();
     const currentDate = getCurrentDateString();
 
-    const updateData: Partial<Attendance> = {
+    const updateData: Partial<Appointment> = {
       status,
       updated_date: currentDate,
       updated_time: currentTime,
     };
 
-    if (status === AttendanceStatus.COMPLETED && !attendance.completed_time) {
+    if (status === AppointmentStatus.COMPLETED && !appointment.completed_time) {
       updateData.completed_time = currentTime;
     }
-    if (status === AttendanceStatus.CANCELLED) {
+    if (status === AppointmentStatus.CANCELLED) {
       updateData.cancelled_date = currentDate;
       updateData.cancelled_time = currentTime;
       updateData.absence_notes = options?.cancellationReason ?? null;
     }
-    if (status === AttendanceStatus.MISSED && options?.cancellationReason) {
+    if (status === AppointmentStatus.MISSED && options?.cancellationReason) {
       updateData.absence_notes = options.cancellationReason;
     }
 
-    this.attendanceRepository.merge(attendance, updateData);
-    return await this.attendanceRepository.save(attendance);
+    this.appointmentRepository.merge(appointment, updateData);
+    return await this.appointmentRepository.save(appointment);
   }
 
   /**
-   * Cancel an attendance (soft delete: set status to CANCELLED).
-   * Does not allow cancelling COMPLETED or MISSED attendances.
+   * Cancel an appointment (soft delete: set status to CANCELLED).
+   * Does not allow cancelling COMPLETED or MISSED appointments.
    */
   async cancel(id: number, cancellationReason?: string): Promise<void> {
-    // Try to find the attendance first to check status
-    const attendance = await this.attendanceRepository.findOne({
+    // Try to find the appointment first to check status
+    const appointment = await this.appointmentRepository.findOne({
       where: { id },
       relations: ['patient'],
     });
 
-    if (!attendance) {
-      throw new ResourceNotFoundException('Attendance', id);
+    if (!appointment) {
+      throw new ResourceNotFoundException('Appointment', id);
     }
 
-    if (attendance.status === AttendanceStatus.COMPLETED) {
-      throw new InvalidAttendanceStatusTransitionException(
+    if (appointment.status === AppointmentStatus.COMPLETED) {
+      throw new InvalidAppointmentStatusTransitionException(
         id,
-        attendance.status,
+        appointment.status,
         'CANCELLED',
       );
     }
 
     // Do not overwrite MISSED with CANCELLED (e.g. end-of-day: keep today's missed as missed, only cancel future open ones)
-    if (attendance.status === AttendanceStatus.MISSED) {
-      throw new InvalidAttendanceStatusTransitionException(
+    if (appointment.status === AppointmentStatus.MISSED) {
+      throw new InvalidAppointmentStatusTransitionException(
         id,
-        attendance.status,
-        AttendanceStatus.CANCELLED,
+        appointment.status,
+        AppointmentStatus.CANCELLED,
       );
     }
 
-    attendance.status = AttendanceStatus.CANCELLED;
-    attendance.cancelled_date = new Date().toISOString().split('T')[0];
-    attendance.cancelled_time = new Date()
+    appointment.status = AppointmentStatus.CANCELLED;
+    appointment.cancelled_date = new Date().toISOString().split('T')[0];
+    appointment.cancelled_time = new Date()
       .toTimeString()
       .split(' ')[0]
       .substring(0, 8);
-    attendance.absence_justified = cancellationReason ? true : false;
-    attendance.absence_notes = cancellationReason || 'Unjustified';
+    appointment.absence_justified = cancellationReason ? true : false;
+    appointment.absence_notes = cancellationReason || 'Unjustified';
 
-    await this.attendanceRepository.save(attendance);
+    await this.appointmentRepository.save(appointment);
 
     // Keep treatment sessions in sync: mark linked sessions as cancelled
     if (
-      attendance.type === AttendanceType.PHYSIOTHERAPY ||
-      attendance.type === AttendanceType.TENS
+      appointment.type === AppointmentType.PHYSIOTHERAPY ||
+      appointment.type === AppointmentType.TENS
     ) {
-      await this.sessionService.cancelSessionsByAttendanceId(attendance.id);
+      await this.sessionService.cancelSessionsByAppointmentId(appointment.id);
     }
   }
 
   async updateAbsenceJustifications(
     absenceJustifications: Array<{
-      attendanceId: number;
+      appointmentId: number;
       justified: boolean;
       justification?: string;
     }>,
   ): Promise<void> {
     for (const absence of absenceJustifications) {
-      const attendance = await this.attendanceRepository.findOne({
-        where: { id: absence.attendanceId },
+      const appointment = await this.appointmentRepository.findOne({
+        where: { id: absence.appointmentId },
       });
 
-      if (attendance) {
-        attendance.status = AttendanceStatus.CANCELLED;
-        attendance.cancelled_date = new Date().toISOString().split('T')[0];
-        attendance.cancelled_time = new Date()
+      if (appointment) {
+        appointment.status = AppointmentStatus.CANCELLED;
+        appointment.cancelled_date = new Date().toISOString().split('T')[0];
+        appointment.cancelled_time = new Date()
           .toTimeString()
           .split(' ')[0]
           .substring(0, 8);
-        attendance.absence_justified = absence.justified;
-        attendance.absence_notes = absence.justification || null;
+        appointment.absence_justified = absence.justified;
+        appointment.absence_notes = absence.justification || null;
 
-        await this.attendanceRepository.save(attendance);
+        await this.appointmentRepository.save(appointment);
 
         if (
-          attendance.type === AttendanceType.PHYSIOTHERAPY ||
-          attendance.type === AttendanceType.TENS
+          appointment.type === AppointmentType.PHYSIOTHERAPY ||
+          appointment.type === AppointmentType.TENS
         ) {
-          await this.sessionService.cancelSessionsByAttendanceId(attendance.id);
+          await this.sessionService.cancelSessionsByAppointmentId(appointment.id);
         }
       }
     }
@@ -619,11 +619,11 @@ export class AttendanceService {
   /**
    * Treatment signature from linked session rows (body location, color for physiotherapy).
    */
-  async getTreatmentSignatureForAttendanceId(
-    attendanceId: number,
+  async getTreatmentSignatureForAppointmentId(
+    appointmentId: number,
   ): Promise<TreatmentSchedulingSignature | null> {
     const sessions =
-      await this.sessionService.getSessionsByAttendance(attendanceId);
+      await this.sessionService.getSessionsByAppointment(appointmentId);
     const first = sessions.find((s) => s.body_location?.trim());
     if (!first?.body_location) {
       return null;
@@ -635,22 +635,22 @@ export class AttendanceService {
   }
 
   /**
-   * BR-306: true when an open attendance on the same date already covers this signature.
+   * BR-306: true when an open appointment on the same date already covers this signature.
    */
-  async hasConflictingOpenTreatmentAttendance(
+  async hasConflictingOpenTreatmentAppointment(
     patientId: number,
     scheduledDate: string,
-    type: AttendanceType.PHYSIOTHERAPY | AttendanceType.TENS,
+    type: AppointmentType.PHYSIOTHERAPY | AppointmentType.TENS,
     signature: TreatmentSchedulingSignature,
-    excludeAttendanceIds: number[] = [],
+    excludeAppointmentIds: number[] = [],
   ): Promise<boolean> {
-    const exclude = new Set(excludeAttendanceIds);
-    const openOnDate = await this.attendanceRepository.find({
+    const exclude = new Set(excludeAppointmentIds);
+    const openOnDate = await this.appointmentRepository.find({
       where: {
         patient_id: patientId,
         scheduled_date: scheduledDate,
         type,
-        status: In([...OPEN_ATTENDANCE_STATUSES]),
+        status: In([...OPEN_APPOINTMENT_STATUSES]),
       },
       select: ['id'],
     });
@@ -659,7 +659,7 @@ export class AttendanceService {
       if (exclude.has(row.id)) {
         continue;
       }
-      const otherSig = await this.getTreatmentSignatureForAttendanceId(row.id);
+      const otherSig = await this.getTreatmentSignatureForAppointmentId(row.id);
       if (otherSig && treatmentSignaturesConflict(type, signature, otherSig)) {
         return true;
       }
@@ -668,30 +668,30 @@ export class AttendanceService {
   }
 
   private throwTreatmentSchedulingConflict(
-    type: AttendanceType.PHYSIOTHERAPY | AttendanceType.TENS,
+    type: AppointmentType.PHYSIOTHERAPY | AppointmentType.TENS,
   ): never {
     const detail =
-      type === AttendanceType.PHYSIOTHERAPY
+      type === AppointmentType.PHYSIOTHERAPY
         ? 'body location and color'
         : 'body location';
     throw new BadRequestException(
-      `This patient already has a ${type === AttendanceType.PHYSIOTHERAPY ? 'physiotherapy' : 'TENS'} attendance scheduled for this date with the same ${detail}.`,
+      `This patient already has a ${type === AppointmentType.PHYSIOTHERAPY ? 'physiotherapy' : 'TENS'} appointment scheduled for this date with the same ${detail}.`,
     );
   }
 
   async assertNoTreatmentSchedulingConflict(
     patientId: number,
     scheduledDate: string,
-    type: AttendanceType.PHYSIOTHERAPY | AttendanceType.TENS,
+    type: AppointmentType.PHYSIOTHERAPY | AppointmentType.TENS,
     signature: TreatmentSchedulingSignature,
-    excludeAttendanceIds: number[] = [],
+    excludeAppointmentIds: number[] = [],
   ): Promise<void> {
-    const hasConflict = await this.hasConflictingOpenTreatmentAttendance(
+    const hasConflict = await this.hasConflictingOpenTreatmentAppointment(
       patientId,
       scheduledDate,
       type,
       signature,
-      excludeAttendanceIds,
+      excludeAppointmentIds,
     );
     if (hasConflict) {
       this.throwTreatmentSchedulingConflict(type);
@@ -699,28 +699,28 @@ export class AttendanceService {
   }
 
   private async validateScheduling(
-    dto: CreateAttendanceDto,
+    dto: CreateAppointmentDto,
     options?: {
       skipCompletedRootAssessmentCheck?: boolean;
       treatmentSignature?: TreatmentSchedulingSignature;
-      excludeAttendanceIds?: number[];
+      excludeAppointmentIds?: number[];
     },
   ): Promise<void> {
-    if (dto.parent_attendance_id != null) {
-      await this.assertParentAttendanceAllowedForCreate(
+    if (dto.parent_appointment_id != null) {
+      await this.assertParentAppointmentAllowedForCreate(
         dto.patient_id,
-        dto.parent_attendance_id,
+        dto.parent_appointment_id,
       );
     }
 
     // Assessment without parent: rules by patient_status — open root first, then T vs N vs D/C.
     // Skip entire block when rescheduling (skipCompletedRootAssessmentCheck).
     const skipRootCheck = options?.skipCompletedRootAssessmentCheck === true;
-    const parentId = dto.parent_attendance_id;
+    const parentId = dto.parent_appointment_id;
     if (
       !skipRootCheck &&
       (parentId === undefined || parentId === null) &&
-      dto.type === AttendanceType.ASSESSMENT
+      dto.type === AppointmentType.ASSESSMENT
     ) {
       const patient = await this.patientRepository.findOne({
         where: { id: dto.patient_id },
@@ -734,12 +734,12 @@ export class AttendanceService {
         patient?.patient_status === PatientStatus.IN_TREATMENT;
 
       // No more than one open root assessment (parent null) at a time (N, T, D/C).
-      const openRoot = await this.attendanceRepository.findOne({
+      const openRoot = await this.appointmentRepository.findOne({
         where: {
           patient_id: dto.patient_id,
-          type: AttendanceType.ASSESSMENT,
-          parent_attendance_id: IsNull(),
-          status: In(OPEN_ATTENDANCE_STATUSES),
+          type: AppointmentType.ASSESSMENT,
+          parent_appointment_id: IsNull(),
+          status: In(OPEN_APPOINTMENT_STATUSES),
         },
         relations: ['patient'],
         order: { scheduled_date: 'ASC' },
@@ -759,15 +759,15 @@ export class AttendanceService {
         );
       }
 
-      // New patient (N) or unknown status: block "first attendance" if any completed root exists.
+      // New patient (N) or unknown status: block "first appointment" if any completed root exists.
       // D/C: skip — "New complaint" is allowed when there is no open root (checked above).
       if (!allowNewRootAssessmentWithoutParent) {
-        const completedRootCount = await this.attendanceRepository.count({
+        const completedRootCount = await this.appointmentRepository.count({
           where: {
             patient_id: dto.patient_id,
-            type: AttendanceType.ASSESSMENT,
-            status: AttendanceStatus.COMPLETED,
-            parent_attendance_id: IsNull(),
+            type: AppointmentType.ASSESSMENT,
+            status: AppointmentStatus.COMPLETED,
+            parent_appointment_id: IsNull(),
           },
         });
         if (completedRootCount > 0) {
@@ -785,7 +785,7 @@ export class AttendanceService {
       );
     if (finalization) {
       throw new BadRequestException(
-        'Day already finalized. It is no longer possible to schedule attendances for this day.',
+        'Day already finalized. It is no longer possible to schedule appointments for this day.',
       );
     }
 
@@ -809,29 +809,29 @@ export class AttendanceService {
     }
 
     // BR-306: assessment — at most one open per patient per day
-    if (dto.type === AttendanceType.ASSESSMENT) {
-      const existingAssessment = await this.attendanceRepository.count({
+    if (dto.type === AppointmentType.ASSESSMENT) {
+      const existingAssessment = await this.appointmentRepository.count({
         where: {
           patient_id: dto.patient_id,
           scheduled_date: dto.scheduled_date,
-          type: AttendanceType.ASSESSMENT,
-          status: In(OPEN_ATTENDANCE_STATUSES),
-          ...(options?.excludeAttendanceIds?.length
-            ? { id: Not(In(options.excludeAttendanceIds)) }
+          type: AppointmentType.ASSESSMENT,
+          status: In(OPEN_APPOINTMENT_STATUSES),
+          ...(options?.excludeAppointmentIds?.length
+            ? { id: Not(In(options.excludeAppointmentIds)) }
             : {}),
         },
       });
       if (existingAssessment > 0) {
         throw new BadRequestException(
-          'This patient already has a consultation scheduled for this date. Check the attendance list.',
+          'This patient already has a consultation scheduled for this date. Check the appointment list.',
         );
       }
     }
 
     // BR-306: physiotherapy / tens — used on reschedule (signature from linked sessions)
     if (
-      (dto.type === AttendanceType.PHYSIOTHERAPY ||
-        dto.type === AttendanceType.TENS) &&
+      (dto.type === AppointmentType.PHYSIOTHERAPY ||
+        dto.type === AppointmentType.TENS) &&
       options?.treatmentSignature
     ) {
       await this.assertNoTreatmentSchedulingConflict(
@@ -839,7 +839,7 @@ export class AttendanceService {
         dto.scheduled_date,
         dto.type,
         options.treatmentSignature,
-        options?.excludeAttendanceIds ?? [],
+        options?.excludeAppointmentIds ?? [],
       );
     }
 
@@ -866,7 +866,7 @@ export class AttendanceService {
       dto.scheduled_time < setting.start_time ||
       dto.scheduled_time > setting.end_time
     ) {
-      throw new AttendanceTimeSlotUnavailableException(
+      throw new AppointmentTimeSlotUnavailableException(
         dto.scheduled_date,
         dto.scheduled_time,
         dto.type,
@@ -874,12 +874,12 @@ export class AttendanceService {
     }
 
     // Check concurrent appointments using string date
-    const concurrent = await this.attendanceRepository.count({
+    const concurrent = await this.appointmentRepository.count({
       where: {
         scheduled_date: dto.scheduled_date,
         scheduled_time: dto.scheduled_time,
         type: dto.type,
-        status: AttendanceStatus.SCHEDULED,
+        status: AppointmentStatus.SCHEDULED,
       },
     });
 
@@ -889,7 +889,7 @@ export class AttendanceService {
         : setting.max_concurrent_physiotherapy_tens;
 
     if (concurrent >= maxConcurrent) {
-      throw new AttendanceTimeSlotUnavailableException(
+      throw new AppointmentTimeSlotUnavailableException(
         dto.scheduled_time,
         setting.start_time,
         setting.end_time,
@@ -944,13 +944,13 @@ export class AttendanceService {
     type: string,
     options: {
       patientId?: number;
-      originalAttendanceId?: number;
+      originalAppointmentId?: number;
       scheduledTime?: string;
     } = {},
   ): Promise<boolean> {
     const {
       patientId,
-      originalAttendanceId,
+      originalAppointmentId,
       scheduledTime = '09:00:00',
     } = options;
 
@@ -978,53 +978,53 @@ export class AttendanceService {
         : scheduledTime.length === 5
           ? `${scheduledTime}:00`
           : (scheduledTime || '09:00') + ':00';
-    const concurrent = await this.attendanceRepository.count({
+    const concurrent = await this.appointmentRepository.count({
       where: {
         scheduled_date: date,
         scheduled_time: timeForSlot,
-        type: type as AttendanceType,
-        status: AttendanceStatus.SCHEDULED,
+        type: type as AppointmentType,
+        status: AppointmentStatus.SCHEDULED,
       },
     });
     const maxConcurrent =
-      type === AttendanceType.ASSESSMENT
+      type === AppointmentType.ASSESSMENT
         ? setting.max_concurrent_assessment
         : setting.max_concurrent_physiotherapy_tens;
     if (concurrent >= maxConcurrent) return false;
 
-    const attendances = await this.findByDate(date);
-    if (originalAttendanceId != null) {
-      const hasReschedule = attendances.some(
-        (a) => a.rescheduled_from_attendance_id === originalAttendanceId,
+    const appointments = await this.findByDate(date);
+    if (originalAppointmentId != null) {
+      const hasReschedule = appointments.some(
+        (a) => a.rescheduled_from_appointment_id === originalAppointmentId,
       );
       if (hasReschedule) return false;
     }
-    if (type === AttendanceType.ASSESSMENT && patientId != null) {
-      const hasOtherAssessment = attendances.some(
+    if (type === AppointmentType.ASSESSMENT && patientId != null) {
+      const hasOtherAssessment = appointments.some(
         (a) =>
           a.patient_id === patientId &&
-          a.type === AttendanceType.ASSESSMENT &&
-          a.status === AttendanceStatus.SCHEDULED &&
-          a.id !== originalAttendanceId,
+          a.type === AppointmentType.ASSESSMENT &&
+          a.status === AppointmentStatus.SCHEDULED &&
+          a.id !== originalAppointmentId,
       );
       if (hasOtherAssessment) return false;
     }
 
     // BR-306: physiotherapy / tens — same location (+ color) on same day
     if (
-      (type === AttendanceType.PHYSIOTHERAPY || type === AttendanceType.TENS) &&
+      (type === AppointmentType.PHYSIOTHERAPY || type === AppointmentType.TENS) &&
       patientId != null &&
-      originalAttendanceId != null
+      originalAppointmentId != null
     ) {
       const signature =
-        await this.getTreatmentSignatureForAttendanceId(originalAttendanceId);
+        await this.getTreatmentSignatureForAppointmentId(originalAppointmentId);
       if (signature) {
-        const hasConflict = await this.hasConflictingOpenTreatmentAttendance(
+        const hasConflict = await this.hasConflictingOpenTreatmentAppointment(
           patientId,
           date,
-          type as AttendanceType.PHYSIOTHERAPY | AttendanceType.TENS,
+          type as AppointmentType.PHYSIOTHERAPY | AppointmentType.TENS,
           signature,
-          [originalAttendanceId],
+          [originalAppointmentId],
         );
         if (hasConflict) return false;
       }
@@ -1034,45 +1034,45 @@ export class AttendanceService {
   }
 
   /**
-   * Get next available date for an attendance (same weekday): assessment or treatment logic.
-   * Used by manage-attendance modal preview and by end-of-day reschedule.
+   * Get next available date for an appointment (same weekday): assessment or treatment logic.
+   * Used by manage-appointment modal preview and by end-of-day reschedule.
    */
-  async getNextAvailableDateForAttendance(
-    attendanceId: number,
+  async getNextAvailableDateForAppointment(
+    appointmentId: number,
   ): Promise<string | null> {
-    const attendance = await this.findOne(attendanceId);
+    const appointment = await this.findOne(appointmentId);
     const fromDate =
-      attendance.scheduled_date ??
+      appointment.scheduled_date ??
       addDaysToDateString(getCurrentDateString(), 7);
-    const scheduledTime = attendance.scheduled_time ?? undefined;
+    const scheduledTime = appointment.scheduled_time ?? undefined;
 
-    if (attendance.type === AttendanceType.ASSESSMENT) {
+    if (appointment.type === AppointmentType.ASSESSMENT) {
       return this.getNextAvailableDateForAssessment(
-        attendance.patient_id,
+        appointment.patient_id,
         fromDate,
-        attendanceId,
+        appointmentId,
         scheduledTime,
       );
     }
 
-    const treatmentId = await this.getTreatmentIdForAttendance(attendance);
+    const treatmentId = await this.getTreatmentIdForAppointment(appointment);
     return this.getNextAvailableDateForTreatment(
-      attendance.type,
-      attendance.patient_id,
+      appointment.type,
+      appointment.patient_id,
       fromDate,
-      attendanceId,
+      appointmentId,
       treatmentId,
       scheduledTime,
     );
   }
 
   /**
-   * Get next available date for assessment attendance (same weekday, next week).
+   * Get next available date for assessment appointment (same weekday, next week).
    */
   private async getNextAvailableDateForAssessment(
     patientId: number,
     fromDate: string,
-    originalAttendanceId: number,
+    originalAppointmentId: number,
     scheduledTime?: string,
   ): Promise<string | null> {
     let candidate = addDaysToDateString(fromDate, 7);
@@ -1082,7 +1082,7 @@ export class AttendanceService {
       const valid = await this.isDateAvailableForScheduling(
         candidate,
         'assessment',
-        { patientId, originalAttendanceId, scheduledTime },
+        { patientId, originalAppointmentId, scheduledTime },
       );
       if (valid) return candidate;
       candidate = addDaysToDateString(candidate, 7);
@@ -1092,37 +1092,37 @@ export class AttendanceService {
   }
 
   /**
-   * Get treatment id for a physiotherapy/tens attendance (from session rows or by patient+type).
+   * Get treatment id for a physiotherapy/tens appointment (from session rows or by patient+type).
    * Public for use by EndOfDayProcessService (return assessment reschedule).
    */
-  async getTreatmentIdForAttendanceId(
-    attendanceId: number,
+  async getTreatmentIdForAppointmentId(
+    appointmentId: number,
   ): Promise<number | null> {
-    const attendance = await this.findOne(attendanceId);
-    return this.getTreatmentIdForAttendance(attendance);
+    const appointment = await this.findOne(appointmentId);
+    return this.getTreatmentIdForAppointment(appointment);
   }
 
   /**
-   * Get treatment id for a physiotherapy/tens attendance (from session rows or by patient+type).
+   * Get treatment id for a physiotherapy/tens appointment (from session rows or by patient+type).
    */
-  private async getTreatmentIdForAttendance(
-    attendance: Attendance,
+  private async getTreatmentIdForAppointment(
+    appointment: Appointment,
   ): Promise<number | null> {
-    const linkedSessions = await this.sessionService.getSessionsByAttendance(
-      attendance.id,
+    const linkedSessions = await this.sessionService.getSessionsByAppointment(
+      appointment.id,
     );
     if (linkedSessions.length > 0 && linkedSessions[0].treatment_id) {
       return linkedSessions[0].treatment_id;
     }
     const sessions = await this.treatmentService.getTreatmentsByPatient(
-      attendance.patient_id,
+      appointment.patient_id,
     );
     const match = sessions.find(
       (s) =>
         ((s.treatment_type === TreatmentType.PHYSIOTHERAPY &&
-          attendance.type === AttendanceType.PHYSIOTHERAPY) ||
+          appointment.type === AppointmentType.PHYSIOTHERAPY) ||
           (s.treatment_type === TreatmentType.TENS &&
-            attendance.type === AttendanceType.TENS)) &&
+            appointment.type === AppointmentType.TENS)) &&
         s.status !== 'cancelled',
     );
     return match ? match.id : null;
@@ -1135,7 +1135,7 @@ export class AttendanceService {
     type: string,
     patientId: number,
     fromDate: string,
-    originalAttendanceId: number,
+    originalAppointmentId: number,
     treatmentId: number | null,
     scheduledTime?: string,
   ): Promise<string | null> {
@@ -1155,7 +1155,7 @@ export class AttendanceService {
     for (let week = 0; week < maxWeeks; week++) {
       const valid = await this.isDateAvailableForScheduling(candidate, type, {
         patientId,
-        originalAttendanceId,
+        originalAppointmentId,
         scheduledTime,
       });
       if (valid) return candidate;
@@ -1170,35 +1170,35 @@ export class AttendanceService {
     newStatus: string,
   ): Promise<void> {
     const validTransitions: { [key: string]: string[] } = {
-      [AttendanceStatus.SCHEDULED]: [
-        AttendanceStatus.CHECKED_IN,
-        AttendanceStatus.CANCELLED,
-        AttendanceStatus.MISSED,
+      [AppointmentStatus.SCHEDULED]: [
+        AppointmentStatus.CHECKED_IN,
+        AppointmentStatus.CANCELLED,
+        AppointmentStatus.MISSED,
       ],
-      [AttendanceStatus.CHECKED_IN]: [
-        AttendanceStatus.SCHEDULED,
-        AttendanceStatus.IN_PROGRESS,
-        AttendanceStatus.COMPLETED,
-        AttendanceStatus.CANCELLED,
+      [AppointmentStatus.CHECKED_IN]: [
+        AppointmentStatus.SCHEDULED,
+        AppointmentStatus.IN_PROGRESS,
+        AppointmentStatus.COMPLETED,
+        AppointmentStatus.CANCELLED,
       ],
-      [AttendanceStatus.IN_PROGRESS]: [
-        AttendanceStatus.CHECKED_IN,
-        AttendanceStatus.COMPLETED,
-        AttendanceStatus.CANCELLED,
+      [AppointmentStatus.IN_PROGRESS]: [
+        AppointmentStatus.CHECKED_IN,
+        AppointmentStatus.COMPLETED,
+        AppointmentStatus.CANCELLED,
       ],
-      [AttendanceStatus.COMPLETED]: [
-        // Completed attendances cannot be moved to any other status
+      [AppointmentStatus.COMPLETED]: [
+        // Completed appointments cannot be moved to any other status
       ],
-      [AttendanceStatus.CANCELLED]: [AttendanceStatus.SCHEDULED],
-      [AttendanceStatus.MISSED]: [
-        AttendanceStatus.MISSED, // Allow updating missed attendance (e.g., to update absence notes)
-        AttendanceStatus.SCHEDULED, // Allow rescheduling missed appointments
+      [AppointmentStatus.CANCELLED]: [AppointmentStatus.SCHEDULED],
+      [AppointmentStatus.MISSED]: [
+        AppointmentStatus.MISSED, // Allow updating missed appointment (e.g., to update absence notes)
+        AppointmentStatus.SCHEDULED, // Allow rescheduling missed appointments
       ],
     };
 
     if (!validTransitions[currentStatus]?.includes(newStatus)) {
-      throw new InvalidAttendanceStatusTransitionException(
-        0, // We don't have attendance ID here, it will be filled by the service
+      throw new InvalidAppointmentStatusTransitionException(
+        0, // We don't have appointment ID here, it will be filled by the service
         currentStatus,
         newStatus,
       );
@@ -1242,36 +1242,36 @@ export class AttendanceService {
     };
   }
 
-  // Get all attendances with minimal data for schedule view
+  // Get all appointments with minimal data for schedule view
   async findAllForSchedule(filters?: {
-    statuses?: AttendanceStatus[];
+    statuses?: AppointmentStatus[];
     type?: string;
     limit?: number;
     fromDate?: string;
     toDate?: string;
   }): Promise<any[]> {
-    const query = this.attendanceRepository
-      .createQueryBuilder('attendance')
+    const query = this.appointmentRepository
+      .createQueryBuilder('appointment')
       .select([
-        'attendance.id',
-        'attendance.patient_id',
-        'attendance.type',
-        'attendance.status',
-        'attendance.scheduled_date',
-        'attendance.notes',
+        'appointment.id',
+        'appointment.patient_id',
+        'appointment.type',
+        'appointment.status',
+        'appointment.scheduled_date',
+        'appointment.notes',
         'patient.name',
         'patient.priority',
       ])
-      .leftJoin('attendance.patient', 'patient');
+      .leftJoin('appointment.patient', 'patient');
 
     if (filters?.statuses?.length) {
-      query.andWhere('attendance.status IN (:...statuses)', {
+      query.andWhere('appointment.status IN (:...statuses)', {
         statuses: filters.statuses,
       });
     }
 
     if (filters?.type) {
-      query.andWhere('attendance.type = :type', { type: filters.type });
+      query.andWhere('appointment.type = :type', { type: filters.type });
     }
 
     if (filters?.fromDate && filters?.toDate) {
@@ -1279,13 +1279,13 @@ export class AttendanceService {
         filters.fromDate,
         filters.toDate,
       );
-      query.andWhere('attendance.scheduled_date >= :fromDate', { fromDate });
-      query.andWhere('attendance.scheduled_date <= :toDate', { toDate });
+      query.andWhere('appointment.scheduled_date >= :fromDate', { fromDate });
+      query.andWhere('appointment.scheduled_date <= :toDate', { toDate });
     }
 
     query
-      .orderBy('attendance.scheduled_date', 'ASC')
-      .addOrderBy('attendance.scheduled_time', 'ASC');
+      .orderBy('appointment.scheduled_date', 'ASC')
+      .addOrderBy('appointment.scheduled_time', 'ASC');
 
     if (filters?.limit && filters.limit > 0) {
       query.limit(filters.limit);
@@ -1294,25 +1294,25 @@ export class AttendanceService {
     return await query.getRawMany();
   }
 
-  // Get the next scheduled attendance date
+  // Get the next scheduled appointment date
   async findNextScheduledDate(): Promise<string | null> {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Set to start of day
 
-      const nextAttendance = await this.attendanceRepository
-        .createQueryBuilder('attendance')
-        .select('attendance.scheduled_date')
-        .where('attendance.scheduled_date >= :today', { today })
-        .andWhere('attendance.status != :cancelled', {
-          cancelled: AttendanceStatus.CANCELLED,
+      const nextAppointment = await this.appointmentRepository
+        .createQueryBuilder('appointment')
+        .select('appointment.scheduled_date')
+        .where('appointment.scheduled_date >= :today', { today })
+        .andWhere('appointment.status != :cancelled', {
+          cancelled: AppointmentStatus.CANCELLED,
         })
-        .orderBy('attendance.scheduled_date', 'ASC')
+        .orderBy('appointment.scheduled_date', 'ASC')
         .getOne();
 
-      if (nextAttendance && nextAttendance.scheduled_date) {
+      if (nextAppointment && nextAppointment.scheduled_date) {
         // scheduled_date is now always a string in YYYY-MM-DD format
-        return nextAttendance.scheduled_date;
+        return nextAppointment.scheduled_date;
       }
 
       return null;
@@ -1322,8 +1322,8 @@ export class AttendanceService {
     }
   }
 
-  // Get attendance statistics for a specific date
-  async getAttendanceStats(date: string): Promise<{
+  // Get appointment statistics for a specific date
+  async getAppointmentStats(date: string): Promise<{
     total: number;
     scheduled: number;
     checked_in: number;
@@ -1333,12 +1333,12 @@ export class AttendanceService {
     by_type: { assessment: number; physiotherapy: number; tens: number };
   }> {
     // Use date string directly since scheduled_date is now a string
-    const attendances = await this.attendanceRepository.find({
+    const appointments = await this.appointmentRepository.find({
       where: { scheduled_date: date },
     });
 
     const stats = {
-      total: attendances.length,
+      total: appointments.length,
       scheduled: 0,
       checked_in: 0,
       in_progress: 0,
@@ -1347,32 +1347,32 @@ export class AttendanceService {
       by_type: { assessment: 0, physiotherapy: 0, tens: 0 },
     };
 
-    attendances.forEach((attendance) => {
+    appointments.forEach((appointment) => {
       // Count by status
-      switch (attendance.status) {
-        case AttendanceStatus.SCHEDULED:
+      switch (appointment.status) {
+        case AppointmentStatus.SCHEDULED:
           stats.scheduled++;
           break;
-        case AttendanceStatus.CHECKED_IN:
+        case AppointmentStatus.CHECKED_IN:
           stats.checked_in++;
           break;
-        case AttendanceStatus.IN_PROGRESS:
+        case AppointmentStatus.IN_PROGRESS:
           stats.in_progress++;
           break;
-        case AttendanceStatus.COMPLETED:
+        case AppointmentStatus.COMPLETED:
           stats.completed++;
           break;
-        case AttendanceStatus.CANCELLED:
+        case AppointmentStatus.CANCELLED:
           stats.cancelled++;
           break;
       }
 
       // Count by type
-      if (attendance.type === 'assessment') {
+      if (appointment.type === 'assessment') {
         stats.by_type.assessment++;
-      } else if (attendance.type === 'physiotherapy') {
+      } else if (appointment.type === 'physiotherapy') {
         stats.by_type.physiotherapy++;
-      } else if (attendance.type === 'tens') {
+      } else if (appointment.type === 'tens') {
         stats.by_type.tens++;
       }
     });
@@ -1381,64 +1381,64 @@ export class AttendanceService {
   }
 
   /**
-   * Update patient's missing_appointments_streak based on attendance status change
+   * Update patient's missing_appointments_streak based on appointment status change
    */
   private async updatePatientMissedStreak(
-    attendance: Attendance,
-    updateDto: UpdateAttendanceDto,
+    appointment: Appointment,
+    updateDto: UpdateAppointmentDto,
   ): Promise<void> {
     const patient = await this.patientRepository.findOne({
-      where: { id: attendance.patient_id },
+      where: { id: appointment.patient_id },
     });
 
     if (!patient) {
       console.error(
-        `Patient ${attendance.patient_id} not found when updating missed streak`,
+        `Patient ${appointment.patient_id} not found when updating missed streak`,
       );
       return;
     }
 
-    // If attendance is COMPLETED, reset the streak
-    if (updateDto.status === AttendanceStatus.COMPLETED) {
+    // If appointment is COMPLETED, reset the streak
+    if (updateDto.status === AppointmentStatus.COMPLETED) {
       patient.missing_appointments_streak = 0;
       await this.patientRepository.save(patient);
       return;
     }
 
-    if (updateDto.status !== AttendanceStatus.MISSED) {
+    if (updateDto.status !== AppointmentStatus.MISSED) {
       return;
     }
 
-    const scheduledDate = attendance.scheduled_date;
+    const scheduledDate = appointment.scheduled_date;
     if (!scheduledDate) {
       return;
     }
 
-    // If the patient completed any attendance on this same day,
+    // If the patient completed any appointment on this same day,
     // we don't consider it as a "missed day" for streak purposes.
-    const completedSameDayCount = await this.attendanceRepository.count({
+    const completedSameDayCount = await this.appointmentRepository.count({
       where: {
-        patient_id: attendance.patient_id,
+        patient_id: appointment.patient_id,
         scheduled_date: scheduledDate,
-        status: AttendanceStatus.COMPLETED,
+        status: AppointmentStatus.COMPLETED,
       },
     });
     if (completedSameDayCount > 0) {
       return;
     }
 
-    // If attendance is marked as MISSED
+    // If appointment is marked as MISSED
     if (updateDto.absence_justified === false) {
       // Dedupe by patient + scheduled_date: only increment once per day,
-      // even if the patient missed multiple attendances that day.
+      // even if the patient missed multiple appointments that day.
       const otherUnjustifiedMissedSameDayCount =
-        await this.attendanceRepository.count({
+        await this.appointmentRepository.count({
           where: {
-            patient_id: attendance.patient_id,
+            patient_id: appointment.patient_id,
             scheduled_date: scheduledDate,
-            status: AttendanceStatus.MISSED,
+            status: AppointmentStatus.MISSED,
             absence_justified: false,
-            id: Not(attendance.id),
+            id: Not(appointment.id),
           },
         });
 
@@ -1451,14 +1451,14 @@ export class AttendanceService {
 
     if (updateDto.absence_justified === true) {
       // Only reset if there isn't any other unjustified miss on the same day.
-      // This avoids a "justified" missed attendance wiping out a day that also
+      // This avoids a "justified" missed appointment wiping out a day that also
       // has an unjustified miss.
       const anyUnjustifiedMissedSameDayCount =
-        await this.attendanceRepository.count({
+        await this.appointmentRepository.count({
           where: {
-            patient_id: attendance.patient_id,
+            patient_id: appointment.patient_id,
             scheduled_date: scheduledDate,
-            status: AttendanceStatus.MISSED,
+            status: AppointmentStatus.MISSED,
             absence_justified: false,
           },
         });
@@ -1472,48 +1472,48 @@ export class AttendanceService {
   }
 
   /**
-   * Handle completion of physiotherapy/tens attendances by creating treatment sessions
+   * Handle completion of physiotherapy/tens appointments by creating treatment sessions
    */
   private async handlePhysiotherapyTensCompletion(
-    attendance: Attendance,
+    appointment: Appointment,
   ): Promise<void> {
     try {
       // Look for existing treatment sessions for this patient and treatment type
       const existingSession =
         await this.sessionService.findActiveSessionForPatient(
-          attendance.patient_id,
-          attendance.type,
+          appointment.patient_id,
+          appointment.type,
         );
 
       if (existingSession) {
-        // Create a new session for this completed attendance
-        await this.sessionService.createSessionFromAttendance(
+        // Create a new session for this completed appointment
+        await this.sessionService.createSessionFromAppointment(
           existingSession.id,
-          attendance,
+          appointment,
         );
       } else {
         // Log that no active treatment session was found
         console.warn(
-          `No active treatment session found for patient ${attendance.patient_id} ` +
-            `and type ${attendance.type}. Attendance ${attendance.id} completed but no session created.`,
+          `No active treatment session found for patient ${appointment.patient_id} ` +
+            `and type ${appointment.type}. Appointment ${appointment.id} completed but no session created.`,
         );
       }
     } catch (error) {
-      // Log error but don't fail the attendance completion
+      // Log error but don't fail the appointment completion
       console.error(
-        `Error creating treatment session for attendance ${attendance.id}:`,
+        `Error creating treatment session for appointment ${appointment.id}:`,
         error,
       );
     }
   }
 
   /**
-   * Postpone an attendance to a specific date
+   * Postpone an appointment to a specific date
    * Updates the scheduled_date and tracks the postponement in notes
-   * @param id - Attendance ID
+   * @param id - Appointment ID
    * @param newDate - New scheduled date in YYYY-MM-DD format
    */
-  async postpone(id: number, newDate: string): Promise<Attendance> {
+  async postpone(id: number, newDate: string): Promise<Appointment> {
     // Validate date format (YYYY-MM-DD)
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(newDate)) {
@@ -1522,9 +1522,9 @@ export class AttendanceService {
 
     const newDateObj = new Date(newDate + 'T00:00:00');
 
-    // Find the attendance
-    const attendance = await this.findOne(id);
-    const originalDate = attendance.scheduled_date;
+    // Find the appointment
+    const appointment = await this.findOne(id);
+    const originalDate = appointment.scheduled_date;
     const originalDateObj = new Date(originalDate + 'T00:00:00');
 
     // Block postponing to a finalized day
@@ -1532,14 +1532,14 @@ export class AttendanceService {
       await this.dayFinalizationService.getFinalizationStatus(newDate);
     if (finalization) {
       throw new BadRequestException(
-        'Day finalized. It is no longer possible to schedule attendances for this day.',
+        'Day finalized. It is no longer possible to schedule appointments for this day.',
       );
     }
 
     // Check if new date is a holiday that blocks this treatment type
     const isBlockedByHoliday = await this.holidayService.isHolidayForTreatment(
       newDate,
-      attendance.type,
+      appointment.type,
     );
     if (isBlockedByHoliday) {
       const treatmentTypeNames = {
@@ -1549,51 +1549,51 @@ export class AttendanceService {
       };
       const treatmentName =
         treatmentTypeNames[
-          attendance.type as keyof typeof treatmentTypeNames
-        ] || attendance.type;
+          appointment.type as keyof typeof treatmentTypeNames
+        ] || appointment.type;
       throw new BadRequestException(
         `The day ${newDate} is a holiday for ${treatmentName}.`,
       );
     }
 
     if (
-      attendance.type === AttendanceType.PHYSIOTHERAPY ||
-      attendance.type === AttendanceType.TENS
+      appointment.type === AppointmentType.PHYSIOTHERAPY ||
+      appointment.type === AppointmentType.TENS
     ) {
-      const signature = await this.getTreatmentSignatureForAttendanceId(id);
+      const signature = await this.getTreatmentSignatureForAppointmentId(id);
       if (signature) {
         await this.assertNoTreatmentSchedulingConflict(
-          attendance.patient_id,
+          appointment.patient_id,
           newDate,
-          attendance.type,
+          appointment.type,
           signature,
           [id],
         );
       }
     } else {
-      const existingAssessment = await this.attendanceRepository.count({
+      const existingAssessment = await this.appointmentRepository.count({
         where: {
-          patient_id: attendance.patient_id,
+          patient_id: appointment.patient_id,
           scheduled_date: newDate,
-          type: AttendanceType.ASSESSMENT,
-          status: In(OPEN_ATTENDANCE_STATUSES),
+          type: AppointmentType.ASSESSMENT,
+          status: In(OPEN_APPOINTMENT_STATUSES),
           id: Not(id),
         },
       });
       if (existingAssessment > 0) {
         throw new BadRequestException(
-          'This patient already has a consultation scheduled for this date. Check the attendance list.',
+          'This patient already has a consultation scheduled for this date. Check the appointment list.',
         );
       }
     }
 
     // Check for conflicts at the new date/time
-    const concurrent = await this.attendanceRepository.count({
+    const concurrent = await this.appointmentRepository.count({
       where: {
         scheduled_date: newDate,
-        scheduled_time: attendance.scheduled_time,
-        type: attendance.type,
-        status: AttendanceStatus.SCHEDULED,
+        scheduled_time: appointment.scheduled_time,
+        type: appointment.type,
+        status: AppointmentStatus.SCHEDULED,
       },
     });
 
@@ -1608,20 +1608,20 @@ export class AttendanceService {
 
     if (!setting) {
       throw new Error(
-        `Attendances are not available on ${getDayOfTheWeekName(dayOfWeek)}s.`,
+        `Appointments are not available on ${getDayOfTheWeekName(dayOfWeek)}s.`,
       );
     }
 
     const maxConcurrent =
-      attendance.type === 'assessment'
+      appointment.type === 'assessment'
         ? setting.max_concurrent_assessment
         : setting.max_concurrent_physiotherapy_tens;
 
     if (concurrent >= maxConcurrent) {
-      throw new AttendanceTimeSlotUnavailableException(
+      throw new AppointmentTimeSlotUnavailableException(
         newDate,
-        attendance.scheduled_time,
-        attendance.type,
+        appointment.scheduled_time,
+        appointment.type,
       );
     }
 
@@ -1635,20 +1635,20 @@ export class AttendanceService {
     const postponementNote = `Rescheduled: ${originalDate} → ${newDate} (${daysCount})`;
 
     let updatedNotes = postponementNote;
-    if (attendance.notes) {
-      updatedNotes = `${attendance.notes}\n${postponementNote}`;
+    if (appointment.notes) {
+      updatedNotes = `${appointment.notes}\n${postponementNote}`;
     }
 
-    // Update the attendance
-    attendance.scheduled_date = newDate;
-    attendance.notes = updatedNotes;
+    // Update the appointment
+    appointment.scheduled_date = newDate;
+    appointment.notes = updatedNotes;
 
-    const savedAttendance = await this.attendanceRepository.save(attendance);
+    const savedAppointment = await this.appointmentRepository.save(appointment);
 
     // For physiotherapy and tens treatments, also update any linked sessions
-    if (attendance.type === 'physiotherapy' || attendance.type === 'tens') {
-      const sessionRows = await this.sessionService.getSessionsByAttendance(
-        attendance.id,
+    if (appointment.type === 'physiotherapy' || appointment.type === 'tens') {
+      const sessionRows = await this.sessionService.getSessionsByAppointment(
+        appointment.id,
       );
 
       for (const sessionRow of sessionRows) {
@@ -1659,23 +1659,23 @@ export class AttendanceService {
       }
     }
 
-    return savedAttendance;
+    return savedAppointment;
   }
 
   /**
-   * Reschedule cancelled or missed attendances to a new date.
-   * Creates new attendance(s) with same params and links via rescheduled_from_attendance_id.
+   * Reschedule cancelled or missed appointments to a new date.
+   * Creates new appointment(s) with same params and links via rescheduled_from_appointment_id.
    * For physiotherapy/tens, creates new sessions with same treatment_id and session_number.
    */
   async reschedule(
-    dto: RescheduleAttendancesDto,
+    dto: RescheduleAppointmentsDto,
     options?: { allowFirstAssessmentForNonTreatment?: boolean },
-  ): Promise<AttendanceResponseDto[]> {
-    const { attendance_ids: attendanceIdsRaw, new_scheduled_date: newDate } =
+  ): Promise<AppointmentResponseDto[]> {
+    const { appointment_ids: appointmentIdsRaw, new_scheduled_date: newDate } =
       dto;
 
-    if (attendanceIdsRaw.length === 0) {
-      throw new BadRequestException('attendance_ids cannot be empty.');
+    if (appointmentIdsRaw.length === 0) {
+      throw new BadRequestException('appointment_ids cannot be empty.');
     }
 
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -1683,107 +1683,107 @@ export class AttendanceService {
       throw new BadRequestException('New date must be in YYYY-MM-DD format.');
     }
 
-    const attendanceIds = [...new Set(attendanceIdsRaw)];
+    const appointmentIds = [...new Set(appointmentIdsRaw)];
 
-    const attendances = await this.attendanceRepository.find({
-      where: { id: In(attendanceIds) },
+    const appointments = await this.appointmentRepository.find({
+      where: { id: In(appointmentIds) },
       relations: ['patient'],
     });
 
-    if (attendances.length !== attendanceIds.length) {
-      const foundIds = new Set(attendances.map((a) => a.id));
-      const missing = attendanceIds.filter((id) => !foundIds.has(id));
-      throw new ResourceNotFoundException('Attendance', missing.join(', '));
+    if (appointments.length !== appointmentIds.length) {
+      const foundIds = new Set(appointments.map((a) => a.id));
+      const missing = appointmentIds.filter((id) => !foundIds.has(id));
+      throw new ResourceNotFoundException('Appointment', missing.join(', '));
     }
 
     const allowedStatuses = [
-      AttendanceStatus.CANCELLED,
-      AttendanceStatus.MISSED,
+      AppointmentStatus.CANCELLED,
+      AppointmentStatus.MISSED,
     ];
-    const invalid = attendances.filter(
+    const invalid = appointments.filter(
       (a) => !allowedStatuses.includes(a.status),
     );
     if (invalid.length > 0) {
       throw new BadRequestException(
-        `Only cancelled or missed attendances can be rescheduled. Invalid IDs: ${invalid.map((a) => a.id).join(', ')}`,
+        `Only cancelled or missed appointments can be rescheduled. Invalid IDs: ${invalid.map((a) => a.id).join(', ')}`,
       );
     }
 
-    const patient = attendances[0].patient;
+    const patient = appointments[0].patient;
     const isAllowedBypass =
       options?.allowFirstAssessmentForNonTreatment === true &&
-      attendances.every(
+      appointments.every(
         (a) =>
-          a.type === AttendanceType.ASSESSMENT &&
-          a.parent_attendance_id == null,
+          a.type === AppointmentType.ASSESSMENT &&
+          a.parent_appointment_id == null,
       );
     if (
       patient.patient_status !== PatientStatus.IN_TREATMENT &&
       !isAllowedBypass
     ) {
       throw new BadRequestException(
-        'Patient is not in treatment. Only patients in treatment can reschedule attendances.',
+        'Patient is not in treatment. Only patients in treatment can reschedule appointments.',
       );
     }
 
-    const alreadyRescheduled = await this.attendanceRepository.find({
-      where: { rescheduled_from_attendance_id: In(attendanceIds) },
-      select: ['rescheduled_from_attendance_id', 'scheduled_date'],
+    const alreadyRescheduled = await this.appointmentRepository.find({
+      where: { rescheduled_from_appointment_id: In(appointmentIds) },
+      select: ['rescheduled_from_appointment_id', 'scheduled_date'],
     });
     if (alreadyRescheduled.length > 0) {
       const existingDate = formatDisplayDate(
         toDateStringOnly(alreadyRescheduled[0].scheduled_date),
       );
       throw new BadRequestException(
-        `This attendance has already been rescheduled for ${existingDate}`,
+        `This appointment has already been rescheduled for ${existingDate}`,
       );
     }
 
     const timeToCount = new Map<
       string,
-      { type: AttendanceType; count: number }
+      { type: AppointmentType; count: number }
     >();
-    for (const a of attendances) {
+    for (const a of appointments) {
       const key = `${a.type}:${a.scheduled_time}`;
       const current = timeToCount.get(key) || { type: a.type, count: 0 };
       current.count += 1;
       timeToCount.set(key, current);
     }
 
-    const batchExcludeIds = attendances.map((a) => a.id);
+    const batchExcludeIds = appointments.map((a) => a.id);
 
-    for (const original of attendances) {
+    for (const original of appointments) {
       const scheduledTime =
         original.scheduled_time?.length === 8
           ? original.scheduled_time.substring(0, 5)
           : original.scheduled_time || '09:00';
-      const validateDto: CreateAttendanceDto = {
+      const validateDto: CreateAppointmentDto = {
         patient_id: original.patient_id,
         type: original.type,
         scheduled_date: newDate,
         scheduled_time: scheduledTime,
       };
       const treatmentSignature =
-        original.type === AttendanceType.PHYSIOTHERAPY ||
-        original.type === AttendanceType.TENS
-          ? await this.getTreatmentSignatureForAttendanceId(original.id)
+        original.type === AppointmentType.PHYSIOTHERAPY ||
+        original.type === AppointmentType.TENS
+          ? await this.getTreatmentSignatureForAppointmentId(original.id)
           : null;
       await this.validateScheduling(validateDto, {
         skipCompletedRootAssessmentCheck: true,
         treatmentSignature: treatmentSignature ?? undefined,
-        excludeAttendanceIds: batchExcludeIds,
+        excludeAppointmentIds: batchExcludeIds,
       });
     }
 
     for (const [, { type, count }] of timeToCount) {
-      const originalWithType = attendances.find((a) => a.type === type);
+      const originalWithType = appointments.find((a) => a.type === type);
       const timeForSlot = originalWithType?.scheduled_time ?? '09:00:00';
-      const concurrent = await this.attendanceRepository.count({
+      const concurrent = await this.appointmentRepository.count({
         where: {
           scheduled_date: newDate,
           scheduled_time: timeForSlot,
           type,
-          status: AttendanceStatus.SCHEDULED,
+          status: AppointmentStatus.SCHEDULED,
         },
       });
       const [year, month, day] = newDate.split('-').map(Number);
@@ -1793,11 +1793,11 @@ export class AttendanceService {
       });
       if (!setting) continue;
       const maxConcurrent =
-        type === AttendanceType.ASSESSMENT
+        type === AppointmentType.ASSESSMENT
           ? setting.max_concurrent_assessment
           : setting.max_concurrent_physiotherapy_tens;
       if (concurrent + count > maxConcurrent) {
-        throw new AttendanceTimeSlotUnavailableException(
+        throw new AppointmentTimeSlotUnavailableException(
           newDate,
           timeForSlot,
           type,
@@ -1805,19 +1805,19 @@ export class AttendanceService {
       }
     }
 
-    const created: Attendance[] = [];
-    for (const original of attendances) {
-      const newAttendance = this.attendanceRepository.create({
+    const created: Appointment[] = [];
+    for (const original of appointments) {
+      const newAppointment = this.appointmentRepository.create({
         patient_id: original.patient_id,
         type: original.type,
-        status: AttendanceStatus.SCHEDULED,
+        status: AppointmentStatus.SCHEDULED,
         scheduled_date: newDate,
         scheduled_time: original.scheduled_time || '09:00:00',
         notes: original.notes ?? undefined,
-        parent_attendance_id: original.parent_attendance_id ?? undefined,
-        rescheduled_from_attendance_id: original.id,
+        parent_appointment_id: original.parent_appointment_id ?? undefined,
+        rescheduled_from_appointment_id: original.id,
       });
-      const saved = await this.attendanceRepository.save(newAttendance);
+      const saved = await this.appointmentRepository.save(newAppointment);
       created.push(saved);
 
       if (original.type === 'physiotherapy' || original.type === 'tens') {
@@ -1830,7 +1830,7 @@ export class AttendanceService {
         for (const rec of sessionRows) {
           await this.sessionService.createSession({
             treatment_id: rec.treatment_id,
-            attendance_id: saved.id,
+            appointment_id: saved.id,
             session_number: rec.session_number,
             scheduled_date: newDate,
           });
@@ -1842,37 +1842,37 @@ export class AttendanceService {
   }
 
   /**
-   * Bulk cancel multiple attendances in a single transaction
+   * Bulk cancel multiple appointments in a single transaction
    */
   async bulkCancel(
-    attendanceIds: number[],
+    appointmentIds: number[],
     cancellationReason?: string,
   ): Promise<{
     success_count: number;
     failure_count: number;
-    successes: Array<{ attendance_id: number; message: string }>;
-    failures: Array<{ attendance_id: number; error: string }>;
+    successes: Array<{ appointment_id: number; message: string }>;
+    failures: Array<{ appointment_id: number; error: string }>;
   }> {
     const results = {
       success_count: 0,
       failure_count: 0,
-      successes: [] as Array<{ attendance_id: number; message: string }>,
-      failures: [] as Array<{ attendance_id: number; error: string }>,
+      successes: [] as Array<{ appointment_id: number; message: string }>,
+      failures: [] as Array<{ appointment_id: number; error: string }>,
     };
 
-    // Process each attendance in a transaction
-    for (const id of attendanceIds) {
+    // Process each appointment in a transaction
+    for (const id of appointmentIds) {
       try {
         await this.cancel(id, cancellationReason);
         results.success_count++;
         results.successes.push({
-          attendance_id: id,
+          appointment_id: id,
           message: 'Successfully cancelled',
         });
       } catch (error) {
         results.failure_count++;
         results.failures.push({
-          attendance_id: id,
+          appointment_id: id,
           error: error.message || 'Unknown error occurred',
         });
       }
@@ -1882,12 +1882,12 @@ export class AttendanceService {
   }
 
   /**
-   * Bulk postpone multiple attendances to a specific date
-   * @param attendanceIds - Array of attendance IDs to postpone
-   * @param newDate - New scheduled date in YYYY-MM-DD format for all attendances
+   * Bulk postpone multiple appointments to a specific date
+   * @param appointmentIds - Array of appointment IDs to postpone
+   * @param newDate - New scheduled date in YYYY-MM-DD format for all appointments
    */
   async bulkPostpone(
-    attendanceIds: number[],
+    appointmentIds: number[],
     newDate: string,
     rescheduleReturnAssessment: boolean = false,
   ): Promise<BulkPostponeResult> {
@@ -1902,26 +1902,26 @@ export class AttendanceService {
 
     const assessmentReturnRescheduleMap = new Map<number, string>();
 
-    // Process each attendance
-    for (const id of attendanceIds) {
+    // Process each appointment
+    for (const id of appointmentIds) {
       try {
-        const attendance = await this.findOne(id);
+        const appointment = await this.findOne(id);
         const isTreatment =
-          attendance.type === AttendanceType.PHYSIOTHERAPY ||
-          attendance.type === AttendanceType.TENS;
+          appointment.type === AppointmentType.PHYSIOTHERAPY ||
+          appointment.type === AppointmentType.TENS;
         const returnRescheduleContext =
-          await this.prepareReturnRescheduleContextForAttendance(
-            attendance,
+          await this.prepareReturnRescheduleContextForAppointment(
+            appointment,
             rescheduleReturnAssessment,
             isTreatment,
           );
 
-        const postponedAttendance = await this.postpone(id, newDate);
+        const postponedAppointment = await this.postpone(id, newDate);
         results.success_count++;
         results.successes.push({
-          attendance_id: id,
+          appointment_id: id,
           message: 'Successfully postponed',
-          new_date: postponedAttendance.scheduled_date,
+          new_date: postponedAppointment.scheduled_date,
         });
 
         await this.collectReturnAssessmentRescheduleCandidates(
@@ -1932,7 +1932,7 @@ export class AttendanceService {
       } catch (error) {
         results.failure_count++;
         results.failures.push({
-          attendance_id: id,
+          appointment_id: id,
           error: error.message || 'Unknown error occurred',
         });
       }
@@ -1946,8 +1946,8 @@ export class AttendanceService {
     return results;
   }
 
-  private async prepareReturnRescheduleContextForAttendance(
-    attendance: Attendance,
+  private async prepareReturnRescheduleContextForAppointment(
+    appointment: Appointment,
     rescheduleReturnAssessment: boolean,
     isTreatment: boolean,
   ): Promise<ReturnRescheduleContext> {
@@ -1959,7 +1959,7 @@ export class AttendanceService {
       };
     }
 
-    const treatmentId = await this.getTreatmentIdForAttendanceId(attendance.id);
+    const treatmentId = await this.getTreatmentIdForAppointmentId(appointment.id);
     if (!treatmentId) {
       return {
         shouldEvaluate: false,
@@ -1971,11 +1971,11 @@ export class AttendanceService {
     let oldLastTreatmentDate =
       await this.sessionService.getMaxScheduledDateForTreatment(treatmentId);
     if (
-      attendance.scheduled_date &&
+      appointment.scheduled_date &&
       (!oldLastTreatmentDate ||
-        attendance.scheduled_date > oldLastTreatmentDate)
+        appointment.scheduled_date > oldLastTreatmentDate)
     ) {
-      oldLastTreatmentDate = attendance.scheduled_date;
+      oldLastTreatmentDate = appointment.scheduled_date;
     }
 
     return {
@@ -1998,8 +1998,8 @@ export class AttendanceService {
       return;
     }
 
-    const returnAssessmentAttendances =
-      await this.findReturnAssessmentAttendancesForTreatment(
+    const returnAssessmentAppointments =
+      await this.findReturnAssessmentAppointmentsForTreatment(
         context.treatmentId,
         context.oldLastTreatmentDate,
       );
@@ -2010,7 +2010,7 @@ export class AttendanceService {
       sessionInfo?.return_when_treatment_complete ?? false;
     const returnWeeks = sessionInfo?.return_weeks ?? 0;
     const shouldRescheduleReturns =
-      returnAssessmentAttendances.length > 0 &&
+      returnAssessmentAppointments.length > 0 &&
       (returnWhenComplete || returnWeeks > 0);
 
     if (!shouldRescheduleReturns) {
@@ -2022,10 +2022,10 @@ export class AttendanceService {
       : addDaysToDateString(newDate, 7);
     const adjustedReturnDate = await this.findNextSchedulableDate(
       returnDate,
-      AttendanceType.ASSESSMENT,
+      AppointmentType.ASSESSMENT,
     );
 
-    for (const assessmentAtt of returnAssessmentAttendances) {
+    for (const assessmentAtt of returnAssessmentAppointments) {
       if (assessmentAtt.scheduled_date === adjustedReturnDate) {
         continue;
       }
@@ -2044,26 +2044,26 @@ export class AttendanceService {
     results: BulkPostponeResult,
   ): Promise<void> {
     for (const [
-      assessmentAttendanceId,
+      assessmentAppointmentId,
       targetDate,
     ] of assessmentReturnRescheduleMap) {
       try {
-        const assessmentAttendance = await this.findOne(assessmentAttendanceId);
-        if (assessmentAttendance.scheduled_date === targetDate) {
+        const assessmentAppointment = await this.findOne(assessmentAppointmentId);
+        if (assessmentAppointment.scheduled_date === targetDate) {
           continue;
         }
-        const previousDate = assessmentAttendance.scheduled_date;
-        await this.postpone(assessmentAttendanceId, targetDate);
+        const previousDate = assessmentAppointment.scheduled_date;
+        await this.postpone(assessmentAppointmentId, targetDate);
         results.auto_rescheduled_returns.push({
-          attendance_id: assessmentAttendanceId,
-          patient_id: assessmentAttendance.patient_id,
-          patient_name: assessmentAttendance.patient?.name ?? 'Patient',
+          appointment_id: assessmentAppointmentId,
+          patient_id: assessmentAppointment.patient_id,
+          patient_name: assessmentAppointment.patient?.name ?? 'Patient',
           old_date: previousDate,
           new_date: targetDate,
         });
       } catch (error) {
         results.failed_return_reschedules.push({
-          attendance_id: assessmentAttendanceId,
+          appointment_id: assessmentAppointmentId,
           error:
             error instanceof Error ? error.message : 'Unknown error occurred',
         });
@@ -2072,28 +2072,28 @@ export class AttendanceService {
   }
 
   /**
-   * Find assessment return attendances in the same episode that should move with treatment postponement.
-   * Includes only scheduled assessment attendances with scheduled_date >= minScheduledDate.
+   * Find assessment return appointments in the same episode that should move with treatment postponement.
+   * Includes only scheduled assessment appointments with scheduled_date >= minScheduledDate.
    */
-  private async findReturnAssessmentAttendancesForTreatment(
+  private async findReturnAssessmentAppointmentsForTreatment(
     treatmentId: number,
     minScheduledDate: string,
-  ): Promise<Attendance[]> {
+  ): Promise<Appointment[]> {
     const sessionInfo =
       await this.treatmentService.getSessionWithReturnConfig(treatmentId);
     if (!sessionInfo) return [];
 
-    const patientAttendances = await this.findByPatientId(
+    const patientAppointments = await this.findByPatientId(
       sessionInfo.patient_id,
     );
-    const rootId = sessionInfo.attendance_id;
+    const rootId = sessionInfo.appointment_id;
     const chainIds = new Set<number>([rootId]);
 
     let added = true;
     while (added) {
       added = false;
-      for (const attDto of patientAttendances) {
-        const parentId = attDto.parent_attendance_id;
+      for (const attDto of patientAppointments) {
+        const parentId = attDto.parent_appointment_id;
         if (
           parentId != null &&
           chainIds.has(parentId) &&
@@ -2105,21 +2105,21 @@ export class AttendanceService {
       }
     }
 
-    const assessmentAttendances: Attendance[] = [];
-    for (const attDto of patientAttendances) {
+    const assessmentAppointments: Appointment[] = [];
+    for (const attDto of patientAppointments) {
       if (
-        attDto.type === AttendanceType.ASSESSMENT &&
-        attDto.status === AttendanceStatus.SCHEDULED &&
-        attDto.parent_attendance_id != null &&
-        chainIds.has(attDto.parent_attendance_id) &&
+        attDto.type === AppointmentType.ASSESSMENT &&
+        attDto.status === AppointmentStatus.SCHEDULED &&
+        attDto.parent_appointment_id != null &&
+        chainIds.has(attDto.parent_appointment_id) &&
         attDto.scheduled_date >= minScheduledDate
       ) {
-        const fullAttendance = await this.findOne(attDto.id);
-        assessmentAttendances.push(fullAttendance);
+        const fullAppointment = await this.findOne(attDto.id);
+        assessmentAppointments.push(fullAppointment);
       }
     }
 
-    return assessmentAttendances;
+    return assessmentAppointments;
   }
 
   /**
@@ -2180,25 +2180,25 @@ export class AttendanceService {
 
   /**
    * Recompute the return consultation date for the episode that contains the given
-   * treatment attendance. Reads the current max scheduled session date across ALL
+   * treatment appointment. Reads the current max scheduled session date across ALL
    * treatment plans in the same consultation (the source of truth after all postpones
-   * are committed), then moves the return assessment attendance if the computed date
+   * are committed), then moves the return assessment appointment if the computed date
    * differs from its current scheduled_date.
    *
    * This is the correct anchor for multi-treatment episodes: it avoids the per-call
    * "newDate" anchor used in bulkPostpone, which can cause ping-pong when multiple
    * treatment plans are moved to different dates in separate calls.
    */
-  async recomputeReturnForEpisode(treatmentAttendanceId: number): Promise<{
+  async recomputeReturnForEpisode(treatmentAppointmentId: number): Promise<{
     rescheduled: boolean;
-    attendance_id?: number;
+    appointment_id?: number;
     patient_id?: number;
     patient_name?: string;
     old_date?: string;
     new_date?: string;
   }> {
-    const treatmentId = await this.getTreatmentIdForAttendanceId(
-      treatmentAttendanceId,
+    const treatmentId = await this.getTreatmentIdForAppointmentId(
+      treatmentAppointmentId,
     );
     if (!treatmentId) return { rescheduled: false };
 
@@ -2237,17 +2237,17 @@ export class AttendanceService {
         : maxSessionDate;
     const targetDate = await this.findNextSchedulableDate(
       rawReturnDate,
-      AttendanceType.ASSESSMENT,
+      AppointmentType.ASSESSMENT,
     );
 
-    const returnAttendances =
-      await this.findReturnAssessmentAttendancesForTreatment(
+    const returnAppointments =
+      await this.findReturnAssessmentAppointmentsForTreatment(
         treatmentId,
         maxSessionDate,
       );
-    if (returnAttendances.length === 0) return { rescheduled: false };
+    if (returnAppointments.length === 0) return { rescheduled: false };
 
-    const returnAtt = returnAttendances[0];
+    const returnAtt = returnAppointments[0];
     if (returnAtt.scheduled_date === targetDate) return { rescheduled: false };
 
     const previousDate = returnAtt.scheduled_date;
@@ -2255,7 +2255,7 @@ export class AttendanceService {
 
     return {
       rescheduled: true,
-      attendance_id: returnAtt.id,
+      appointment_id: returnAtt.id,
       patient_id: returnAtt.patient_id,
       patient_name: returnAtt.patient?.name ?? 'Patient',
       old_date: previousDate,
@@ -2264,8 +2264,8 @@ export class AttendanceService {
   }
 
   /**
-   * Find unresolved past attendances (dates before today)
-   * Returns dates with counts of attendances that are not completed, cancelled, or missed
+   * Find unresolved past appointments (dates before today)
+   * Returns dates with counts of appointments that are not completed, cancelled, or missed
    */
   async findUnresolvedPastDates(): Promise<{
     hasUnresolved: boolean;
@@ -2277,25 +2277,25 @@ export class AttendanceService {
   }> {
     const today = getCurrentDateString();
 
-    const unresolvedAttendances = await this.attendanceRepository
-      .createQueryBuilder('attendance')
-      .select('attendance.scheduled_date', 'date')
+    const unresolvedAppointments = await this.appointmentRepository
+      .createQueryBuilder('appointment')
+      .select('appointment.scheduled_date', 'date')
       .addSelect('COUNT(*)', 'count')
-      .addSelect('ARRAY_AGG(DISTINCT attendance.status)', 'statuses')
-      .where('attendance.scheduled_date < :today', { today })
-      .andWhere('attendance.status NOT IN (:...resolvedStatuses)', {
+      .addSelect('ARRAY_AGG(DISTINCT appointment.status)', 'statuses')
+      .where('appointment.scheduled_date < :today', { today })
+      .andWhere('appointment.status NOT IN (:...resolvedStatuses)', {
         resolvedStatuses: [
-          AttendanceStatus.COMPLETED,
-          AttendanceStatus.CANCELLED,
-          AttendanceStatus.MISSED,
+          AppointmentStatus.COMPLETED,
+          AppointmentStatus.CANCELLED,
+          AppointmentStatus.MISSED,
         ],
       })
-      .groupBy('attendance.scheduled_date')
-      .orderBy('attendance.scheduled_date', 'ASC')
+      .groupBy('appointment.scheduled_date')
+      .orderBy('appointment.scheduled_date', 'ASC')
       .limit(10) // Safety limit to avoid performance issues
       .getRawMany();
 
-    const dates = unresolvedAttendances.map((item) => ({
+    const dates = unresolvedAppointments.map((item) => ({
       date: item.date,
       count: parseInt(item.count, 10),
       statuses: item.statuses,

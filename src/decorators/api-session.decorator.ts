@@ -192,9 +192,9 @@ export function ApiCompleteSessionOperation() {
       schema: {
         type: 'object',
         properties: {
-          attendanceId: {
+          appointmentId: {
             type: 'number',
-            description: 'Associated attendance ID (optional)',
+            description: 'Associated appointment ID (optional)',
           },
           notes: { type: 'string', description: 'Completion notes (optional)' },
         },

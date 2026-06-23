@@ -6,11 +6,11 @@ import {
   UpdateConsultationDto,
 } from '../../dtos/consultation.dto';
 import { Consultation } from '../../entities/consultation.entity';
-import { Attendance } from '../../entities/attendance.entity';
-import { AttendanceType, AttendanceStatus } from '../../common/enums';
+import { Appointment } from '../../entities/appointment.entity';
+import { AppointmentType, AppointmentStatus } from '../../common/enums';
 import {
   DuplicateConsultationException,
-  InvalidAttendanceStatusException,
+  InvalidAppointmentStatusException,
   InvalidReturnWeeksException,
 } from '../../common/exceptions/consultation.exceptions';
 
@@ -22,16 +22,16 @@ describe('ConsultationController', () => {
     create: jest.fn(),
     findAll: jest.fn(),
     findOne: jest.fn(),
-    findByAttendance: jest.fn(),
+    findByAppointment: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
   };
 
-  const mockAttendance: Attendance = {
+  const mockAppointment: Appointment = {
     id: 1,
     patient_id: 1,
-    type: AttendanceType.ASSESSMENT,
-    status: AttendanceStatus.SCHEDULED,
+    type: AppointmentType.ASSESSMENT,
+    status: AppointmentStatus.SCHEDULED,
     scheduled_date: '2025-07-22',
     scheduled_time: '14:30',
     notes: 'Test notes',
@@ -42,8 +42,8 @@ describe('ConsultationController', () => {
     cancelled_time: null,
     absence_justified: false,
     absence_notes: null,
-    parent_attendance_id: null,
-    rescheduled_from_attendance_id: null,
+    parent_appointment_id: null,
+    rescheduled_from_appointment_id: null,
     timezone_override: null,
     created_date: '2025-07-22',
     created_time: '09:00:00',
@@ -55,8 +55,8 @@ describe('ConsultationController', () => {
 
   const mockConsultation: Consultation = {
     id: 1,
-    attendance_id: 1,
-    attendance: mockAttendance,
+    appointment_id: 1,
+    appointment: mockAppointment,
     main_concern: 'Test complaint',
     patient_status: null,
     food: 'Test food recommendations',
@@ -102,7 +102,7 @@ describe('ConsultationController', () => {
 
   describe('create', () => {
     const createDto: CreateConsultationDto = {
-      attendance_id: 1,
+      appointment_id: 1,
       food: 'Test food recommendations',
       water: 'Test water recommendations',
       ointments: 'Test ointments',
@@ -123,8 +123,8 @@ describe('ConsultationController', () => {
       expect(result).toBeDefined();
       expect(result.consultation).toBeDefined();
       expect(result.consultation.id).toBe(mockConsultation.id);
-      expect(result.consultation.attendance_id).toBe(
-        mockConsultation.attendance_id,
+      expect(result.consultation.appointment_id).toBe(
+        mockConsultation.appointment_id,
       );
       expect(result.consultation.food).toBe(mockConsultation.food);
     });
@@ -150,31 +150,31 @@ describe('ConsultationController', () => {
       );
     });
 
-    it('should handle InvalidAttendanceStatusException', async () => {
+    it('should handle InvalidAppointmentStatusException', async () => {
       jest
         .spyOn(service, 'create')
         .mockRejectedValue(
-          new InvalidAttendanceStatusException(1, 'cancelled'),
+          new InvalidAppointmentStatusException(1, 'cancelled'),
         );
 
       await expect(controller.create(createDto)).rejects.toThrow(
-        InvalidAttendanceStatusException,
+        InvalidAppointmentStatusException,
       );
     });
 
-    it('should return cancelled_attendances when create triggers D/C transition', async () => {
-      const cancelledAttendances = [
+    it('should return cancelled_appointments when create triggers D/C transition', async () => {
+      const cancelledAppointments = [
         { id: 2, patient_id: 1, scheduled_date: '2026-01-20', type: 'assessment' },
       ];
       jest.spyOn(service, 'create').mockResolvedValue({
         consultation: mockConsultation,
-        cancelledAttendances,
+        cancelledAppointments,
       });
 
       const result = await controller.create(createDto);
 
       expect(result.consultation).toBeDefined();
-      expect(result.cancelled_attendances).toEqual(cancelledAttendances);
+      expect(result.cancelled_appointments).toEqual(cancelledAppointments);
     });
   });
 
@@ -193,24 +193,24 @@ describe('ConsultationController', () => {
     });
   });
 
-  describe('findByAttendance', () => {
-    it('should return a consultation by attendance id', async () => {
+  describe('findByAppointment', () => {
+    it('should return a consultation by appointment id', async () => {
       jest
-        .spyOn(service, 'findByAttendance')
+        .spyOn(service, 'findByAppointment')
         .mockResolvedValue(mockConsultation);
 
-      const result = await controller.findByAttendance('1');
+      const result = await controller.findByAppointment('1');
 
-      expect(service.findByAttendance).toHaveBeenCalledWith(1);
+      expect(service.findByAppointment).toHaveBeenCalledWith(1);
       expect(result).toBeDefined();
       expect(result.id).toBe(mockConsultation.id);
-      expect(result.attendance_id).toBe(1);
+      expect(result.appointment_id).toBe(1);
     });
   });
 
   describe('update', () => {
     const updateDto: UpdateConsultationDto = {
-      attendance_id: 1,
+      appointment_id: 1,
       food: 'Updated food recommendations',
       water: 'Updated water recommendations',
       ointments: 'Updated ointments',
@@ -240,17 +240,17 @@ describe('ConsultationController', () => {
       expect(result.consultation.ointments).toBe(updateDto.ointments);
     });
 
-    it('should return cancelled_attendances when update triggers D/C transition', async () => {
+    it('should return cancelled_appointments when update triggers D/C transition', async () => {
       const updatedConsultation = {
         ...mockConsultation,
         patient_status: 'D',
       };
-      const cancelledAttendances = [
+      const cancelledAppointments = [
         { id: 3, patient_id: 1, scheduled_date: '2026-01-22', type: 'assessment' },
       ];
       jest.spyOn(service, 'update').mockResolvedValue({
         consultation: updatedConsultation,
-        cancelledAttendances,
+        cancelledAppointments,
       });
 
       const result = await controller.update('1', {
@@ -259,7 +259,7 @@ describe('ConsultationController', () => {
       });
 
       expect(result.consultation).toBeDefined();
-      expect(result.cancelled_attendances).toEqual(cancelledAttendances);
+      expect(result.cancelled_appointments).toEqual(cancelledAppointments);
     });
   });
 

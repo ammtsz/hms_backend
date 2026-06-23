@@ -1,7 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 
-export function ApiAttendanceOperation(summary: string) {
+export function ApiAppointmentOperation(summary: string) {
   return applyDecorators(
     ApiOperation({ summary }),
     ApiResponse({
@@ -27,20 +27,20 @@ export function ApiAttendanceOperation(summary: string) {
   );
 }
 
-export function ApiCreateAttendanceOperation() {
+export function ApiCreateAppointmentOperation() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Create a new attendance',
+      summary: 'Create a new appointment',
       description:
-        'Creates a new attendance for a patient with the specified details.',
+        'Creates a new appointment for a patient with the specified details.',
     }),
     ApiResponse({
       status: 201,
-      description: 'Attendance created successfully',
+      description: 'Appointment created successfully',
     }),
     ApiResponse({
       status: 400,
-      description: 'Bad request - Invalid attendance data',
+      description: 'Bad request - Invalid appointment data',
     }),
     ApiResponse({
       status: 401,
@@ -61,20 +61,20 @@ export function ApiCreateAttendanceOperation() {
   );
 }
 
-export function ApiUpdateAttendanceOperation() {
+export function ApiUpdateAppointmentOperation() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Update an attendance',
+      summary: 'Update an appointment',
       description:
-        'Updates an existing attendance with the provided data.',
+        'Updates an existing appointment with the provided data.',
     }),
     ApiResponse({
       status: 200,
-      description: 'Attendance updated successfully',
+      description: 'Appointment updated successfully',
     }),
     ApiResponse({
       status: 400,
-      description: 'Bad request - Invalid attendance data',
+      description: 'Bad request - Invalid appointment data',
     }),
     ApiResponse({
       status: 401,
@@ -82,7 +82,7 @@ export function ApiUpdateAttendanceOperation() {
     }),
     ApiResponse({
       status: 404,
-      description: 'Not found - Attendance not found',
+      description: 'Not found - Appointment not found',
     }),
     ApiResponse({
       status: 500,

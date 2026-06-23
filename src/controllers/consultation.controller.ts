@@ -26,10 +26,10 @@ import {
   ApiUpdateConsultationOperation,
   ApiDeleteConsultationOperation,
   ApiFindAllConsultationsOperation,
-  ApiFindConsultationByAttendanceOperation,
+  ApiFindConsultationByAppointmentOperation,
 } from '../decorators/api-consultation.decorator';
-import { AttendanceResponseDto } from '../dtos/attendance.dto';
-import { AttendanceTransformer } from '../transformers/attendance.transformer';
+import { AppointmentResponseDto } from '../dtos/appointment.dto';
+import { AppointmentTransformer } from '../transformers/appointment.transformer';
 
 @ApiTags('Consultations')
 @UseGuards(JwtAuthGuard)
@@ -47,7 +47,7 @@ export class ConsultationController {
     );
     return {
       consultation: result.consultation as ConsultationResponseDto,
-      cancelled_attendances: result.cancelledAttendances,
+      cancelled_appointments: result.cancelledAppointments,
     };
   }
 
@@ -57,12 +57,12 @@ export class ConsultationController {
     return await this.consultationService.findAll();
   }
 
-  @Get('attendance/:id')
-  @ApiFindConsultationByAttendanceOperation()
-  async findByAttendance(
+  @Get('appointment/:id')
+  @ApiFindConsultationByAppointmentOperation()
+  async findByAppointment(
     @Param('id') id: string,
   ): Promise<ConsultationResponseDto> {
-    return await this.consultationService.findByAttendance(+id);
+    return await this.consultationService.findByAppointment(+id);
   }
 
   @Get('patient/:patientId/latest')
@@ -84,7 +84,7 @@ export class ConsultationController {
     );
     return {
       consultation: result.consultation as ConsultationResponseDto,
-      cancelled_attendances: result.cancelledAttendances,
+      cancelled_appointments: result.cancelledAppointments,
     };
   }
 
@@ -101,13 +101,13 @@ export class ConsultationController {
   async scheduleReturn(
     @Param('id') id: string,
     @Body() scheduleReturnDto: ScheduleReturnDto,
-  ): Promise<{ attendance: AttendanceResponseDto }> {
-    const returnAttendance = await this.consultationService.scheduleReturnAttendance(
+  ): Promise<{ appointment: AppointmentResponseDto }> {
+    const returnAppointment = await this.consultationService.scheduleReturnAppointment(
       +id,
       scheduleReturnDto.mode,
     );
     return {
-      attendance: AttendanceTransformer.toResponseDto(returnAttendance),
+      appointment: AppointmentTransformer.toResponseDto(returnAppointment),
     };
   }
 }

@@ -3,20 +3,20 @@ import { Repository } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { HolidayService } from '../holiday.service';
 import { Holiday } from '../../entities/holiday.entity';
-import { Attendance } from '../../entities/attendance.entity';
-import { AttendanceStatus } from '../../common/enums';
+import { Appointment } from '../../entities/appointment.entity';
+import { AppointmentStatus } from '../../common/enums';
 
 describe('HolidayService - Treatment Type Blocking', () => {
   let service: HolidayService;
   let holidayRepository: Repository<Holiday>;
-  let attendanceRepository: Repository<Attendance>;
+  let appointmentRepository: Repository<Appointment>;
 
   const mockHolidayRepository = {
     findOne: jest.fn(),
     createQueryBuilder: jest.fn(),
   };
 
-  const mockAttendanceRepository = {
+  const mockAppointmentRepository = {
     createQueryBuilder: jest.fn(),
   };
 
@@ -29,8 +29,8 @@ describe('HolidayService - Treatment Type Blocking', () => {
           useValue: mockHolidayRepository,
         },
         {
-          provide: getRepositoryToken(Attendance),
-          useValue: mockAttendanceRepository,
+          provide: getRepositoryToken(Appointment),
+          useValue: mockAppointmentRepository,
         },
       ],
     }).compile();
@@ -39,8 +39,8 @@ describe('HolidayService - Treatment Type Blocking', () => {
     holidayRepository = module.get<Repository<Holiday>>(
       getRepositoryToken(Holiday),
     );
-    attendanceRepository = module.get<Repository<Attendance>>(
-      getRepositoryToken(Attendance),
+    appointmentRepository = module.get<Repository<Appointment>>(
+      getRepositoryToken(Appointment),
     );
   });
 
@@ -173,7 +173,7 @@ describe('HolidayService - Treatment Type Blocking', () => {
     });
   });
 
-  describe('checkConflicts - only open attendances block', () => {
+  describe('checkConflicts - only open appointments block', () => {
     const testDate = '2026-06-15';
     let queryBuilderChain: {
       leftJoinAndSelect: jest.Mock;
@@ -191,49 +191,49 @@ describe('HolidayService - Treatment Type Blocking', () => {
         orderBy: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
       };
-      mockAttendanceRepository.createQueryBuilder.mockReturnValue(queryBuilderChain);
+      mockAppointmentRepository.createQueryBuilder.mockReturnValue(queryBuilderChain);
     });
 
     it('should only consider scheduled, checked_in, in_progress (open statuses)', async () => {
       await service.checkConflicts(testDate);
 
       expect(queryBuilderChain.andWhere).toHaveBeenCalledWith(
-        'attendance.status IN (:...openStatuses)',
+        'appointment.status IN (:...openStatuses)',
         {
           openStatuses: [
-            AttendanceStatus.SCHEDULED,
-            AttendanceStatus.CHECKED_IN,
-            AttendanceStatus.IN_PROGRESS,
+            AppointmentStatus.SCHEDULED,
+            AppointmentStatus.CHECKED_IN,
+            AppointmentStatus.IN_PROGRESS,
           ],
         },
       );
     });
 
-    it('should return no conflict when no open attendances on date', async () => {
+    it('should return no conflict when no open appointments on date', async () => {
       queryBuilderChain.getMany.mockResolvedValue([]);
 
       const result = await service.checkConflicts(testDate);
 
       expect(result.hasConflict).toBe(false);
-      expect(result.attendanceCount).toBe(0);
-      expect(result.attendances).toEqual([]);
+      expect(result.appointmentCount).toBe(0);
+      expect(result.appointments).toEqual([]);
     });
 
-    it('should return conflict when open attendances exist on date', async () => {
-      const attendances = [
+    it('should return conflict when open appointments exist on date', async () => {
+      const appointments = [
         {
           id: 1,
           patient: { name: 'Patient A' },
           type: 'assessment',
         },
       ];
-      queryBuilderChain.getMany.mockResolvedValue(attendances);
+      queryBuilderChain.getMany.mockResolvedValue(appointments);
 
       const result = await service.checkConflicts(testDate);
 
       expect(result.hasConflict).toBe(true);
-      expect(result.attendanceCount).toBe(1);
-      expect(result.attendances).toEqual([
+      expect(result.appointmentCount).toBe(1);
+      expect(result.appointments).toEqual([
         { id: 1, patient_name: 'Patient A', treatment_type: 'assessment' },
       ]);
     });

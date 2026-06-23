@@ -4,7 +4,7 @@
 
 -- Step 1: Create new init.sql with timezone-agnostic schema
 -- PostgreSQL schema for HMS (Helthcare Management System) - Timezone Agnostic Version
--- This schema manages patient records, attendances, treatments, and scheduling
+-- This schema manages patient records, appointments, treatments, and scheduling
 -- All dates stored as DATE type, all times as TIME type - no timezone dependencies
 -- Version: 3.0 (Timezone Agnostic)
 -- Last Updated: 2025-09-18
@@ -25,13 +25,13 @@ CREATE TYPE PATIENT_STATUS AS ENUM (
     'C'   -- Consecutive no-shows (C)
 );
 
-CREATE TYPE ATTENDANCE_TYPE AS ENUM (
+CREATE TYPE APPOINTMENT_TYPE AS ENUM (
     'assessment',   -- Assessment consultation
     'physiotherapy',  -- Physiotherapy treatment
     'tens'         -- TENS therapy treatment
 );
 
-CREATE TYPE ATTENDANCE_STATUS AS ENUM (
+CREATE TYPE APPOINTMENT_STATUS AS ENUM (
     'scheduled',   -- Appointment is scheduled
     'checked_in',  -- Patient has arrived
     'in_progress', -- Treatment is ongoing
@@ -111,12 +111,12 @@ CONSTRAINT fk_patient_note_patient
         ON DELETE CASCADE
 );
 
--- Medical attendance records (updated with timezone-agnostic timestamps)
-CREATE TABLE hms_attendance (
+-- Medical appointment records (updated with timezone-agnostic timestamps)
+CREATE TABLE hms_appointment (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER REFERENCES hms_patient (id) ON DELETE CASCADE,
-    type ATTENDANCE_TYPE NOT NULL,
-    status ATTENDANCE_STATUS DEFAULT 'scheduled',
+    type APPOINTMENT_TYPE NOT NULL,
+    status APPOINTMENT_STATUS DEFAULT 'scheduled',
 
 -- Scheduled date/time (already timezone-agnostic)
 scheduled_date DATE NOT NULL, scheduled_time TIME NOT NULL,
@@ -135,10 +135,10 @@ notes TEXT,
 timezone_override VARCHAR(50),
 
 -- Parent/child relationship for linking follow-ups and generated treatments
-parent_attendance_id INTEGER REFERENCES hms_attendance (id) ON DELETE SET NULL,
+parent_appointment_id INTEGER REFERENCES hms_appointment (id) ON DELETE SET NULL,
 
--- Reschedule: links this (new) attendance to the original cancelled/missed one (migration 006)
-rescheduled_from_attendance_id INTEGER NULL,
+-- Reschedule: links this (new) appointment to the original cancelled/missed one (migration 006)
+rescheduled_from_appointment_id INTEGER NULL,
 
 -- Timezone-agnostic audit fields
 created_date DATE DEFAULT CURRENT_DATE,
@@ -147,19 +147,19 @@ updated_date DATE DEFAULT CURRENT_DATE,
 updated_time TIME DEFAULT CURRENT_TIME
 );
 
--- Ensure each original attendance can be the source of only one reschedule (migration 006)
-CREATE UNIQUE INDEX idx_attendance_rescheduled_from_unique ON hms_attendance (
-    rescheduled_from_attendance_id
+-- Ensure each original appointment can be the source of only one reschedule (migration 006)
+CREATE UNIQUE INDEX idx_appointment_rescheduled_from_unique ON hms_appointment (
+    rescheduled_from_appointment_id
 )
 WHERE
-    rescheduled_from_attendance_id IS NOT NULL;
+    rescheduled_from_appointment_id IS NOT NULL;
 
-COMMENT ON COLUMN hms_attendance.rescheduled_from_attendance_id IS 'ID of the cancelled/missed attendance this one was rescheduled from. At most one rescheduled attendance per original.';
+COMMENT ON COLUMN hms_appointment.rescheduled_from_appointment_id IS 'ID of the cancelled/missed appointment this one was rescheduled from. At most one rescheduled appointment per original.';
 
--- Consultation records (assessment consultation per attendance)
+-- Consultation records (assessment consultation per appointment)
 CREATE TABLE hms_consultation (
     id SERIAL PRIMARY KEY,
-    attendance_id INTEGER REFERENCES hms_attendance (id) ON DELETE CASCADE UNIQUE,
+    appointment_id INTEGER REFERENCES hms_appointment (id) ON DELETE CASCADE UNIQUE,
     main_concern TEXT,
     patient_status PATIENT_STATUS,
     food TEXT,
@@ -187,7 +187,7 @@ created_date DATE DEFAULT CURRENT_DATE,
 CREATE TABLE hms_treatment (
     id SERIAL PRIMARY KEY,
     consultation_id INTEGER NOT NULL REFERENCES hms_consultation (id) ON DELETE CASCADE,
-    attendance_id INTEGER NOT NULL REFERENCES hms_attendance (id) ON DELETE CASCADE,
+    appointment_id INTEGER NOT NULL REFERENCES hms_appointment (id) ON DELETE CASCADE,
     patient_id INTEGER NOT NULL REFERENCES hms_patient (id) ON DELETE CASCADE,
     
     treatment_type TREATMENT_TYPE NOT NULL,
@@ -229,7 +229,7 @@ CONSTRAINT check_physiotherapy_requirements CHECK (
 CREATE TABLE hms_session (
     id SERIAL PRIMARY KEY,
     treatment_id INTEGER NOT NULL REFERENCES hms_treatment (id) ON DELETE CASCADE,
-    attendance_id INTEGER REFERENCES hms_attendance (id) ON DELETE SET NULL,
+    appointment_id INTEGER REFERENCES hms_appointment (id) ON DELETE SET NULL,
     
     session_number INTEGER NOT NULL CHECK (session_number > 0),
     scheduled_date DATE NOT NULL,
@@ -250,14 +250,14 @@ created_date DATE DEFAULT CURRENT_DATE,
     updated_time TIME DEFAULT CURRENT_TIME
 );
 
--- One record per (treatment_id, session_number) per attendance (allows rescheduled attendances to have their own record; matches migrations 007/008)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_session_session_number_per_attendance ON hms_session (
+-- One record per (treatment_id, session_number) per appointment (allows rescheduled appointments to have their own record; matches migrations 007/008)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_session_session_number_per_appointment ON hms_session (
     treatment_id,
     session_number,
-    attendance_id
+    appointment_id
 )
 WHERE
-    attendance_id IS NOT NULL;
+    appointment_id IS NOT NULL;
 
 -- Schedule settings table (updated with timezone-agnostic timestamps)
 CREATE TABLE hms_schedule_setting (
@@ -327,7 +327,7 @@ COMMENT ON COLUMN hms_day_finalization.notes IS 'Optional notes about finalizati
 -- ============================================================================
 -- HOLIDAY MANAGEMENT SYSTEM
 -- ============================================================================
--- Purpose: Manage holidays and blocked dates for attendance scheduling
+-- Purpose: Manage holidays and blocked dates for appointment scheduling
 -- Version: 1.0
 -- Last Updated: 2026-01-27
 
@@ -358,13 +358,13 @@ CONSTRAINT valid_holiday_date CHECK (holiday_date >= CURRENT_DATE) );
 -- Performance index for fast date lookups
 CREATE INDEX idx_holiday_date ON hms_holiday (holiday_date);
 
--- Helper function to check if a date has scheduled attendances
+-- Helper function to check if a date has scheduled appointments
 -- Used for validation before creating holidays
-CREATE OR REPLACE FUNCTION has_scheduled_attendances(check_date DATE)
+CREATE OR REPLACE FUNCTION has_scheduled_appointments(check_date DATE)
 RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
-        SELECT 1 FROM hms_attendance
+        SELECT 1 FROM hms_appointment
         WHERE scheduled_date = check_date
         AND status != 'cancelled'
     );
@@ -372,7 +372,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Comments for holiday management
-COMMENT ON TABLE hms_holiday IS 'Stores holidays and blocked dates for attendance scheduling';
+COMMENT ON TABLE hms_holiday IS 'Stores holidays and blocked dates for appointment scheduling';
 
 COMMENT ON COLUMN hms_holiday.holiday_date IS 'Date of the holiday (must be unique)';
 
@@ -413,7 +413,7 @@ COMMENT ON COLUMN hms_holiday.updated_date IS 'Date when holiday was last update
 
 COMMENT ON COLUMN hms_holiday.updated_time IS 'Time when holiday was last updated (timezone-agnostic)';
 
-COMMENT ON FUNCTION has_scheduled_attendances (DATE) IS 'Checks if a date has non-cancelled scheduled attendances';
+COMMENT ON FUNCTION has_scheduled_appointments (DATE) IS 'Checks if a date has non-cancelled scheduled appointments';
 
 -- ============================================================================
 -- SYSTEM OPTIONS TABLE
@@ -573,8 +573,8 @@ CREATE TRIGGER update_patients_modtime
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_date_time_column();
 
-CREATE TRIGGER update_attendances_modtime
-    BEFORE UPDATE ON hms_attendance
+CREATE TRIGGER update_appointments_modtime
+    BEFORE UPDATE ON hms_appointment
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_date_time_column();
 
@@ -623,57 +623,57 @@ CREATE TRIGGER update_users_modtime
     EXECUTE FUNCTION update_user_updated_at_column();
 
 -- Enhanced function for consultation validation
-CREATE OR REPLACE FUNCTION check_one_consultation_per_attendance()
+CREATE OR REPLACE FUNCTION check_one_consultation_per_appointment()
 RETURNS TRIGGER AS $$
 DECLARE
-    attendance_exists BOOLEAN;
-    attendance_status hms_attendance.status%TYPE;
+    appointment_exists BOOLEAN;
+    appointment_status hms_appointment.status%TYPE;
     existing_record RECORD;
 BEGIN
-    -- Check if attendance exists
+    -- Check if appointment exists
     SELECT EXISTS(
-        SELECT 1 FROM hms_attendance WHERE id = NEW.attendance_id
-    ) INTO attendance_exists;
+        SELECT 1 FROM hms_appointment WHERE id = NEW.appointment_id
+    ) INTO appointment_exists;
 
-    IF NOT attendance_exists THEN
-        RAISE EXCEPTION 'Cannot create consultation: Attendance with ID % does not exist', NEW.attendance_id;
+    IF NOT appointment_exists THEN
+        RAISE EXCEPTION 'Cannot create consultation: Appointment with ID % does not exist', NEW.appointment_id;
     END IF;
 
-    -- Check attendance status
-    SELECT status INTO attendance_status
-    FROM hms_attendance
-    WHERE id = NEW.attendance_id;
+    -- Check appointment status
+    SELECT status INTO appointment_status
+    FROM hms_appointment
+    WHERE id = NEW.appointment_id;
 
-    IF attendance_status = 'cancelled' THEN
-        RAISE EXCEPTION 'Cannot create consultation: Attendance (ID: %) is cancelled', NEW.attendance_id;
+    IF appointment_status = 'cancelled' THEN
+        RAISE EXCEPTION 'Cannot create consultation: Appointment (ID: %) is cancelled', NEW.appointment_id;
     END IF;
 
     -- Check for existing consultation
     SELECT * INTO existing_record
     FROM hms_consultation
-    WHERE attendance_id = NEW.attendance_id;
+    WHERE appointment_id = NEW.appointment_id;
 
     IF FOUND THEN
-        RAISE EXCEPTION 'Cannot create consultation: Attendance (ID: %) already has a consultation (ID: %)',
-            NEW.attendance_id, existing_record.id;
+        RAISE EXCEPTION 'Cannot create consultation: Appointment (ID: %) already has a consultation (ID: %)',
+            NEW.appointment_id, existing_record.id;
     END IF;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to enforce one consultation per attendance
-CREATE TRIGGER ensure_one_consultation_per_attendance
+-- Trigger to enforce one consultation per appointment
+CREATE TRIGGER ensure_one_consultation_per_appointment
     BEFORE INSERT ON hms_consultation
     FOR EACH ROW
-    EXECUTE FUNCTION check_one_consultation_per_attendance();
+    EXECUTE FUNCTION check_one_consultation_per_appointment();
 
 -- Performance indexes
-CREATE INDEX idx_attendance_scheduled_date ON hms_attendance (scheduled_date);
+CREATE INDEX idx_appointment_scheduled_date ON hms_appointment (scheduled_date);
 
-CREATE INDEX idx_attendance_patient_id ON hms_attendance (patient_id);
+CREATE INDEX idx_appointment_patient_id ON hms_appointment (patient_id);
 
-CREATE INDEX idx_attendance_status ON hms_attendance (status);
+CREATE INDEX idx_appointment_status ON hms_appointment (status);
 
 CREATE INDEX idx_hms_patient_timezone ON hms_patient (timezone);
 
@@ -694,7 +694,7 @@ CREATE INDEX idx_consultation_patient_status ON hms_consultation (patient_status
 -- Column comments for timezone support
 COMMENT ON COLUMN hms_patient.timezone IS 'Patient timezone for scheduling and display purposes (IANA timezone format)';
 
-COMMENT ON COLUMN hms_attendance.timezone_override IS 'Optional timezone override for specific attendances (IANA timezone format)';
+COMMENT ON COLUMN hms_appointment.timezone_override IS 'Optional timezone override for specific appointments (IANA timezone format)';
 
 -- Patient notes table comments
 COMMENT ON TABLE hms_patient_note IS 'Stores patient notes and observations for healthcare providers';
@@ -714,19 +714,19 @@ COMMENT ON COLUMN hms_patient_note.updated_date IS 'Date when the note was last 
 COMMENT ON COLUMN hms_patient_note.updated_time IS 'Time when the note was last updated (timezone-agnostic)';
 
 -- Treatment timing and hierarchy comments
-COMMENT ON COLUMN hms_attendance.checked_in_time IS 'Check-in time (date derived from attendance context)';
+COMMENT ON COLUMN hms_appointment.checked_in_time IS 'Check-in time (date derived from appointment context)';
 
-COMMENT ON COLUMN hms_attendance.started_time IS 'Treatment start time (date derived from attendance context)';
+COMMENT ON COLUMN hms_appointment.started_time IS 'Treatment start time (date derived from appointment context)';
 
-COMMENT ON COLUMN hms_attendance.completed_time IS 'Treatment completion time (date derived from attendance context)';
+COMMENT ON COLUMN hms_appointment.completed_time IS 'Treatment completion time (date derived from appointment context)';
 
 COMMENT ON COLUMN hms_consultation.main_concern IS 'Main concern from the patient during this specific consultation session';
 
 COMMENT ON COLUMN hms_consultation.patient_status IS 'Patient lifecycle status at time of consultation: N=New, T=Treatment, D=Discharged, C=Consecutive no-shows';
 
-COMMENT ON COLUMN hms_consultation.start_time IS 'Consultation start time (date derived from attendance_date context)';
+COMMENT ON COLUMN hms_consultation.start_time IS 'Consultation start time (date derived from appointment_date context)';
 
-COMMENT ON COLUMN hms_consultation.end_time IS 'Consultation end time (date derived from attendance_date context)';
+COMMENT ON COLUMN hms_consultation.end_time IS 'Consultation end time (date derived from appointment_date context)';
 
 COMMENT ON COLUMN hms_treatment.body_locations IS 'Standard body locations for this treatment';
 
@@ -736,16 +736,16 @@ COMMENT ON COLUMN hms_session.start_time IS 'Session start time (date derived fr
 
 COMMENT ON COLUMN hms_session.end_time IS 'Session end time (date derived from scheduled_date context)';
 
--- Helper function to find root attendance from parent_attendance_id hierarchy
-CREATE OR REPLACE FUNCTION get_root_attendance_id(attendance_id INTEGER) 
+-- Helper function to find root appointment from parent_appointment_id hierarchy
+CREATE OR REPLACE FUNCTION get_root_appointment_id(appointment_id INTEGER) 
 RETURNS INTEGER AS $$
 DECLARE
-    current_id INTEGER := attendance_id;
+    current_id INTEGER := appointment_id;
     parent_id INTEGER;
 BEGIN
     LOOP
-        SELECT parent_attendance_id INTO parent_id 
-        FROM hms_attendance 
+        SELECT parent_appointment_id INTO parent_id 
+        FROM hms_appointment 
         WHERE id = current_id;
         
         IF parent_id IS NULL THEN
@@ -757,13 +757,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION get_root_attendance_id (INTEGER) IS 'Returns the root (main) attendance ID for any attendance in the hierarchy';
+COMMENT ON FUNCTION get_root_appointment_id (INTEGER) IS 'Returns the root (main) appointment ID for any appointment in the hierarchy';
 
--- Consultation episodes view - using parent_attendance_id from hms_attendance
+-- Consultation episodes view - using parent_appointment_id from hms_appointment
 CREATE OR REPLACE VIEW consultation_episodes AS
 SELECT
     t1.id as root_consultation_id,
-    t1.attendance_id as main_attendance_id,
+    t1.appointment_id as main_appointment_id,
     t1.notes as episode_notes,
     a1.scheduled_date as episode_start_date,
     COUNT(t2.id) + 1 as total_consultations,
@@ -782,18 +782,18 @@ SELECT
     END as episode_status
 FROM
     hms_consultation t1
-    LEFT JOIN hms_attendance a1 ON t1.attendance_id = a1.id
-    LEFT JOIN hms_attendance a2 ON a2.parent_attendance_id = a1.id
-    LEFT JOIN hms_consultation t2 ON t2.attendance_id = a2.id
+    LEFT JOIN hms_appointment a1 ON t1.appointment_id = a1.id
+    LEFT JOIN hms_appointment a2 ON a2.parent_appointment_id = a1.id
+    LEFT JOIN hms_consultation t2 ON t2.appointment_id = a2.id
 WHERE
-    a1.parent_attendance_id IS NULL -- Only root attendances
+    a1.parent_appointment_id IS NULL -- Only root appointments
 GROUP BY
     t1.id,
-    t1.attendance_id,
+    t1.appointment_id,
     t1.notes,
     a1.scheduled_date;
 
-COMMENT ON VIEW consultation_episodes IS 'Episode-level view of consultations with hierarchy (parent_attendance_id)';
+COMMENT ON VIEW consultation_episodes IS 'Episode-level view of consultations with hierarchy (parent_appointment_id)';
 
 -- Default schedule settings: production allows all weekdays 6 AM to 11 PM with up to 50 concurrent assessments and treatments (can be customized later)
 INSERT INTO

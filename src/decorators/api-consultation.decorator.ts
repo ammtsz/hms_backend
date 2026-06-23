@@ -35,7 +35,7 @@ export function ApiCreateConsultationOperation() {
   return applyDecorators(
     ApiOperation({
       summary: 'Create consultation',
-      description: 'Creates a new consultation for an attendance.',
+      description: 'Creates a new consultation for an appointment.',
     }),
     ApiResponse({
       status: 201,
@@ -51,12 +51,12 @@ export function ApiCreateConsultationOperation() {
     }),
     ApiResponse({
       status: 404,
-      description: 'Not found - Related attendance not found',
+      description: 'Not found - Related appointment not found',
     }),
     ApiResponse({
       status: 409,
       description:
-        'Conflict - Consultation already exists for this attendance',
+        'Conflict - Consultation already exists for this appointment',
     }),
     ApiResponse({
       status: 500,
@@ -172,13 +172,13 @@ export function ApiFindOneConsultationOperation() {
   );
 }
 
-export function ApiFindConsultationByAttendanceOperation() {
+export function ApiFindConsultationByAppointmentOperation() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Get consultation by attendance ID',
-      description: 'Retrieves the consultation for a specific attendance.',
+      summary: 'Get consultation by appointment ID',
+      description: 'Retrieves the consultation for a specific appointment.',
     }),
-    ApiParam({ name: 'id', description: 'Attendance ID' }),
+    ApiParam({ name: 'id', description: 'Appointment ID' }),
     ApiResponse({
       status: 200,
       description: 'Consultation retrieved successfully',
@@ -186,7 +186,7 @@ export function ApiFindConsultationByAttendanceOperation() {
     }),
     ApiResponse({
       status: 404,
-      description: 'No consultation found for this attendance',
+      description: 'No consultation found for this appointment',
     }),
     ApiResponse({
       status: 401,

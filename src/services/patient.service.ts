@@ -6,9 +6,9 @@ import {
   SystemOption,
   SystemOptionType,
 } from '../entities/system-option.entity';
-import { Attendance } from '../entities/attendance.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { CreatePatientDto, UpdatePatientDto } from '../dtos/patient.dto';
-import { AttendanceStatus, PatientStatus } from '../common/enums';
+import { AppointmentStatus, PatientStatus } from '../common/enums';
 import {
   isValidTimezone,
   getCurrentDateTimeInTimezone,
@@ -19,9 +19,9 @@ import {
   DuplicatePatientException,
   InvalidPatientPriorityException,
   PatientStatusUpdateException,
-  PatientHasActiveAttendancesException,
+  PatientHasActiveAppointmentsException,
 } from '../common/exceptions';
-import { AttendanceService } from './attendance.service';
+import { AppointmentService } from './appointment.service';
 import { TreatmentService } from './treatment.service';
 import { formatDisplayDate } from '../utils/date-string-helpers';
 import { PatientNoteService } from './patient-note.service';
@@ -29,7 +29,7 @@ import { CreatePatientNoteDto } from '../dtos/patient-note.dto';
 
 interface TransitionToDischargedOrConsecutiveNoShowsResult {
   patient: Patient;
-  cancelledAttendances: Array<{
+  cancelledAppointments: Array<{
     id: number;
     type: string;
     scheduled_date: string;
@@ -38,7 +38,7 @@ interface TransitionToDischargedOrConsecutiveNoShowsResult {
 
 export interface SetPatientStatusResult {
   patient: Patient;
-  cancelledAttendances?: Array<{
+  cancelledAppointments?: Array<{
     id: number;
     type: string;
     scheduled_date: string;
@@ -47,14 +47,14 @@ export interface SetPatientStatusResult {
 }
 
 export interface SetPatientStatusOptions {
-  /** Exclude these attendance IDs from cancellation (e.g. the one just completed via consultation flow). */
-  excludeAttendanceIds?: number[];
+  /** Exclude these appointment IDs from cancellation (e.g. the one just completed via consultation flow). */
+  excludeAppointmentIds?: number[];
   cancellationReason?: string;
   /**
-   * Attendance IDs used to derive the "trigger date" for audit notes (e.g. cancellation requested from a specific attendance).
-   * When not provided, the service falls back to excludeAttendanceIds[0] (when present) or to the current date in the patient's timezone.
+   * Appointment IDs used to derive the "trigger date" for audit notes (e.g. cancellation requested from a specific appointment).
+   * When not provided, the service falls back to excludeAppointmentIds[0] (when present) or to the current date in the patient's timezone.
    */
-  triggerAttendanceIds?: number[];
+  triggerAppointmentIds?: number[];
 }
 
 @Injectable()
@@ -64,9 +64,9 @@ export class PatientService {
     private patientRepository: Repository<Patient>,
     @InjectRepository(SystemOption)
     private systemOptionsRepository: Repository<SystemOption>,
-    @InjectRepository(Attendance)
-    private attendanceRepository: Repository<Attendance>,
-    private attendanceService: AttendanceService,
+    @InjectRepository(Appointment)
+    private appointmentRepository: Repository<Appointment>,
+    private appointmentService: AppointmentService,
     private treatmentService: TreatmentService,
     private patientNoteService: PatientNoteService,
   ) {}
@@ -213,12 +213,12 @@ export class PatientService {
       );
     }
     if (updatePatientDto.patient_status === PatientStatus.NEW_PATIENT) {
-      const completedCount = await this.attendanceRepository.count({
-        where: { patient_id: id, status: AttendanceStatus.COMPLETED },
+      const completedCount = await this.appointmentRepository.count({
+        where: { patient_id: id, status: AppointmentStatus.COMPLETED },
       });
       if (completedCount > 0) {
         throw new ValidationException(
-          'Can only change to New Patient status when the patient has no completed attendance.',
+          'Can only change to New Patient status when the patient has no completed appointment.',
         );
       }
     }
@@ -265,12 +265,12 @@ export class PatientService {
     updatePatientDto: UpdatePatientDto,
   ): Promise<void> {
     if (updatePatientDto.discharge_date == null) return;
-    const latestCompleted = await this.attendanceRepository
+    const latestCompleted = await this.appointmentRepository
       .createQueryBuilder('a')
       .select('MAX(a.scheduled_date)', 'maxDate')
       .where('a.patient_id = :id', { id })
       .andWhere('a.status = :status', {
-        status: AttendanceStatus.COMPLETED,
+        status: AppointmentStatus.COMPLETED,
       })
       .getRawOne<{ maxDate: string }>();
     const lastCompletedDate = latestCompleted?.maxDate;
@@ -279,14 +279,14 @@ export class PatientService {
       updatePatientDto.discharge_date < lastCompletedDate
     ) {
       throw new ValidationException(
-        `The discharge date cannot be earlier than the date of the last completed attendance (${lastCompletedDate}).`,
+        `The discharge date cannot be earlier than the date of the last completed appointment (${lastCompletedDate}).`,
       );
     }
   }
 
   /**
    * Single entry point for setting patient treatment status (N, T, D, or C).
-   * For D/C: cancels open attendances and non-completed sessions, then updates patient.
+   * For D/C: cancels open appointments and non-completed sessions, then updates patient.
    * For N/T: validates transition and updates patient only.
    * Returns unchanged: true when the patient already has the target status.
    */
@@ -298,7 +298,7 @@ export class PatientService {
     const patient = await this.findOne(id);
 
     if (patient.patient_status === newStatus) {
-      return { patient, cancelledAttendances: [], unchanged: true };
+      return { patient, cancelledAppointments: [], unchanged: true };
     }
 
     if (
@@ -309,14 +309,14 @@ export class PatientService {
         id,
         newStatus,
         {
-          excludeAttendanceIds: options?.excludeAttendanceIds,
+          excludeAppointmentIds: options?.excludeAppointmentIds,
           cancellationReason: options?.cancellationReason,
-          triggerAttendanceIds: options?.triggerAttendanceIds,
+          triggerAppointmentIds: options?.triggerAppointmentIds,
         },
       );
       return {
         patient: result.patient,
-        cancelledAttendances: result.cancelledAttendances,
+        cancelledAppointments: result.cancelledAppointments,
         unchanged: false,
       };
     }
@@ -349,15 +349,15 @@ export class PatientService {
     }
 
     if (newStatus === PatientStatus.NEW_PATIENT) {
-      const completedCount = await this.attendanceRepository.count({
+      const completedCount = await this.appointmentRepository.count({
         where: {
           patient_id: id,
-          status: AttendanceStatus.COMPLETED,
+          status: AppointmentStatus.COMPLETED,
         },
       });
       if (completedCount > 0) {
         throw new ValidationException(
-          'Can only change to New Patient status when the patient has no completed attendance.',
+          'Can only change to New Patient status when the patient has no completed appointment.',
         );
       }
     }
@@ -369,8 +369,8 @@ export class PatientService {
 
   /**
    * Transition patient to Discharged (D) or Consecutive no-shows (C).
-   * Validates the transition, cancels all open attendances and non-completed treatments,
-   * updates the patient, and returns the patient plus the list of cancelled attendances.
+   * Validates the transition, cancels all open appointments and non-completed treatments,
+   * updates the patient, and returns the patient plus the list of cancelled appointments.
    * @internal Used only by setPatientStatus; callers should use setPatientStatus.
    */
   private async transitionToDischargedOrConsecutiveNoShows(
@@ -378,9 +378,9 @@ export class PatientService {
     newStatus: PatientStatus.DISCHARGED | PatientStatus.CONSECUTIVE_NO_SHOWS,
     options?: {
       cancellationReason?: string;
-      /** Exclude these attendance IDs from cancellation (e.g. the one just completed via consultation flow). */
-      excludeAttendanceIds?: number[];
-      triggerAttendanceIds?: number[];
+      /** Exclude these appointment IDs from cancellation (e.g. the one just completed via consultation flow). */
+      excludeAppointmentIds?: number[];
+      triggerAppointmentIds?: number[];
     },
   ): Promise<TransitionToDischargedOrConsecutiveNoShowsResult> {
     const patient = await this.findOne(id);
@@ -424,15 +424,15 @@ export class PatientService {
     );
 
     let triggerDate = nowInPatientTimezone;
-    const triggerAttendanceId =
-      options?.triggerAttendanceIds?.[0] ?? options?.excludeAttendanceIds?.[0];
+    const triggerAppointmentId =
+      options?.triggerAppointmentIds?.[0] ?? options?.excludeAppointmentIds?.[0];
 
-    if (typeof triggerAttendanceId === 'number') {
-      const triggerAttendance = await this.attendanceRepository.findOne({
-        where: { id: triggerAttendanceId },
+    if (typeof triggerAppointmentId === 'number') {
+      const triggerAppointment = await this.appointmentRepository.findOne({
+        where: { id: triggerAppointmentId },
       });
-      if (triggerAttendance?.scheduled_date) {
-        triggerDate = triggerAttendance.scheduled_date;
+      if (triggerAppointment?.scheduled_date) {
+        triggerDate = triggerAppointment.scheduled_date;
       }
     }
 
@@ -445,12 +445,12 @@ export class PatientService {
         ? 'Discharged'
         : 'Consecutive no-shows';
 
-    const cancelledAttendances =
-      await this.attendanceService.cancelOpenAttendancesForPatient(
+    const cancelledAppointments =
+      await this.appointmentService.cancelOpenAppointmentsForPatient(
         id,
         cancellationReason,
         {
-          excludeAttendanceIds: options?.excludeAttendanceIds,
+          excludeAppointmentIds: options?.excludeAppointmentIds,
         },
       );
 
@@ -460,7 +460,7 @@ export class PatientService {
       await this.treatmentService.cancelTreatment(
         session.id,
         cancellationReason,
-        { cancelLinkedOpenAttendances: false },
+        { cancelLinkedOpenAppointments: false },
       );
     }
 
@@ -472,7 +472,7 @@ export class PatientService {
     const savedPatient = await this.patientRepository.save(patient);
 
     const noteCategory: CreatePatientNoteDto['category'] = 'status_change';
-    const detailedNoteEnabled = cancelledAttendances.length > 0;
+    const detailedNoteEnabled = cancelledAppointments.length > 0;
 
     if (detailedNoteEnabled) {
       const byDate = new Map<
@@ -480,7 +480,7 @@ export class PatientService {
         { assessment: boolean; hasPhysiotherapy: boolean; hasTens: boolean }
       >();
 
-      for (const cancelled of cancelledAttendances) {
+      for (const cancelled of cancelledAppointments) {
         const current = byDate.get(cancelled.scheduled_date) ?? {
           assessment: false,
           hasPhysiotherapy: false,
@@ -501,7 +501,7 @@ export class PatientService {
       const sortedDates = Array.from(byDate.keys()).sort();
       const maxNoteLength = 1900; // keep below backend 2000 char validation
 
-      let noteContent = `Patient status changed to ${statusLabel} on ${triggerDateBR}.\nReason: ${cancellationReason}\nCancelled attendances:\n`;
+      let noteContent = `Patient status changed to ${statusLabel} on ${triggerDateBR}.\nReason: ${cancellationReason}\nCancelled appointments:\n`;
 
       for (const date of sortedDates) {
         const bucket = byDate.get(date);
@@ -536,28 +536,28 @@ export class PatientService {
       await this.patientNoteService.create(id, noteDto);
     } else {
       const noteDto: CreatePatientNoteDto = {
-        note_content: `Patient status changed to ${statusLabel} on ${triggerDateBR}.\nReason: ${cancellationReason}\nAll open attendances were cancelled.`,
+        note_content: `Patient status changed to ${statusLabel} on ${triggerDateBR}.\nReason: ${cancellationReason}\nAll open appointments were cancelled.`,
         category: noteCategory,
       };
       await this.patientNoteService.create(id, noteDto);
     }
 
-    return { patient: savedPatient, cancelledAttendances };
+    return { patient: savedPatient, cancelledAppointments };
   }
 
   async remove(id: number): Promise<void> {
-    // Allow deleting only when all linked attendances are cancelled or missed.
-    const blockingAttendancesCount = await this.attendanceRepository.count({
+    // Allow deleting only when all linked appointments are cancelled or missed.
+    const blockingAppointmentsCount = await this.appointmentRepository.count({
       where: {
         patient_id: id,
-        status: Not(In([AttendanceStatus.CANCELLED, AttendanceStatus.MISSED])),
+        status: Not(In([AppointmentStatus.CANCELLED, AppointmentStatus.MISSED])),
       },
     });
 
-    if (blockingAttendancesCount > 0) {
-      throw new PatientHasActiveAttendancesException(
+    if (blockingAppointmentsCount > 0) {
+      throw new PatientHasActiveAppointmentsException(
         id,
-        blockingAttendancesCount,
+        blockingAppointmentsCount,
       );
     }
 

@@ -1,10 +1,10 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Attendance } from '../entities/attendance.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { Patient } from '../entities/patient.entity';
 import { ScheduleSetting } from '../entities/schedule-setting.entity';
-import { AttendanceController } from '../controllers/attendance.controller';
-import { AttendanceService } from '../services/attendance.service';
+import { AppointmentController } from '../controllers/appointment.controller';
+import { AppointmentService } from '../services/appointment.service';
 import { SessionModule } from './session.module';
 import { TreatmentModule } from './treatment.module';
 import { HolidayModule } from './holiday.module';
@@ -12,14 +12,14 @@ import { DayFinalizationModule } from './day-finalization.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Attendance, Patient, ScheduleSetting]),
+    TypeOrmModule.forFeature([Appointment, Patient, ScheduleSetting]),
     SessionModule,
     forwardRef(() => TreatmentModule),
     HolidayModule,
     forwardRef(() => DayFinalizationModule),
   ],
-  controllers: [AttendanceController],
-  providers: [AttendanceService],
-  exports: [AttendanceService],
+  controllers: [AppointmentController],
+  providers: [AppointmentService],
+  exports: [AppointmentService],
 })
-export class AttendanceModule {}
+export class AppointmentModule {}

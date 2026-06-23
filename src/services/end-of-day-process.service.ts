@@ -6,14 +6,14 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { DayFinalizationService } from './day-finalization.service';
-import { AttendanceService } from './attendance.service';
+import { AppointmentService } from './appointment.service';
 import { PatientService } from './patient.service';
 import { TreatmentService } from './treatment.service';
 import { SessionService } from './session.service';
-import { Attendance } from '../entities/attendance.entity';
+import { Appointment } from '../entities/appointment.entity';
 import {
-  AttendanceStatus,
-  AttendanceType,
+  AppointmentStatus,
+  AppointmentType,
   PatientStatus,
 } from '../common/enums';
 import {
@@ -35,8 +35,8 @@ export class EndOfDayProcessService {
     private readonly dayFinalizationService: DayFinalizationService,
     private readonly sessionService: SessionService,
     private readonly systemSettingsService: SystemSettingsService,
-    @Inject(forwardRef(() => AttendanceService))
-    private readonly attendanceService: AttendanceService,
+    @Inject(forwardRef(() => AppointmentService))
+    private readonly appointmentService: AppointmentService,
     @Inject(forwardRef(() => PatientService))
     private readonly patientService: PatientService,
     @Inject(forwardRef(() => TreatmentService))
@@ -70,124 +70,124 @@ export class EndOfDayProcessService {
     }
 
     // 2. Mark each absence as MISSED
-    const missedAttendancesMap = new Map<number, Attendance>();
+    const missedAppointmentsMap = new Map<number, Appointment>();
     for (const item of absence_justifications) {
       try {
-        const attendance = await this.attendanceService.update(
-          item.attendance_id,
+        const appointment = await this.appointmentService.update(
+          item.appointment_id,
           {
-            status: AttendanceStatus.MISSED,
+            status: AppointmentStatus.MISSED,
             absence_justified: item.justified,
             absence_notes: item.notes ?? null,
           },
         );
-        missedAttendancesMap.set(attendance.id, attendance);
+        missedAppointmentsMap.set(appointment.id, appointment);
       } catch (err) {
         this.logger.error(
-          `Failed to mark attendance ${item.attendance_id} as MISSED: ${err instanceof Error ? err.message : String(err)}`,
+          `Failed to mark appointment ${item.appointment_id} as MISSED: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }
 
-    // 3. Build list of missed attendances
-    const missed: Array<{ attendance: Attendance }> = [];
+    // 3. Build list of missed appointments
+    const missed: Array<{ appointment: Appointment }> = [];
     for (const item of absence_justifications) {
-      const attendance = missedAttendancesMap.get(item.attendance_id);
-      if (!attendance) continue;
+      const appointment = missedAppointmentsMap.get(item.appointment_id);
+      if (!appointment) continue;
 
-      missed.push({ attendance });
+      missed.push({ appointment });
     }
 
     // Track patients already processed for C to avoid duplicates
     const patientsProcessedForC = new Set<number>();
 
-    // Accumulate furthest return date per assessment attendance (so we reschedule each return only once)
+    // Accumulate furthest return date per assessment appointment (so we reschedule each return only once)
     const assessmentReturnRescheduleMap = new Map<number, string>();
 
     const threshold =
       await this.systemSettingsService.getMissingAppointmentsThreshold();
 
-    const rescheduledAttendanceIds = new Set<number>();
+    const rescheduledAppointmentIds = new Set<number>();
 
     // 4. Process each unjustified missed
-    for (const { attendance } of missed) {
-      if (rescheduledAttendanceIds.has(attendance.id)) {
+    for (const { appointment } of missed) {
+      if (rescheduledAppointmentIds.has(appointment.id)) {
         continue;
       }
       try {
         const patient = await this.patientService.findOne(
-          attendance.patient_id,
+          appointment.patient_id,
         );
         const streak = patient.missing_appointments_streak;
         const patientName =
-          attendance.patient?.name ?? patient.name ?? 'Patient';
+          appointment.patient?.name ?? patient.name ?? 'Patient';
 
         if (streak === threshold) {
           // Rule 2: Set patient to C and cancel all future (dedupe by patient)
-          if (!patientsProcessedForC.has(attendance.patient_id)) {
-            patientsProcessedForC.add(attendance.patient_id);
+          if (!patientsProcessedForC.has(appointment.patient_id)) {
+            patientsProcessedForC.add(appointment.patient_id);
             try {
               const result = await this.patientService.setPatientStatus(
-                attendance.patient_id,
+                appointment.patient_id,
                 PatientStatus.CONSECUTIVE_NO_SHOWS,
                 {
                   cancellationReason: `${threshold} consecutive unjustified absences`,
                 },
               );
-              const cancelledAttendances = result.cancelledAttendances ?? [];
+              const cancelledAppointments = result.cancelledAppointments ?? [];
 
               summary.status_changed_to_c.push({
-                patient_id: attendance.patient_id,
+                patient_id: appointment.patient_id,
                 patient_name: patientName,
               });
               summary.cancelled_for_c.push({
-                patient_id: attendance.patient_id,
+                patient_id: appointment.patient_id,
                 patient_name: patientName,
-                attendances: cancelledAttendances,
+                appointments: cancelledAppointments,
               });
             } catch (err) {
-              // Undo reservation so a retry (another attendance for same patient) can attempt again
-              patientsProcessedForC.delete(attendance.patient_id);
+              // Undo reservation so a retry (another appointment for same patient) can attempt again
+              patientsProcessedForC.delete(appointment.patient_id);
               throw err;
             }
           }
         } else {
-          // Non-T patients (N, D, C) may reschedule only their first assessment attendance
-          // (parent_attendance_id null = root consultation, i.e. starting a new treatment episode).
+          // Non-T patients (N, D, C) may reschedule only their first assessment appointment
+          // (parent_appointment_id null = root consultation, i.e. starting a new treatment episode).
           const isNonTreatmentPatient =
             patient.patient_status !== PatientStatus.IN_TREATMENT;
           const isFirstAssessmentForNonTreatment =
             isNonTreatmentPatient &&
-            attendance.type === AttendanceType.ASSESSMENT &&
-            attendance.parent_attendance_id == null;
+            appointment.type === AppointmentType.ASSESSMENT &&
+            appointment.parent_appointment_id == null;
 
           if (isNonTreatmentPatient && !isFirstAssessmentForNonTreatment) {
             summary.could_not_reschedule.push({
-              attendance_id: attendance.id,
-              patient_id: attendance.patient_id,
+              appointment_id: appointment.id,
+              patient_id: appointment.patient_id,
               patient_name: patientName,
-              type: attendance.type,
+              type: appointment.type,
               reason: "Patient doesn't have an active treatment",
             });
             continue;
           }
 
-          // Rule 1: Reschedule — each treatment attendance is processed individually so that
+          // Rule 1: Reschedule — each treatment appointment is processed individually so that
           // different treatment plans for the same patient/type/day each get their own
           // next-available date (which depends on that treatment's last session date).
           const isTreatment =
-            attendance.type === AttendanceType.PHYSIOTHERAPY ||
-            attendance.type === AttendanceType.TENS;
+            appointment.type === AppointmentType.PHYSIOTHERAPY ||
+            appointment.type === AppointmentType.TENS;
 
           const nextDate =
-            await this.attendanceService.getNextAvailableDateForAttendance(
-              attendance.id,
+            await this.appointmentService.getNextAvailableDateForAppointment(
+              appointment.id,
             );
 
-          if (nextDate && nextDate !== attendance.scheduled_date) {
-            await this.attendanceService.reschedule(
+          if (nextDate && nextDate !== appointment.scheduled_date) {
+            await this.appointmentService.reschedule(
               {
-                attendance_ids: [attendance.id],
+                appointment_ids: [appointment.id],
                 new_scheduled_date: nextDate,
               },
               isFirstAssessmentForNonTreatment
@@ -195,67 +195,67 @@ export class EndOfDayProcessService {
                 : undefined,
             );
 
-            rescheduledAttendanceIds.add(attendance.id);
+            rescheduledAppointmentIds.add(appointment.id);
             summary.rescheduled.push({
-              attendance_id: attendance.id,
-              patient_id: attendance.patient_id,
+              appointment_id: appointment.id,
+              patient_id: appointment.patient_id,
               patient_name: patientName,
-              type: attendance.type,
-              old_date: attendance.scheduled_date,
+              type: appointment.type,
+              old_date: appointment.scheduled_date,
               new_date: nextDate,
             });
 
             if (isTreatment) {
               await this.collectReturnAssessmentReschedulesForGroup(
-                [attendance],
+                [appointment],
                 nextDate,
                 assessmentReturnRescheduleMap,
               );
             }
           } else {
             summary.could_not_reschedule.push({
-              attendance_id: attendance.id,
-              patient_id: attendance.patient_id,
+              appointment_id: appointment.id,
+              patient_id: appointment.patient_id,
               patient_name: patientName,
-              type: attendance.type,
+              type: appointment.type,
               reason: 'Could not find an available date within 52 weeks',
             });
           }
         }
       } catch (err) {
         this.logger.error(
-          `Error processing absence for attendance ${attendance.id} (patient ${attendance.patient_id}): ${err instanceof Error ? err.message : String(err)}`,
+          `Error processing absence for appointment ${appointment.id} (patient ${appointment.patient_id}): ${err instanceof Error ? err.message : String(err)}`,
         );
         summary.could_not_reschedule.push({
-          attendance_id: attendance.id,
-          patient_id: attendance.patient_id,
-          patient_name: attendance.patient?.name ?? 'Patient',
-          type: attendance.type,
+          appointment_id: appointment.id,
+          patient_id: appointment.patient_id,
+          patient_name: appointment.patient?.name ?? 'Patient',
+          type: appointment.type,
           reason: 'Internal error while processing absence',
         });
       }
     }
 
-    // 4b. Apply assessment return reschedules once per attendance (using furthest date)
+    // 4b. Apply assessment return reschedules once per appointment (using furthest date)
     for (const [assessmentAttId, newDate] of assessmentReturnRescheduleMap) {
       try {
         const assessmentAtt =
-          await this.attendanceService.findOne(assessmentAttId);
+          await this.appointmentService.findOne(assessmentAttId);
         if (assessmentAtt.scheduled_date === newDate) {
           continue;
         }
-        await this.attendanceService.postpone(assessmentAttId, newDate);
+        await this.appointmentService.postpone(assessmentAttId, newDate);
         summary.rescheduled.push({
-          attendance_id: assessmentAttId,
+          appointment_id: assessmentAttId,
           patient_id: assessmentAtt.patient_id,
           patient_name: assessmentAtt.patient?.name ?? 'Patient',
-          type: AttendanceType.ASSESSMENT,
+          type: AppointmentType.ASSESSMENT,
           old_date: assessmentAtt.scheduled_date,
           new_date: newDate,
         });
       } catch (err) {
         this.logger.warn(
-          `Could not reschedule return assessment attendance ${assessmentAttId}: ${err instanceof Error ? err.message : String(err)}`,
+          `Could not reschedule return assessment appointment ${assessmentAttId}: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }
@@ -273,16 +273,16 @@ export class EndOfDayProcessService {
    * For each distinct treatment in a same-day missed group, queue return assessment moves.
    */
   private async collectReturnAssessmentReschedulesForGroup(
-    group: Attendance[],
+    group: Appointment[],
     nextDate: string,
     assessmentReturnRescheduleMap: Map<number, string>,
   ): Promise<void> {
     const processedTreatmentIds = new Set<number>();
 
-    for (const missedAttendance of group) {
+    for (const missedAppointment of group) {
       const treatmentId =
-        await this.attendanceService.getTreatmentIdForAttendanceId(
-          missedAttendance.id,
+        await this.appointmentService.getTreatmentIdForAppointmentId(
+          missedAppointment.id,
         );
       if (!treatmentId || processedTreatmentIds.has(treatmentId)) {
         continue;
@@ -292,18 +292,18 @@ export class EndOfDayProcessService {
       let oldLastTreatmentDate =
         await this.sessionService.getMaxScheduledDateForTreatment(treatmentId);
       if (
-        missedAttendance.scheduled_date &&
+        missedAppointment.scheduled_date &&
         (!oldLastTreatmentDate ||
-          missedAttendance.scheduled_date > oldLastTreatmentDate)
+          missedAppointment.scheduled_date > oldLastTreatmentDate)
       ) {
-        oldLastTreatmentDate = missedAttendance.scheduled_date;
+        oldLastTreatmentDate = missedAppointment.scheduled_date;
       }
       if (!oldLastTreatmentDate) {
         continue;
       }
 
-      const returnAssessmentAttendances =
-        await this.findReturnAssessmentAttendancesForTreatment(
+      const returnAssessmentAppointments =
+        await this.findReturnAssessmentAppointmentsForTreatment(
           treatmentId,
           oldLastTreatmentDate,
         );
@@ -313,7 +313,7 @@ export class EndOfDayProcessService {
         sessionInfo?.return_when_treatment_complete ?? false;
       const returnWeeks = sessionInfo?.return_weeks ?? 0;
       const shouldRescheduleReturns =
-        returnAssessmentAttendances.length > 0 &&
+        returnAssessmentAppointments.length > 0 &&
         (returnWhenComplete || returnWeeks > 0);
 
       if (!shouldRescheduleReturns) {
@@ -324,12 +324,12 @@ export class EndOfDayProcessService {
         ? addDaysToDateString(nextDate, returnWeeks * 7)
         : addDaysToDateString(nextDate, 7);
       const adjustedReturnDate =
-        await this.attendanceService.findNextSchedulableDate(
+        await this.appointmentService.findNextSchedulableDate(
           returnDate,
           'assessment',
         );
 
-      for (const assessmentAtt of returnAssessmentAttendances) {
+      for (const assessmentAtt of returnAssessmentAppointments) {
         if (assessmentAtt.scheduled_date === adjustedReturnDate) {
           continue;
         }
@@ -348,32 +348,32 @@ export class EndOfDayProcessService {
   }
 
   /**
-   * Find assessment attendances that are return consultations in the same episode,
+   * Find assessment appointments that are return consultations in the same episode,
    * with scheduled_date >= minScheduledDate and status SCHEDULED.
    * Uses the old last treatment date (minScheduledDate) so returns anchored to the previous
    * last treatment (e.g. return_weeks=0) are included after the treatment is rescheduled.
-   * Episode chain: session.attendance_id (root) + all attendances with parent_attendance_id in chain.
+   * Episode chain: session.appointment_id (root) + all appointments with parent_appointment_id in chain.
    */
-  private async findReturnAssessmentAttendancesForTreatment(
+  private async findReturnAssessmentAppointmentsForTreatment(
     treatmentId: number,
     minScheduledDate: string,
-  ): Promise<Attendance[]> {
+  ): Promise<Appointment[]> {
     const sessionInfo =
       await this.treatmentService.getSessionWithReturnConfig(treatmentId);
     if (!sessionInfo) return [];
 
-    const patientAttendances = await this.attendanceService.findByPatientId(
+    const patientAppointments = await this.appointmentService.findByPatientId(
       sessionInfo.patient_id,
     );
-    const rootId = sessionInfo.attendance_id;
+    const rootId = sessionInfo.appointment_id;
 
     const chainIds = new Set<number>([rootId]);
     let added = true;
     while (added) {
       added = false;
-      for (const att of patientAttendances) {
-        const parentId = (att as unknown as { parent_attendance_id?: number })
-          .parent_attendance_id;
+      for (const att of patientAppointments) {
+        const parentId = (att as unknown as { parent_appointment_id?: number })
+          .parent_appointment_id;
         if (
           parentId != null &&
           chainIds.has(parentId) &&
@@ -385,21 +385,21 @@ export class EndOfDayProcessService {
       }
     }
 
-    // Get all assessment attendances that are return consultations in the same episode,
+    // Get all assessment appointments that are return consultations in the same episode,
     // with scheduled_date >= lastTreatmentDate and status SCHEDULED.
-    const assessment: Attendance[] = [];
-    for (const att of patientAttendances) {
-      const a = att as unknown as Attendance & {
-        parent_attendance_id?: number;
+    const assessment: Appointment[] = [];
+    for (const att of patientAppointments) {
+      const a = att as unknown as Appointment & {
+        parent_appointment_id?: number;
       };
       if (
-        a.type === AttendanceType.ASSESSMENT &&
-        a.status === AttendanceStatus.SCHEDULED &&
-        a.parent_attendance_id != null &&
-        chainIds.has(a.parent_attendance_id) &&
+        a.type === AppointmentType.ASSESSMENT &&
+        a.status === AppointmentStatus.SCHEDULED &&
+        a.parent_appointment_id != null &&
+        chainIds.has(a.parent_appointment_id) &&
         a.scheduled_date >= minScheduledDate
       ) {
-        const full = await this.attendanceService.findOne(a.id);
+        const full = await this.appointmentService.findOne(a.id);
         assessment.push(full);
       }
     }

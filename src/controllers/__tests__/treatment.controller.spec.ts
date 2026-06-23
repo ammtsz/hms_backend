@@ -45,7 +45,7 @@ describe('TreatmentController', () => {
       it('should create a treatment session', async () => {
         const dto: CreateTreatmentDto = {
           consultation_id: 1,
-          attendance_id: 1,
+          appointment_id: 1,
           patient_id: 1,
           treatment_type: 'physiotherapy' as any,
           body_location: 'head',
@@ -59,7 +59,7 @@ describe('TreatmentController', () => {
         const expected: TreatmentResponseDto = {
           id: 1,
           consultation_id: 1,
-          attendance_id: 1,
+          appointment_id: 1,
           patient_id: 1,
           treatment_type: 'physiotherapy' as any,
           body_location: 'head',
@@ -95,7 +95,7 @@ describe('TreatmentController', () => {
           {
             id: 1,
             consultation_id: 1,
-            attendance_id: 1,
+            appointment_id: 1,
             patient_id: 1,
             treatment_type: 'physiotherapy' as any,
             body_location: 'head',
@@ -134,7 +134,7 @@ describe('TreatmentController', () => {
         const expected: TreatmentResponseDto = {
           id: 1,
           consultation_id: 1,
-          attendance_id: 1,
+          appointment_id: 1,
           patient_id: 1,
           treatment_type: 'physiotherapy' as any,
           body_location: 'head',
@@ -173,7 +173,7 @@ describe('TreatmentController', () => {
         const expected: TreatmentResponseDto = {
           id: 1,
           consultation_id: 1,
-          attendance_id: 1,
+          appointment_id: 1,
           patient_id: 1,
           treatment_type: 'physiotherapy' as any,
           body_location: 'head',

@@ -6,7 +6,7 @@ import {
   JoinColumn,
   Check,
 } from 'typeorm';
-import { Attendance } from './attendance.entity';
+import { Appointment } from './appointment.entity';
 
 @Entity('hms_consultation')
 @Check(`"return_weeks" >= 0 AND "return_weeks" <= 52`)
@@ -15,13 +15,13 @@ export class Consultation {
   id: number;
 
   @Column()
-  attendance_id: number;
+  appointment_id: number;
 
-  @OneToOne(() => Attendance, (attendance) => attendance.consultation, {
+  @OneToOne(() => Appointment, (appointment) => appointment.consultation, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'attendance_id' })
-  attendance: Attendance;
+  @JoinColumn({ name: 'appointment_id' })
+  appointment: Appointment;
 
   @Column({ type: 'text', nullable: true })
   main_concern: string;

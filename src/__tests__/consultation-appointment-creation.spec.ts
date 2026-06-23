@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { TreatmentService } from '../services/treatment.service';
-import { AttendanceService } from '../services/attendance.service';
+import { AppointmentService } from '../services/appointment.service';
 import { Treatment, TreatmentType } from '../entities/treatment.entity';
 import { Session } from '../entities/session.entity';
 import { Consultation } from '../entities/consultation.entity';
-import { Attendance } from '../entities/attendance.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { Patient } from '../entities/patient.entity';
-import { AttendanceType, AttendanceStatus } from '../common/enums';
+import { AppointmentType, AppointmentStatus } from '../common/enums';
 
-describe('TreatmentService - Attendance Creation', () => {
+describe('TreatmentService - Appointment Creation', () => {
   let service: TreatmentService;
 
   const mockTreatmentRepository = {
@@ -30,7 +30,7 @@ describe('TreatmentService - Attendance Creation', () => {
     findOne: jest.fn(),
   };
 
-  const mockAttendanceRepository = {
+  const mockAppointmentRepository = {
     create: jest.fn(),
     save: jest.fn(),
     findOne: jest.fn(),
@@ -41,7 +41,7 @@ describe('TreatmentService - Attendance Creation', () => {
     save: jest.fn(),
   };
 
-  const mockAttendanceService = {
+  const mockAppointmentService = {
     create: jest.fn(),
     update: jest.fn(),
     findOne: jest.fn(),
@@ -69,16 +69,16 @@ describe('TreatmentService - Attendance Creation', () => {
           useValue: mockConsultationRepository,
         },
         {
-          provide: getRepositoryToken(Attendance),
-          useValue: mockAttendanceRepository,
+          provide: getRepositoryToken(Appointment),
+          useValue: mockAppointmentRepository,
         },
         {
           provide: getRepositoryToken(Patient),
           useValue: mockPatientRepository,
         },
         {
-          provide: AttendanceService,
-          useValue: mockAttendanceService,
+          provide: AppointmentService,
+          useValue: mockAppointmentService,
         },
       ],
     }).compile();
@@ -86,21 +86,21 @@ describe('TreatmentService - Attendance Creation', () => {
     service = module.get<TreatmentService>(TreatmentService);
   });
 
-  describe('createTreatment with automatic attendance creation', () => {
-    it('should create multiple attendances for multiple sessions', async () => {
+  describe('createTreatment with automatic appointment creation', () => {
+    it('should create multiple appointments for multiple sessions', async () => {
       // Setup
       const consultationId = 1;
-      const attendanceId = 1;
+      const appointmentId = 1;
       const patientId = 1;
       const startDate = '2024-01-15'; // Monday in YYYY-MM-DD format
       const plannedSessions = 4;
 
       const mockConsultation = { id: consultationId };
-      const mockAttendance = { id: attendanceId };
+      const mockAppointment = { id: appointmentId };
       const mockTreatment = {
         id: 1,
         consultation_id: consultationId,
-        attendance_id: attendanceId,
+        appointment_id: appointmentId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
         body_location: 'Head',
@@ -114,7 +114,7 @@ describe('TreatmentService - Attendance Creation', () => {
 
       // Mock repository responses
       mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
-      mockAttendanceRepository.findOne.mockResolvedValue(mockAttendance);
+      mockAppointmentRepository.findOne.mockResolvedValue(mockAppointment);
       mockTreatmentRepository.create.mockReturnValue(mockTreatment);
       mockTreatmentRepository.save.mockResolvedValue(mockTreatment);
       mockTreatmentRepository.findOne.mockResolvedValue(mockTreatment);
@@ -130,15 +130,15 @@ describe('TreatmentService - Attendance Creation', () => {
       mockSessionRepository.create.mockImplementation((data) => data);
       mockSessionRepository.save.mockResolvedValue(mockSessions);
 
-      // Mock attendance creation
-      const mockCreatedAttendance = { id: 2 };
-      mockAttendanceRepository.create.mockImplementation((data) => data);
-      mockAttendanceRepository.save.mockResolvedValue(mockCreatedAttendance);
+      // Mock appointment creation
+      const mockCreatedAppointment = { id: 2 };
+      mockAppointmentRepository.create.mockImplementation((data) => data);
+      mockAppointmentRepository.save.mockResolvedValue(mockCreatedAppointment);
 
       // Call the service
       const result = await service.createTreatment({
         consultation_id: consultationId,
-        attendance_id: attendanceId,
+        appointment_id: appointmentId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
         body_location: 'Head',
@@ -162,8 +162,8 @@ describe('TreatmentService - Attendance Creation', () => {
         ]),
       );
 
-      // Verify attendances were created for each session
-      expect(mockAttendanceRepository.save).toHaveBeenCalledTimes(
+      // Verify appointments were created for each session
+      expect(mockAppointmentRepository.save).toHaveBeenCalledTimes(
         plannedSessions,
       );
 
@@ -172,20 +172,20 @@ describe('TreatmentService - Attendance Creation', () => {
       expect(result.planned_sessions).toBe(plannedSessions);
     });
 
-    it('should create attendances with correct type based on treatment type', async () => {
+    it('should create appointments with correct type based on treatment type', async () => {
       // Setup for TENS treatment
       const consultationId = 1;
-      const attendanceId = 1;
+      const appointmentId = 1;
       const patientId = 1;
       const startDate = '2024-01-15';
       const plannedSessions = 3;
 
       const mockConsultation = { id: consultationId };
-      const mockAttendance = { id: attendanceId };
+      const mockAppointment = { id: appointmentId };
       const mockTreatment = {
         id: 1,
         consultation_id: consultationId,
-        attendance_id: attendanceId,
+        appointment_id: appointmentId,
         patient_id: patientId,
         treatment_type: TreatmentType.TENS,
         body_location: 'Back',
@@ -197,7 +197,7 @@ describe('TreatmentService - Attendance Creation', () => {
 
       // Mock repository responses
       mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
-      mockAttendanceRepository.findOne.mockResolvedValue(mockAttendance);
+      mockAppointmentRepository.findOne.mockResolvedValue(mockAppointment);
       mockTreatmentRepository.create.mockReturnValue(mockTreatment);
       mockTreatmentRepository.save.mockResolvedValue(mockTreatment);
       mockTreatmentRepository.findOne.mockResolvedValue(mockTreatment);
@@ -213,18 +213,18 @@ describe('TreatmentService - Attendance Creation', () => {
       mockSessionRepository.create.mockImplementation((data) => data);
       mockSessionRepository.save.mockResolvedValue(mockSessions);
 
-      // Mock attendance creation - capture the calls
-      const createdAttendances = [];
-      mockAttendanceRepository.create.mockImplementation((data) => {
-        createdAttendances.push(data);
+      // Mock appointment creation - capture the calls
+      const createdAppointments = [];
+      mockAppointmentRepository.create.mockImplementation((data) => {
+        createdAppointments.push(data);
         return data;
       });
-      mockAttendanceRepository.save.mockResolvedValue({ id: 2 });
+      mockAppointmentRepository.save.mockResolvedValue({ id: 2 });
 
       // Call the service
       await service.createTreatment({
         consultation_id: consultationId,
-        attendance_id: attendanceId,
+        appointment_id: appointmentId,
         patient_id: patientId,
         treatment_type: TreatmentType.TENS,
         body_location: 'Back',
@@ -232,30 +232,30 @@ describe('TreatmentService - Attendance Creation', () => {
         planned_sessions: plannedSessions,
       });
 
-      // Verify attendances were created with TENS type
-      expect(createdAttendances.length).toBe(plannedSessions);
-      createdAttendances.forEach((attendance) => {
-        expect(attendance.type).toBe(AttendanceType.TENS);
-        expect(attendance.patient_id).toBe(patientId);
-        expect(attendance.status).toBe(AttendanceStatus.SCHEDULED);
-        expect(attendance.parent_attendance_id).toBe(attendanceId);
+      // Verify appointments were created with TENS type
+      expect(createdAppointments.length).toBe(plannedSessions);
+      createdAppointments.forEach((appointment) => {
+        expect(appointment.type).toBe(AppointmentType.TENS);
+        expect(appointment.patient_id).toBe(patientId);
+        expect(appointment.status).toBe(AppointmentStatus.SCHEDULED);
+        expect(appointment.parent_appointment_id).toBe(appointmentId);
       });
     });
 
     it('should schedule sessions weekly with 7-day intervals', async () => {
       // Setup
       const consultationId = 1;
-      const attendanceId = 1;
+      const appointmentId = 1;
       const patientId = 1;
       const startDate = '2024-01-15'; // Monday
       const plannedSessions = 3;
 
       const mockConsultation = { id: consultationId };
-      const mockAttendance = { id: attendanceId };
+      const mockAppointment = { id: appointmentId };
       const mockTreatment = {
         id: 1,
         consultation_id: consultationId,
-        attendance_id: attendanceId,
+        appointment_id: appointmentId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
         body_location: 'Head',
@@ -269,7 +269,7 @@ describe('TreatmentService - Attendance Creation', () => {
 
       // Mock repository responses
       mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
-      mockAttendanceRepository.findOne.mockResolvedValue(mockAttendance);
+      mockAppointmentRepository.findOne.mockResolvedValue(mockAppointment);
       mockTreatmentRepository.create.mockReturnValue(mockTreatment);
       mockTreatmentRepository.save.mockResolvedValue(mockTreatment);
       mockTreatmentRepository.findOne.mockResolvedValue(mockTreatment);
@@ -284,13 +284,13 @@ describe('TreatmentService - Attendance Creation', () => {
         return Promise.resolve(sessionRows);
       });
 
-      mockAttendanceRepository.create.mockImplementation((data) => data);
-      mockAttendanceRepository.save.mockResolvedValue({ id: 2 });
+      mockAppointmentRepository.create.mockImplementation((data) => data);
+      mockAppointmentRepository.save.mockResolvedValue({ id: 2 });
 
       // Call the service
       await service.createTreatment({
         consultation_id: consultationId,
-        attendance_id: attendanceId,
+        appointment_id: appointmentId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
         body_location: 'Head',
@@ -315,17 +315,17 @@ describe('TreatmentService - Attendance Creation', () => {
 
     it('should use 19:30 as default time for all treatment sessions', async () => {
       const consultationId = 1;
-      const attendanceId = 1;
+      const appointmentId = 1;
       const patientId = 1;
       const startDate = '2024-01-15';
       const plannedSessions = 2;
 
       const mockConsultation = { id: consultationId };
-      const mockAttendance = { id: attendanceId };
+      const mockAppointment = { id: appointmentId };
       const mockTreatment = {
         id: 1,
         consultation_id: consultationId,
-        attendance_id: attendanceId,
+        appointment_id: appointmentId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
         body_location: 'Head',
@@ -338,7 +338,7 @@ describe('TreatmentService - Attendance Creation', () => {
       };
 
       mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
-      mockAttendanceRepository.findOne.mockResolvedValue(mockAttendance);
+      mockAppointmentRepository.findOne.mockResolvedValue(mockAppointment);
       mockTreatmentRepository.create.mockReturnValue(mockTreatment);
       mockTreatmentRepository.save.mockResolvedValue(mockTreatment);
       mockTreatmentRepository.findOne.mockResolvedValue(mockTreatment);
@@ -353,16 +353,16 @@ describe('TreatmentService - Attendance Creation', () => {
       mockSessionRepository.create.mockImplementation((data) => data);
       mockSessionRepository.save.mockResolvedValue(mockSessions);
 
-      const createdAttendances = [];
-      mockAttendanceRepository.create.mockImplementation((data) => {
-        createdAttendances.push(data);
+      const createdAppointments = [];
+      mockAppointmentRepository.create.mockImplementation((data) => {
+        createdAppointments.push(data);
         return data;
       });
-      mockAttendanceRepository.save.mockResolvedValue({ id: 2 });
+      mockAppointmentRepository.save.mockResolvedValue({ id: 2 });
 
       await service.createTreatment({
         consultation_id: consultationId,
-        attendance_id: attendanceId,
+        appointment_id: appointmentId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
         body_location: 'Head',
@@ -372,25 +372,25 @@ describe('TreatmentService - Attendance Creation', () => {
         color: 'blue',
       });
 
-      // Verify all attendances use 19:30 time
-      createdAttendances.forEach((attendance) => {
-        expect(attendance.scheduled_time).toBe('19:30');
+      // Verify all appointments use 19:30 time
+      createdAppointments.forEach((appointment) => {
+        expect(appointment.scheduled_time).toBe('19:30');
       });
     });
 
-    it('should link all treatment attendances to parent consultation', async () => {
+    it('should link all treatment appointments to parent consultation', async () => {
       const consultationId = 1;
-      const attendanceId = 999; // The original assessment consultation
+      const appointmentId = 999; // The original assessment consultation
       const patientId = 1;
       const startDate = '2024-01-15';
       const plannedSessions = 3;
 
       const mockConsultation = { id: consultationId };
-      const mockAttendance = { id: attendanceId };
+      const mockAppointment = { id: appointmentId };
       const mockTreatment = {
         id: 1,
         consultation_id: consultationId,
-        attendance_id: attendanceId,
+        appointment_id: appointmentId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
         body_location: 'Head',
@@ -403,7 +403,7 @@ describe('TreatmentService - Attendance Creation', () => {
       };
 
       mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
-      mockAttendanceRepository.findOne.mockResolvedValue(mockAttendance);
+      mockAppointmentRepository.findOne.mockResolvedValue(mockAppointment);
       mockTreatmentRepository.create.mockReturnValue(mockTreatment);
       mockTreatmentRepository.save.mockResolvedValue(mockTreatment);
       mockTreatmentRepository.findOne.mockResolvedValue(mockTreatment);
@@ -418,16 +418,16 @@ describe('TreatmentService - Attendance Creation', () => {
       mockSessionRepository.create.mockImplementation((data) => data);
       mockSessionRepository.save.mockResolvedValue(mockSessions);
 
-      const createdAttendances = [];
-      mockAttendanceRepository.create.mockImplementation((data) => {
-        createdAttendances.push(data);
+      const createdAppointments = [];
+      mockAppointmentRepository.create.mockImplementation((data) => {
+        createdAppointments.push(data);
         return data;
       });
-      mockAttendanceRepository.save.mockResolvedValue({ id: 2 });
+      mockAppointmentRepository.save.mockResolvedValue({ id: 2 });
 
       await service.createTreatment({
         consultation_id: consultationId,
-        attendance_id: attendanceId,
+        appointment_id: appointmentId,
         patient_id: patientId,
         treatment_type: TreatmentType.PHYSIOTHERAPY,
         body_location: 'Head',
@@ -437,9 +437,9 @@ describe('TreatmentService - Attendance Creation', () => {
         color: 'blue',
       });
 
-      // Verify all treatment attendances link to the original consultation
-      createdAttendances.forEach((attendance) => {
-        expect(attendance.parent_attendance_id).toBe(attendanceId);
+      // Verify all treatment appointments link to the original consultation
+      createdAppointments.forEach((appointment) => {
+        expect(appointment.parent_appointment_id).toBe(appointmentId);
       });
     });
   });

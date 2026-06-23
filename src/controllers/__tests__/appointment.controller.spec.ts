@@ -1,22 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AttendanceController } from '../attendance.controller';
-import { AttendanceService } from '../../services/attendance.service';
+import { AppointmentController } from '../appointment.controller';
+import { AppointmentService } from '../../services/appointment.service';
 import {
-  CreateAttendanceDto,
-  UpdateAttendanceDto,
-} from '../../dtos/attendance.dto';
-import { AttendanceType, AttendanceStatus } from '../../common/enums';
+  CreateAppointmentDto,
+  UpdateAppointmentDto,
+} from '../../dtos/appointment.dto';
+import { AppointmentType, AppointmentStatus } from '../../common/enums';
 import { ResourceNotFoundException } from '../../common/exceptions';
 
-describe('AttendanceController', () => {
-  let controller: AttendanceController;
-  let service: AttendanceService;
+describe('AppointmentController', () => {
+  let controller: AppointmentController;
+  let service: AppointmentService;
 
-  const mockAttendance = {
+  const mockAppointment = {
     id: 1,
     patient_id: 1,
-    type: AttendanceType.ASSESSMENT,
-    status: AttendanceStatus.SCHEDULED,
+    type: AppointmentType.ASSESSMENT,
+    status: AppointmentStatus.SCHEDULED,
     scheduled_date: '2025-07-22',
     scheduled_time: '14:30',
     checked_in_time: undefined,
@@ -29,13 +29,13 @@ describe('AttendanceController', () => {
     updated_at: '2025-07-22T09:00:00',
   };
 
-  const mockAttendanceService = {
+  const mockAppointmentService = {
     create: jest.fn((dto) =>
       Promise.resolve({
         id: 1,
         ...dto,
-        type: AttendanceType.ASSESSMENT,
-        status: AttendanceStatus.SCHEDULED,
+        type: AppointmentType.ASSESSMENT,
+        status: AppointmentStatus.SCHEDULED,
         created_at: '2025-07-22T09:00:00',
         updated_at: '2025-07-22T09:00:00',
       }),
@@ -45,8 +45,8 @@ describe('AttendanceController', () => {
         {
           id: 1,
           patient_id: 1,
-          type: AttendanceType.ASSESSMENT,
-          status: AttendanceStatus.SCHEDULED,
+          type: AppointmentType.ASSESSMENT,
+          status: AppointmentStatus.SCHEDULED,
           scheduled_date: '2025-07-22',
           scheduled_time: '14:30',
           checked_in_time: undefined,
@@ -65,19 +65,19 @@ describe('AttendanceController', () => {
     findAllForSchedule: jest.fn(() =>
       Promise.resolve([
         {
-          attendance_id: 1,
-          attendance_patient_id: 1,
-          attendance_type: 'assessment',
-          attendance_status: 'scheduled',
-          attendance_scheduled_date: '2025-07-22',
-          attendance_notes: 'Test notes',
+          appointment_id: 1,
+          appointment_patient_id: 1,
+          appointment_type: 'assessment',
+          appointment_status: 'scheduled',
+          appointment_scheduled_date: '2025-07-22',
+          appointment_notes: 'Test notes',
           patient_name: 'John Doe',
           patient_priority: '2',
         },
       ]),
     ),
     findNextScheduledDate: jest.fn(() => Promise.resolve('2025-07-23')),
-    getAttendanceStats: jest.fn(() =>
+    getAppointmentStats: jest.fn(() =>
       Promise.resolve({
         total: 5,
         scheduled: 2,
@@ -93,8 +93,8 @@ describe('AttendanceController', () => {
         id: 1,
         patient_id: 1,
         patient: null,
-        type: AttendanceType.ASSESSMENT,
-        status: AttendanceStatus.SCHEDULED,
+        type: AppointmentType.ASSESSMENT,
+        status: AppointmentStatus.SCHEDULED,
         scheduled_date: '2025-07-22',
         scheduled_time: '14:30',
         notes: 'Test notes',
@@ -125,17 +125,17 @@ describe('AttendanceController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [AttendanceController],
+      controllers: [AppointmentController],
       providers: [
         {
-          provide: AttendanceService,
-          useValue: mockAttendanceService,
+          provide: AppointmentService,
+          useValue: mockAppointmentService,
         },
       ],
     }).compile();
 
-    controller = module.get<AttendanceController>(AttendanceController);
-    service = module.get<AttendanceService>(AttendanceService);
+    controller = module.get<AppointmentController>(AppointmentController);
+    service = module.get<AppointmentService>(AppointmentService);
   });
 
   it('should be defined', () => {
@@ -143,10 +143,10 @@ describe('AttendanceController', () => {
   });
 
   describe('create', () => {
-    it('should create a new attendance', async () => {
-      const createDto: CreateAttendanceDto = {
+    it('should create a new appointment', async () => {
+      const createDto: CreateAppointmentDto = {
         patient_id: 1,
-        type: AttendanceType.ASSESSMENT,
+        type: AppointmentType.ASSESSMENT,
         scheduled_date: '2025-07-22',
         scheduled_time: '14:30',
         notes: 'Test notes',
@@ -163,30 +163,30 @@ describe('AttendanceController', () => {
   });
 
   describe('findAll', () => {
-    it('should return an array of attendances', async () => {
+    it('should return an array of appointments', async () => {
       const result = await controller.findAll();
 
-      expect(result).toEqual([mockAttendance]);
+      expect(result).toEqual([mockAppointment]);
       expect(service.findAll).toHaveBeenCalled();
     });
   });
 
   describe('findOne', () => {
-    it('should return a single attendance', async () => {
+    it('should return a single appointment', async () => {
       const result = await controller.findOne('1');
 
       expect(result).toMatchObject({
         id: 1,
         patient_id: 1,
-        type: AttendanceType.ASSESSMENT,
-        status: AttendanceStatus.SCHEDULED,
+        type: AppointmentType.ASSESSMENT,
+        status: AppointmentStatus.SCHEDULED,
         scheduled_time: '14:30',
         notes: 'Test notes',
       });
       expect(service.findOne).toHaveBeenCalledWith(1);
     });
 
-    it('should throw ResourceNotFoundException when attendance not found', async () => {
+    it('should throw ResourceNotFoundException when appointment not found', async () => {
       jest.spyOn(service, 'findOne').mockResolvedValueOnce(null);
 
       await expect(controller.findOne('999')).rejects.toThrow(
@@ -196,8 +196,8 @@ describe('AttendanceController', () => {
   });
 
   describe('update', () => {
-    it('should update an attendance', async () => {
-      const updateDto: UpdateAttendanceDto = {
+    it('should update an appointment', async () => {
+      const updateDto: UpdateAppointmentDto = {
         notes: 'Updated notes',
       };
 
@@ -210,10 +210,10 @@ describe('AttendanceController', () => {
       expect(service.update).toHaveBeenCalledWith(1, updateDto);
     });
 
-    it('should throw ResourceNotFoundException when attendance not found for update', async () => {
+    it('should throw ResourceNotFoundException when appointment not found for update', async () => {
       jest.spyOn(service, 'update').mockResolvedValueOnce(null);
 
-      const updateDto: UpdateAttendanceDto = {
+      const updateDto: UpdateAppointmentDto = {
         notes: 'Updated notes',
       };
 
@@ -224,14 +224,14 @@ describe('AttendanceController', () => {
   });
 
   describe('cancel', () => {
-    it('should cancel an attendance', async () => {
+    it('should cancel an appointment', async () => {
       const result = await controller.cancel('1', {});
 
       expect(result).toEqual(undefined);
       expect(service.cancel).toHaveBeenCalledWith(1, undefined);
     });
 
-    it('should throw ResourceNotFoundException when attendance not found', async () => {
+    it('should throw ResourceNotFoundException when appointment not found', async () => {
       jest.spyOn(service, 'findOne').mockResolvedValueOnce(null);
 
       await expect(controller.cancel('999')).rejects.toThrow(
@@ -241,7 +241,7 @@ describe('AttendanceController', () => {
   });
 
   describe('findAllForSchedule', () => {
-    it('should return schedule attendances without filters', async () => {
+    it('should return schedule appointments without filters', async () => {
       const result = await controller.findAllForSchedule();
 
       expect(result).toEqual([
@@ -265,7 +265,7 @@ describe('AttendanceController', () => {
       });
     });
 
-    it('should return schedule attendances with filters', async () => {
+    it('should return schedule appointments with filters', async () => {
       const result = await controller.findAllForSchedule(
         'scheduled',
         'assessment',
@@ -287,7 +287,7 @@ describe('AttendanceController', () => {
         },
       ]);
       expect(service.findAllForSchedule).toHaveBeenCalledWith({
-        statuses: [AttendanceStatus.SCHEDULED],
+        statuses: [AppointmentStatus.SCHEDULED],
         type: 'assessment',
         limit: 10,
         fromDate: '2025-07-01',
@@ -305,7 +305,7 @@ describe('AttendanceController', () => {
       );
 
       expect(service.findAllForSchedule).toHaveBeenCalledWith({
-        statuses: [AttendanceStatus.SCHEDULED, AttendanceStatus.COMPLETED],
+        statuses: [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED],
         type: undefined,
         limit: undefined,
         fromDate: '2025-07-01',
@@ -378,9 +378,9 @@ describe('AttendanceController', () => {
     });
   });
 
-  describe('getAttendanceStats', () => {
-    it('should return attendance statistics for default date (today)', async () => {
-      const result = await controller.getAttendanceStats();
+  describe('getAppointmentStats', () => {
+    it('should return appointment statistics for default date (today)', async () => {
+      const result = await controller.getAppointmentStats();
 
       expect(result).toEqual({
         total: 5,
@@ -391,14 +391,14 @@ describe('AttendanceController', () => {
         cancelled: 0,
         by_type: { assessment: 3, physiotherapy: 2, tens: 0 },
       });
-      expect(service.getAttendanceStats).toHaveBeenCalledWith(
+      expect(service.getAppointmentStats).toHaveBeenCalledWith(
         expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), // Today's date in YYYY-MM-DD format
       );
     });
 
-    it('should return attendance statistics for specific date', async () => {
+    it('should return appointment statistics for specific date', async () => {
       const testDate = '2025-07-22';
-      const result = await controller.getAttendanceStats(testDate);
+      const result = await controller.getAppointmentStats(testDate);
 
       expect(result).toEqual({
         total: 5,
@@ -409,7 +409,7 @@ describe('AttendanceController', () => {
         cancelled: 0,
         by_type: { assessment: 3, physiotherapy: 2, tens: 0 },
       });
-      expect(service.getAttendanceStats).toHaveBeenCalledWith(testDate);
+      expect(service.getAppointmentStats).toHaveBeenCalledWith(testDate);
     });
 
     it('should handle empty statistics', async () => {
@@ -424,19 +424,19 @@ describe('AttendanceController', () => {
       };
 
       jest
-        .spyOn(service, 'getAttendanceStats')
+        .spyOn(service, 'getAppointmentStats')
         .mockResolvedValueOnce(emptyStats);
 
-      const result = await controller.getAttendanceStats('2025-12-25');
+      const result = await controller.getAppointmentStats('2025-12-25');
 
       expect(result).toEqual(emptyStats);
     });
 
     it('should handle service errors', async () => {
       const error = new Error('Database error');
-      jest.spyOn(service, 'getAttendanceStats').mockRejectedValueOnce(error);
+      jest.spyOn(service, 'getAppointmentStats').mockRejectedValueOnce(error);
 
-      await expect(controller.getAttendanceStats('2025-07-22')).rejects.toThrow(
+      await expect(controller.getAppointmentStats('2025-07-22')).rejects.toThrow(
         error,
       );
     });

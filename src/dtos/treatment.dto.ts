@@ -25,7 +25,7 @@ export class CreateTreatmentDto {
 
   @IsNumber()
   @IsNotEmpty()
-  attendance_id: number;
+  appointment_id: number;
 
   @IsNumber()
   @IsNotEmpty()
@@ -71,20 +71,20 @@ export class CreateTreatmentDto {
   notes?: string;
 
   /**
-   * When true, the first generated `hms_session` row reuses an existing attendance
-   * instead of creating a new scheduled attendance for the start date.
+   * When true, the first generated `hms_session` row reuses an existing appointment
+   * instead of creating a new scheduled appointment for the start date.
    */
   @IsBoolean()
   @IsOptional()
-  reuse_attendance_for_first_session?: boolean;
+  reuse_appointment_for_first_session?: boolean;
 
   /**
-   * Attendance ID for the first session row when `reuse_attendance_for_first_session` is true
-   * (the session’s attendance, not the prescription attendance on `Treatment`).
+   * Appointment ID for the first session row when `reuse_appointment_for_first_session` is true
+   * (the session’s appointment, not the prescription appointment on `Treatment`).
    */
   @IsNumber()
   @IsOptional()
-  first_session_attendance_id?: number;
+  first_session_appointment_id?: number;
 }
 
 export class UpdateTreatmentDto {
@@ -123,7 +123,7 @@ export class UpdateTreatmentDto {
 export class TreatmentResponseDto {
   id: number;
   consultation_id: number;
-  attendance_id: number;
+  appointment_id: number;
   patient_id: number;
   treatment_type: TreatmentType;
   body_location: string;

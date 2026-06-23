@@ -1,27 +1,27 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { SessionService } from '../session.service';
-import { Session, SessionAttendanceStatus } from '../../entities/session.entity';
+import { Session, SessionAppointmentStatus } from '../../entities/session.entity';
 import { Treatment } from '../../entities/treatment.entity';
-import { Attendance } from '../../entities/attendance.entity';
-import { AttendanceService } from '../attendance.service';
-import { AttendanceStatus } from '../../common/enums';
+import { Appointment } from '../../entities/appointment.entity';
+import { AppointmentService } from '../appointment.service';
+import { AppointmentStatus } from '../../common/enums';
 import { NotFoundException } from '@nestjs/common';
 
 describe('SessionService', () => {
   let service: SessionService;
   let mockSessionRepository: { findOne: jest.Mock; save: jest.Mock };
-  let mockAttendanceService: { syncStatusFromSession: jest.Mock };
+  let mockAppointmentService: { syncStatusFromSession: jest.Mock };
 
   const baseSession = {
     id: 1,
     treatment_id: 1,
-    attendance_id: 10,
+    appointment_id: 10,
     session_number: 1,
     scheduled_date: '2024-01-01',
     start_time: null,
     end_time: null,
-    status: SessionAttendanceStatus.SCHEDULED,
+    status: SessionAppointmentStatus.SCHEDULED,
     notes: null,
     missed_reason: null,
     performed_by: null,
@@ -37,7 +37,7 @@ describe('SessionService', () => {
       save: jest.fn().mockImplementation((session) => Promise.resolve({ ...session })),
     };
 
-    mockAttendanceService = {
+    mockAppointmentService = {
       syncStatusFromSession: jest.fn().mockResolvedValue({}),
     };
 
@@ -53,12 +53,12 @@ describe('SessionService', () => {
           useValue: { findOne: jest.fn() },
         },
         {
-          provide: getRepositoryToken(Attendance),
+          provide: getRepositoryToken(Appointment),
           useValue: { findOne: jest.fn() },
         },
         {
-          provide: AttendanceService,
-          useValue: mockAttendanceService,
+          provide: AppointmentService,
+          useValue: mockAppointmentService,
         },
       ],
     }).compile();
@@ -75,78 +75,78 @@ describe('SessionService', () => {
       await expect(
         service.updateSession(999, { notes: 'test' }),
       ).rejects.toThrow(NotFoundException);
-      expect(mockAttendanceService.syncStatusFromSession).not.toHaveBeenCalled();
+      expect(mockAppointmentService.syncStatusFromSession).not.toHaveBeenCalled();
     });
 
-    it('should call syncStatusFromSession when status changes to COMPLETED and has attendance_id', async () => {
-      const sessionWithAttendance = { ...baseSession, attendance_id: 10 };
-      mockSessionRepository.findOne.mockResolvedValueOnce(sessionWithAttendance);
+    it('should call syncStatusFromSession when status changes to COMPLETED and has appointment_id', async () => {
+      const sessionWithAppointment = { ...baseSession, appointment_id: 10 };
+      mockSessionRepository.findOne.mockResolvedValueOnce(sessionWithAppointment);
       mockSessionRepository.save.mockImplementation((session) =>
-        Promise.resolve({ ...session, status: SessionAttendanceStatus.COMPLETED }),
+        Promise.resolve({ ...session, status: SessionAppointmentStatus.COMPLETED }),
       );
 
-      await service.updateSession(1, { status: SessionAttendanceStatus.COMPLETED });
+      await service.updateSession(1, { status: SessionAppointmentStatus.COMPLETED });
 
-      expect(mockAttendanceService.syncStatusFromSession).toHaveBeenCalledWith(
+      expect(mockAppointmentService.syncStatusFromSession).toHaveBeenCalledWith(
         10,
-        AttendanceStatus.COMPLETED,
+        AppointmentStatus.COMPLETED,
         { cancellationReason: undefined },
       );
     });
 
     it('should call syncStatusFromSession with missed_reason when status changes to MISSED', async () => {
-      const sessionWithAttendance = { ...baseSession, attendance_id: 10 };
-      mockSessionRepository.findOne.mockResolvedValueOnce(sessionWithAttendance);
+      const sessionWithAppointment = { ...baseSession, appointment_id: 10 };
+      mockSessionRepository.findOne.mockResolvedValueOnce(sessionWithAppointment);
       mockSessionRepository.save.mockImplementation((session) =>
         Promise.resolve({
           ...session,
-          status: SessionAttendanceStatus.MISSED,
+          status: SessionAppointmentStatus.MISSED,
           missed_reason: 'Patient did not show up',
         }),
       );
 
       await service.updateSession(1, {
-        status: SessionAttendanceStatus.MISSED,
+        status: SessionAppointmentStatus.MISSED,
         missed_reason: 'Patient did not show up',
       });
 
-      expect(mockAttendanceService.syncStatusFromSession).toHaveBeenCalledWith(
+      expect(mockAppointmentService.syncStatusFromSession).toHaveBeenCalledWith(
         10,
-        AttendanceStatus.MISSED,
+        AppointmentStatus.MISSED,
         { cancellationReason: 'Patient did not show up' },
       );
     });
 
     it('should call syncStatusFromSession when status changes to CANCELLED', async () => {
-      const sessionWithAttendance = { ...baseSession, attendance_id: 10 };
-      mockSessionRepository.findOne.mockResolvedValueOnce(sessionWithAttendance);
+      const sessionWithAppointment = { ...baseSession, appointment_id: 10 };
+      mockSessionRepository.findOne.mockResolvedValueOnce(sessionWithAppointment);
       mockSessionRepository.save.mockImplementation((session) =>
-        Promise.resolve({ ...session, status: SessionAttendanceStatus.CANCELLED }),
+        Promise.resolve({ ...session, status: SessionAppointmentStatus.CANCELLED }),
       );
 
-      await service.updateSession(1, { status: SessionAttendanceStatus.CANCELLED });
+      await service.updateSession(1, { status: SessionAppointmentStatus.CANCELLED });
 
-      expect(mockAttendanceService.syncStatusFromSession).toHaveBeenCalledWith(
+      expect(mockAppointmentService.syncStatusFromSession).toHaveBeenCalledWith(
         10,
-        AttendanceStatus.CANCELLED,
+        AppointmentStatus.CANCELLED,
         { cancellationReason: undefined },
       );
     });
 
     it('should NOT call syncStatusFromSession when status changes to SCHEDULED', async () => {
-      const completedSession = { ...baseSession, status: SessionAttendanceStatus.COMPLETED, attendance_id: 10 };
+      const completedSession = { ...baseSession, status: SessionAppointmentStatus.COMPLETED, appointment_id: 10 };
       mockSessionRepository.findOne.mockResolvedValueOnce(completedSession);
       mockSessionRepository.save.mockImplementation((session) =>
-        Promise.resolve({ ...session, status: SessionAttendanceStatus.SCHEDULED }),
+        Promise.resolve({ ...session, status: SessionAppointmentStatus.SCHEDULED }),
       );
 
-      await service.updateSession(1, { status: SessionAttendanceStatus.SCHEDULED });
+      await service.updateSession(1, { status: SessionAppointmentStatus.SCHEDULED });
 
-      expect(mockAttendanceService.syncStatusFromSession).not.toHaveBeenCalled();
+      expect(mockAppointmentService.syncStatusFromSession).not.toHaveBeenCalled();
     });
 
     it('should NOT call syncStatusFromSession when status does not change', async () => {
-      const completedSession = { ...baseSession, status: SessionAttendanceStatus.COMPLETED, attendance_id: 10 };
+      const completedSession = { ...baseSession, status: SessionAppointmentStatus.COMPLETED, appointment_id: 10 };
       mockSessionRepository.findOne.mockResolvedValueOnce(completedSession);
       mockSessionRepository.save.mockImplementation((session) =>
         Promise.resolve({ ...session }),
@@ -154,28 +154,28 @@ describe('SessionService', () => {
 
       await service.updateSession(1, { notes: 'Updated notes only' });
 
-      expect(mockAttendanceService.syncStatusFromSession).not.toHaveBeenCalled();
+      expect(mockAppointmentService.syncStatusFromSession).not.toHaveBeenCalled();
     });
 
     it('should NOT call syncStatusFromSession when dto.status is not provided', async () => {
-      const sessionWithAttendance = { ...baseSession, attendance_id: 10 };
-      mockSessionRepository.findOne.mockResolvedValueOnce(sessionWithAttendance);
+      const sessionWithAppointment = { ...baseSession, appointment_id: 10 };
+      mockSessionRepository.findOne.mockResolvedValueOnce(sessionWithAppointment);
 
       await service.updateSession(1, { notes: 'Just notes' });
 
-      expect(mockAttendanceService.syncStatusFromSession).not.toHaveBeenCalled();
+      expect(mockAppointmentService.syncStatusFromSession).not.toHaveBeenCalled();
     });
 
-    it('should NOT call syncStatusFromSession when attendance_id is null', async () => {
-      const sessionWithoutAttendance = { ...baseSession, attendance_id: null };
-      mockSessionRepository.findOne.mockResolvedValueOnce(sessionWithoutAttendance);
+    it('should NOT call syncStatusFromSession when appointment_id is null', async () => {
+      const sessionWithoutAppointment = { ...baseSession, appointment_id: null };
+      mockSessionRepository.findOne.mockResolvedValueOnce(sessionWithoutAppointment);
       mockSessionRepository.save.mockImplementation((session) =>
-        Promise.resolve({ ...session, status: SessionAttendanceStatus.COMPLETED }),
+        Promise.resolve({ ...session, status: SessionAppointmentStatus.COMPLETED }),
       );
 
-      await service.updateSession(1, { status: SessionAttendanceStatus.COMPLETED });
+      await service.updateSession(1, { status: SessionAppointmentStatus.COMPLETED });
 
-      expect(mockAttendanceService.syncStatusFromSession).not.toHaveBeenCalled();
+      expect(mockAppointmentService.syncStatusFromSession).not.toHaveBeenCalled();
     });
   });
 });

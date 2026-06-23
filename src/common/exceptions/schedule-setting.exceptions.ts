@@ -23,11 +23,11 @@ export class ScheduleSettingConflictException extends BaseException {
   }
 }
 
-export class InvalidConcurrentAttendancesException extends BaseException {
+export class InvalidConcurrentAppointmentsException extends BaseException {
   constructor(type: string, requestedCount: number, maxAllowed: number) {
     super(
-      `Invalid concurrent ${type} attendances: ${requestedCount} requested, maximum allowed is ${maxAllowed}`,
-      'Invalid Concurrent Attendances',
+      `Invalid concurrent ${type} appointments: ${requestedCount} requested, maximum allowed is ${maxAllowed}`,
+      'Invalid Concurrent Appointments',
       HttpStatus.BAD_REQUEST,
       { type, requestedCount, maxAllowed },
     );
@@ -35,12 +35,12 @@ export class InvalidConcurrentAttendancesException extends BaseException {
 }
 
 export class ScheduleSettingInUseException extends BaseException {
-  constructor(settingId: number, activeAttendancesCount: number) {
+  constructor(settingId: number, activeAppointmentsCount: number) {
     super(
-      `Cannot delete schedule setting ${settingId}: Has ${activeAttendancesCount} active attendances`,
+      `Cannot delete schedule setting ${settingId}: Has ${activeAppointmentsCount} active appointments`,
       'Setting In Use',
       HttpStatus.CONFLICT,
-      { settingId, activeAttendancesCount },
+      { settingId, activeAppointmentsCount },
     );
   }
 }

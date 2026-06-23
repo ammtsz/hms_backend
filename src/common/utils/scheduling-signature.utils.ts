@@ -1,4 +1,4 @@
-import { AttendanceType } from '../enums';
+import { AppointmentType } from '../enums';
 
 /** Body location (+ color for physiotherapy) used for same-day uniqueness (BR-306). */
 export interface TreatmentSchedulingSignature {
@@ -11,7 +11,7 @@ export function normalizeSchedulingKey(value: string): string {
 }
 
 export function treatmentSignaturesConflict(
-  type: AttendanceType.PHYSIOTHERAPY | AttendanceType.TENS,
+  type: AppointmentType.PHYSIOTHERAPY | AppointmentType.TENS,
   a: TreatmentSchedulingSignature,
   b: TreatmentSchedulingSignature,
 ): boolean {
@@ -20,7 +20,7 @@ export function treatmentSignaturesConflict(
   if (locA !== locB) {
     return false;
   }
-  if (type === AttendanceType.TENS) {
+  if (type === AppointmentType.TENS) {
     return true;
   }
   return (

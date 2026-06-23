@@ -6,7 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './modules/database.module';
 import { PatientModule } from './modules/patient.module';
-import { AttendanceModule } from './modules/attendance.module';
+import { AppointmentModule } from './modules/appointment.module';
 import { ConsultationModule } from './modules/consultation.module';
 import { TreatmentModule } from './modules/treatment.module';
 import { SessionModule } from './modules/session.module';
@@ -41,7 +41,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     AuthModule,
     UserModule,
     PatientModule,
-    AttendanceModule,
+    AppointmentModule,
     ConsultationModule,
     TreatmentModule,
     SessionModule,

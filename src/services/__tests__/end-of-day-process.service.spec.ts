@@ -3,15 +3,15 @@ import { ConflictException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EndOfDayProcessService } from '../end-of-day-process.service';
 import { DayFinalizationService } from '../day-finalization.service';
-import { AttendanceService } from '../attendance.service';
+import { AppointmentService } from '../appointment.service';
 import { PatientService } from '../patient.service';
 import { TreatmentService } from '../treatment.service';
 import { SessionService } from '../session.service';
 import { SystemSettingsService } from '../system-settings.service';
-import { Attendance } from '../../entities/attendance.entity';
+import { Appointment } from '../../entities/appointment.entity';
 import {
-  AttendanceType,
-  AttendanceStatus,
+  AppointmentType,
+  AppointmentStatus,
   PatientStatus,
 } from '../../common/enums';
 import type { ProcessEndOfDayRequestDto } from '../../dtos/process-end-of-day.dto';
@@ -19,20 +19,20 @@ import type { ProcessEndOfDayRequestDto } from '../../dtos/process-end-of-day.dt
 describe('EndOfDayProcessService', () => {
   let service: EndOfDayProcessService;
   let dayFinalizationService: DayFinalizationService;
-  let attendanceService: AttendanceService;
+  let appointmentService: AppointmentService;
   let patientService: PatientService;
   let treatmentService: TreatmentService;
   let sessionService: SessionService;
 
-  const mockAttendance = {
+  const mockAppointment = {
     id: 1,
     patient_id: 1,
     patient: { name: 'John Doe' },
-    type: AttendanceType.ASSESSMENT,
-    status: AttendanceStatus.MISSED,
+    type: AppointmentType.ASSESSMENT,
+    status: AppointmentStatus.MISSED,
     scheduled_date: '2024-01-15',
     scheduled_time: '14:00',
-  } as Attendance;
+  } as Appointment;
 
   const mockPatient = {
     id: 1,
@@ -46,16 +46,16 @@ describe('EndOfDayProcessService', () => {
     finalizeDay: jest.fn().mockResolvedValue({}),
   };
 
-  const mockAttendanceService = {
-    update: jest.fn().mockResolvedValue(mockAttendance),
+  const mockAppointmentService = {
+    update: jest.fn().mockResolvedValue(mockAppointment),
     reschedule: jest.fn().mockResolvedValue(undefined),
     remove: jest.fn().mockResolvedValue(undefined),
     bulkCancel: jest.fn().mockImplementation((ids: number[]) =>
       Promise.resolve({
         success_count: ids.length,
         failure_count: 0,
-        successes: ids.map((attendance_id) => ({
-          attendance_id,
+        successes: ids.map((appointment_id) => ({
+          appointment_id,
           message: 'Successfully cancelled',
         })),
         failures: [],
@@ -65,9 +65,9 @@ describe('EndOfDayProcessService', () => {
     isDateAvailableForScheduling: jest.fn().mockResolvedValue(true),
     checkHolidayAndPostpone: jest.fn((date: string) => Promise.resolve(date)),
     postpone: jest.fn().mockResolvedValue(undefined),
-    findOne: jest.fn().mockResolvedValue(mockAttendance),
-    getNextAvailableDateForAttendance: jest.fn().mockResolvedValue(null),
-    getTreatmentIdForAttendanceId: jest.fn().mockResolvedValue(null),
+    findOne: jest.fn().mockResolvedValue(mockAppointment),
+    getNextAvailableDateForAppointment: jest.fn().mockResolvedValue(null),
+    getTreatmentIdForAppointmentId: jest.fn().mockResolvedValue(null),
     findNextSchedulableDate: jest
       .fn()
       .mockImplementation((date: string) => Promise.resolve(date)),
@@ -78,7 +78,7 @@ describe('EndOfDayProcessService', () => {
     update: jest.fn().mockResolvedValue({}),
     setPatientStatus: jest.fn().mockResolvedValue({
       patient: { ...mockPatient, patient_status: 'C' },
-      cancelledAttendances: [],
+      cancelledAppointments: [],
     }),
   };
 
@@ -89,7 +89,7 @@ describe('EndOfDayProcessService', () => {
   };
 
   const mockSessionService = {
-    getSessionsByAttendance: jest.fn().mockResolvedValue([]),
+    getSessionsByAppointment: jest.fn().mockResolvedValue([]),
     getMaxScheduledDateForTreatment: jest.fn().mockResolvedValue(null),
   };
 
@@ -114,8 +114,8 @@ describe('EndOfDayProcessService', () => {
           useValue: mockDayFinalizationService,
         },
         {
-          provide: AttendanceService,
-          useValue: mockAttendanceService,
+          provide: AppointmentService,
+          useValue: mockAppointmentService,
         },
         {
           provide: PatientService,
@@ -140,7 +140,7 @@ describe('EndOfDayProcessService', () => {
     dayFinalizationService = module.get<DayFinalizationService>(
       DayFinalizationService,
     );
-    attendanceService = module.get<AttendanceService>(AttendanceService);
+    appointmentService = module.get<AppointmentService>(AppointmentService);
     patientService = module.get<PatientService>(PatientService);
     treatmentService = module.get<TreatmentService>(TreatmentService);
     sessionService = module.get<SessionService>(SessionService);
@@ -157,7 +157,7 @@ describe('EndOfDayProcessService', () => {
       const dto: ProcessEndOfDayRequestDto = {
         date: '2024-01-15',
         absence_justifications: [
-          { attendance_id: 1, justified: false, notes: '' },
+          { appointment_id: 1, justified: false, notes: '' },
         ],
       };
 
@@ -171,7 +171,7 @@ describe('EndOfDayProcessService', () => {
       expect(mockDayFinalizationService.isDayFinalized).toHaveBeenCalledWith(
         '2024-01-15',
       );
-      expect(mockAttendanceService.update).not.toHaveBeenCalled();
+      expect(mockAppointmentService.update).not.toHaveBeenCalled();
     });
   });
 
@@ -194,62 +194,62 @@ describe('EndOfDayProcessService', () => {
         '2024-01-15',
         'Day finalized without absences',
       );
-      expect(mockAttendanceService.update).not.toHaveBeenCalled();
+      expect(mockAppointmentService.update).not.toHaveBeenCalled();
     });
   });
 
   describe('with absence justifications', () => {
-    it('should mark each absence as MISSED via attendanceService.update', async () => {
-      mockAttendanceService.update.mockResolvedValue({
-        ...mockAttendance,
+    it('should mark each absence as MISSED via appointmentService.update', async () => {
+      mockAppointmentService.update.mockResolvedValue({
+        ...mockAppointment,
         id: 1,
         patient_id: 1,
-        type: AttendanceType.ASSESSMENT,
+        type: AppointmentType.ASSESSMENT,
         scheduled_date: '2024-01-15',
       });
-      mockAttendanceService.isDateAvailableForScheduling.mockResolvedValue(
+      mockAppointmentService.isDateAvailableForScheduling.mockResolvedValue(
         true,
       );
 
       const dto: ProcessEndOfDayRequestDto = {
         date: '2024-01-15',
         absence_justifications: [
-          { attendance_id: 1, justified: false },
-          { attendance_id: 2, justified: true, notes: 'Medical' },
+          { appointment_id: 1, justified: false },
+          { appointment_id: 2, justified: true, notes: 'Medical' },
         ],
       };
 
       await service.processEndOfDay(dto);
 
-      expect(mockAttendanceService.update).toHaveBeenCalledTimes(2);
-      expect(mockAttendanceService.update).toHaveBeenNthCalledWith(1, 1, {
-        status: AttendanceStatus.MISSED,
+      expect(mockAppointmentService.update).toHaveBeenCalledTimes(2);
+      expect(mockAppointmentService.update).toHaveBeenNthCalledWith(1, 1, {
+        status: AppointmentStatus.MISSED,
         absence_justified: false,
         absence_notes: null,
       });
-      expect(mockAttendanceService.update).toHaveBeenNthCalledWith(2, 2, {
-        status: AttendanceStatus.MISSED,
+      expect(mockAppointmentService.update).toHaveBeenNthCalledWith(2, 2, {
+        status: AppointmentStatus.MISSED,
         absence_justified: true,
         absence_notes: 'Medical',
       });
     });
 
     it('should call finalizeDay after processing absences', async () => {
-      mockAttendanceService.update.mockResolvedValue({
-        ...mockAttendance,
+      mockAppointmentService.update.mockResolvedValue({
+        ...mockAppointment,
         id: 1,
         patient_id: 1,
-        type: AttendanceType.ASSESSMENT,
+        type: AppointmentType.ASSESSMENT,
         scheduled_date: '2024-01-15',
       });
-      mockAttendanceService.isDateAvailableForScheduling.mockResolvedValue(
+      mockAppointmentService.isDateAvailableForScheduling.mockResolvedValue(
         true,
       );
 
       const dto: ProcessEndOfDayRequestDto = {
         date: '2024-01-15',
         absence_justifications: [
-          { attendance_id: 1, justified: false, notes: '' },
+          { appointment_id: 1, justified: false, notes: '' },
         ],
       };
 
@@ -261,19 +261,19 @@ describe('EndOfDayProcessService', () => {
       );
     });
 
-    it('should transition patient to F and include cancelled attendances in summary when streak is 3', async () => {
+    it('should transition patient to F and include cancelled appointments in summary when streak is 3', async () => {
       mockPatientService.findOne.mockResolvedValue({
         ...mockPatient,
         missing_appointments_streak: 3,
       });
-      mockAttendanceService.update.mockResolvedValue({
-        ...mockAttendance,
+      mockAppointmentService.update.mockResolvedValue({
+        ...mockAppointment,
         id: 1,
         patient_id: 1,
-        type: AttendanceType.ASSESSMENT,
+        type: AppointmentType.ASSESSMENT,
         scheduled_date: '2024-01-15',
       });
-      const cancelledAttendances = [
+      const cancelledAppointments = [
         { id: 10, type: 'assessment', scheduled_date: '2024-01-20' },
       ];
       mockPatientService.setPatientStatus.mockResolvedValueOnce({
@@ -281,13 +281,13 @@ describe('EndOfDayProcessService', () => {
           ...mockPatient,
           patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
         },
-        cancelledAttendances,
+        cancelledAppointments,
       });
 
       const dto: ProcessEndOfDayRequestDto = {
         date: '2024-01-15',
         absence_justifications: [
-          { attendance_id: 1, justified: false, notes: '' },
+          { appointment_id: 1, justified: false, notes: '' },
         ],
       };
 
@@ -305,34 +305,34 @@ describe('EndOfDayProcessService', () => {
       expect(result.status_changed_to_c).toHaveLength(1);
       expect(result.status_changed_to_c[0].patient_id).toBe(1);
       expect(result.cancelled_for_c).toHaveLength(1);
-      expect(result.cancelled_for_c[0].attendances).toEqual(
-        cancelledAttendances,
+      expect(result.cancelled_for_c[0].appointments).toEqual(
+        cancelledAppointments,
       );
     });
 
-    describe('non-T patients with first assessment attendance (N, D, C)', () => {
-      const firstAssessmentAttendance = {
+    describe('non-T patients with first assessment appointment (N, D, C)', () => {
+      const firstAssessmentAppointment = {
         id: 1,
         patient_id: 1,
         patient: { name: 'John Doe' },
-        type: AttendanceType.ASSESSMENT,
-        status: AttendanceStatus.MISSED,
+        type: AppointmentType.ASSESSMENT,
+        status: AppointmentStatus.MISSED,
         scheduled_date: '2024-01-15',
         scheduled_time: '14:00',
-        parent_attendance_id: null,
-      } as Attendance;
+        parent_appointment_id: null,
+      } as Appointment;
 
       const nextDate = '2024-01-22';
 
       beforeEach(() => {
-        mockAttendanceService.update.mockResolvedValue(
-          firstAssessmentAttendance,
+        mockAppointmentService.update.mockResolvedValue(
+          firstAssessmentAppointment,
         );
-        mockAttendanceService.getNextAvailableDateForAttendance.mockResolvedValue(
+        mockAppointmentService.getNextAvailableDateForAppointment.mockResolvedValue(
           nextDate,
         );
-        mockAttendanceService.reschedule.mockResolvedValue([
-          { ...firstAssessmentAttendance, scheduled_date: nextDate },
+        mockAppointmentService.reschedule.mockResolvedValue([
+          { ...firstAssessmentAppointment, scheduled_date: nextDate },
         ]);
       });
 
@@ -341,7 +341,7 @@ describe('EndOfDayProcessService', () => {
         ['DISCHARGED (D)', PatientStatus.DISCHARGED],
         ['CONSECUTIVE_NO_SHOWS (C)', PatientStatus.CONSECUTIVE_NO_SHOWS],
       ])(
-        'should reschedule first assessment attendance for %s patient',
+        'should reschedule first assessment appointment for %s patient',
         async (_label, status) => {
           mockPatientService.findOne.mockResolvedValue({
             ...mockPatient,
@@ -351,29 +351,29 @@ describe('EndOfDayProcessService', () => {
 
           const dto: ProcessEndOfDayRequestDto = {
             date: '2024-01-15',
-            absence_justifications: [{ attendance_id: 1, justified: false }],
+            absence_justifications: [{ appointment_id: 1, justified: false }],
           };
 
           const result = await service.processEndOfDay(dto);
 
-          expect(mockAttendanceService.reschedule).toHaveBeenCalledWith(
-            { attendance_ids: [1], new_scheduled_date: nextDate },
+          expect(mockAppointmentService.reschedule).toHaveBeenCalledWith(
+            { appointment_ids: [1], new_scheduled_date: nextDate },
             { allowFirstAssessmentForNonTreatment: true },
           );
           expect(result.rescheduled).toHaveLength(1);
-          expect(result.rescheduled[0].attendance_id).toBe(1);
+          expect(result.rescheduled[0].appointment_id).toBe(1);
           expect(result.rescheduled[0].new_date).toBe(nextDate);
           expect(result.could_not_reschedule).toHaveLength(0);
         },
       );
 
-      it('should push to could_not_reschedule when non-T patient misses a non-qualifying attendance (not first assessment)', async () => {
-        const nonQualifyingAttendance = {
-          ...firstAssessmentAttendance,
-          type: AttendanceType.PHYSIOTHERAPY,
-        } as Attendance;
+      it('should push to could_not_reschedule when non-T patient misses a non-qualifying appointment (not first assessment)', async () => {
+        const nonQualifyingAppointment = {
+          ...firstAssessmentAppointment,
+          type: AppointmentType.PHYSIOTHERAPY,
+        } as Appointment;
 
-        mockAttendanceService.update.mockResolvedValue(nonQualifyingAttendance);
+        mockAppointmentService.update.mockResolvedValue(nonQualifyingAppointment);
         mockPatientService.findOne.mockResolvedValue({
           ...mockPatient,
           missing_appointments_streak: 1,
@@ -382,12 +382,12 @@ describe('EndOfDayProcessService', () => {
 
         const dto: ProcessEndOfDayRequestDto = {
           date: '2024-01-15',
-          absence_justifications: [{ attendance_id: 1, justified: false }],
+          absence_justifications: [{ appointment_id: 1, justified: false }],
         };
 
         const result = await service.processEndOfDay(dto);
 
-        expect(mockAttendanceService.reschedule).not.toHaveBeenCalled();
+        expect(mockAppointmentService.reschedule).not.toHaveBeenCalled();
         expect(result.could_not_reschedule).toHaveLength(1);
         expect(result.could_not_reschedule[0].reason).toBe(
           "Patient doesn't have an active treatment",
@@ -395,7 +395,7 @@ describe('EndOfDayProcessService', () => {
       });
 
       it('should push to could_not_reschedule when non-T patient has first assessment but no date available', async () => {
-        mockAttendanceService.getNextAvailableDateForAttendance.mockResolvedValue(
+        mockAppointmentService.getNextAvailableDateForAppointment.mockResolvedValue(
           null,
         );
         mockPatientService.findOne.mockResolvedValue({
@@ -406,12 +406,12 @@ describe('EndOfDayProcessService', () => {
 
         const dto: ProcessEndOfDayRequestDto = {
           date: '2024-01-15',
-          absence_justifications: [{ attendance_id: 1, justified: false }],
+          absence_justifications: [{ appointment_id: 1, justified: false }],
         };
 
         const result = await service.processEndOfDay(dto);
 
-        expect(mockAttendanceService.reschedule).not.toHaveBeenCalled();
+        expect(mockAppointmentService.reschedule).not.toHaveBeenCalled();
         expect(result.could_not_reschedule).toHaveLength(1);
         expect(result.could_not_reschedule[0].reason).toBe(
           'Could not find an available date within 52 weeks',
@@ -429,21 +429,21 @@ describe('EndOfDayProcessService', () => {
         id: 10,
         patient_id: 1,
         patient: { name: 'John Doe' },
-        type: AttendanceType.PHYSIOTHERAPY,
-        status: AttendanceStatus.MISSED,
+        type: AppointmentType.PHYSIOTHERAPY,
+        status: AppointmentStatus.MISSED,
         scheduled_date: missedDate,
         scheduled_time: '09:00:00',
-      } as Attendance;
+      } as Appointment;
 
       const physiotherapyMiss2 = {
         id: 11,
         patient_id: 1,
         patient: { name: 'John Doe' },
-        type: AttendanceType.PHYSIOTHERAPY,
-        status: AttendanceStatus.MISSED,
+        type: AppointmentType.PHYSIOTHERAPY,
+        status: AppointmentStatus.MISSED,
         scheduled_date: missedDate,
         scheduled_time: '09:30:00',
-      } as Attendance;
+      } as Appointment;
 
       beforeEach(() => {
         mockPatientService.findOne.mockResolvedValue({
@@ -451,61 +451,61 @@ describe('EndOfDayProcessService', () => {
           missing_appointments_streak: 1,
           patient_status: PatientStatus.IN_TREATMENT,
         });
-        mockAttendanceService.getTreatmentIdForAttendanceId.mockResolvedValue(
+        mockAppointmentService.getTreatmentIdForAppointmentId.mockResolvedValue(
           100,
         );
         mockSessionService.getMaxScheduledDateForTreatment.mockResolvedValue(
           null,
         );
-        mockAttendanceService.update.mockImplementation((id: number) => {
+        mockAppointmentService.update.mockImplementation((id: number) => {
           if (id === 10) return Promise.resolve(physiotherapyMiss1);
           if (id === 11) return Promise.resolve(physiotherapyMiss2);
-          return Promise.reject(new Error(`Unknown attendance id: ${id}`));
+          return Promise.reject(new Error(`Unknown appointment id: ${id}`));
         });
-        mockAttendanceService.reschedule.mockResolvedValue([]);
+        mockAppointmentService.reschedule.mockResolvedValue([]);
       });
 
-      it('should call getNextAvailableDateForAttendance once per attendance (not once per group)', async () => {
-        mockAttendanceService.getNextAvailableDateForAttendance
+      it('should call getNextAvailableDateForAppointment once per appointment (not once per group)', async () => {
+        mockAppointmentService.getNextAvailableDateForAppointment
           .mockResolvedValueOnce(nextDateT1) // for id 10
           .mockResolvedValueOnce(nextDateT2); // for id 11
 
         const dto: ProcessEndOfDayRequestDto = {
           date: missedDate,
           absence_justifications: [
-            { attendance_id: 10, justified: false },
-            { attendance_id: 11, justified: false },
+            { appointment_id: 10, justified: false },
+            { appointment_id: 11, justified: false },
           ],
         };
 
         const result = await service.processEndOfDay(dto);
 
         expect(
-          mockAttendanceService.getNextAvailableDateForAttendance,
+          mockAppointmentService.getNextAvailableDateForAppointment,
         ).toHaveBeenCalledTimes(2);
         expect(
-          mockAttendanceService.getNextAvailableDateForAttendance,
+          mockAppointmentService.getNextAvailableDateForAppointment,
         ).toHaveBeenCalledWith(10);
         expect(
-          mockAttendanceService.getNextAvailableDateForAttendance,
+          mockAppointmentService.getNextAvailableDateForAppointment,
         ).toHaveBeenCalledWith(11);
 
-        expect(mockAttendanceService.reschedule).toHaveBeenCalledTimes(2);
-        expect(mockAttendanceService.reschedule).toHaveBeenCalledWith(
-          { attendance_ids: [10], new_scheduled_date: nextDateT1 },
+        expect(mockAppointmentService.reschedule).toHaveBeenCalledTimes(2);
+        expect(mockAppointmentService.reschedule).toHaveBeenCalledWith(
+          { appointment_ids: [10], new_scheduled_date: nextDateT1 },
           undefined,
         );
-        expect(mockAttendanceService.reschedule).toHaveBeenCalledWith(
-          { attendance_ids: [11], new_scheduled_date: nextDateT2 },
+        expect(mockAppointmentService.reschedule).toHaveBeenCalledWith(
+          { appointment_ids: [11], new_scheduled_date: nextDateT2 },
           undefined,
         );
 
         expect(result.rescheduled).toHaveLength(2);
         expect(
-          result.rescheduled.find((r) => r.attendance_id === 10)?.new_date,
+          result.rescheduled.find((r) => r.appointment_id === 10)?.new_date,
         ).toBe(nextDateT1);
         expect(
-          result.rescheduled.find((r) => r.attendance_id === 11)?.new_date,
+          result.rescheduled.find((r) => r.appointment_id === 11)?.new_date,
         ).toBe(nextDateT2);
         expect(result.could_not_reschedule).toHaveLength(0);
       });
@@ -513,15 +513,15 @@ describe('EndOfDayProcessService', () => {
       it('should independently reschedule two physiotherapy plans from the same patient on the same day to different dates', async () => {
         // Treatment 1 (id 10): last session Jan 22 → next = Jan 29
         // Treatment 2 (id 11): last session Jan 29 → next = Feb 05
-        mockAttendanceService.getNextAvailableDateForAttendance
+        mockAppointmentService.getNextAvailableDateForAppointment
           .mockResolvedValueOnce(nextDateT1)
           .mockResolvedValueOnce(nextDateT2);
 
         const dto: ProcessEndOfDayRequestDto = {
           date: missedDate,
           absence_justifications: [
-            { attendance_id: 10, justified: false },
-            { attendance_id: 11, justified: false },
+            { appointment_id: 10, justified: false },
+            { appointment_id: 11, justified: false },
           ],
         };
 
@@ -529,77 +529,77 @@ describe('EndOfDayProcessService', () => {
 
         expect(result.rescheduled).toHaveLength(2);
         expect(
-          result.rescheduled.find((r) => r.attendance_id === 10)?.new_date,
+          result.rescheduled.find((r) => r.appointment_id === 10)?.new_date,
         ).toBe(nextDateT1);
         expect(
-          result.rescheduled.find((r) => r.attendance_id === 11)?.new_date,
+          result.rescheduled.find((r) => r.appointment_id === 11)?.new_date,
         ).toBe(nextDateT2);
       });
 
-      it('should reschedule three tens misses independently, one call per attendance', async () => {
+      it('should reschedule three tens misses independently, one call per appointment', async () => {
         const tensMiss1 = {
           ...physiotherapyMiss1,
           id: 20,
-          type: AttendanceType.TENS,
-        } as Attendance;
+          type: AppointmentType.TENS,
+        } as Appointment;
         const tensMiss2 = {
           ...physiotherapyMiss2,
           id: 21,
-          type: AttendanceType.TENS,
-        } as Attendance;
+          type: AppointmentType.TENS,
+        } as Appointment;
         const tensMiss3 = {
           ...physiotherapyMiss2,
           id: 22,
-          type: AttendanceType.TENS,
+          type: AppointmentType.TENS,
           scheduled_time: '10:00:00',
-        } as Attendance;
+        } as Appointment;
 
-        mockAttendanceService.update.mockImplementation((id: number) => {
+        mockAppointmentService.update.mockImplementation((id: number) => {
           if (id === 20) return Promise.resolve(tensMiss1);
           if (id === 21) return Promise.resolve(tensMiss2);
           if (id === 22) return Promise.resolve(tensMiss3);
-          return Promise.reject(new Error(`Unknown attendance id: ${id}`));
+          return Promise.reject(new Error(`Unknown appointment id: ${id}`));
         });
-        mockAttendanceService.getNextAvailableDateForAttendance.mockResolvedValue(
+        mockAppointmentService.getNextAvailableDateForAppointment.mockResolvedValue(
           nextDateT1,
         );
 
         const dto: ProcessEndOfDayRequestDto = {
           date: missedDate,
           absence_justifications: [
-            { attendance_id: 20, justified: false },
-            { attendance_id: 21, justified: false },
-            { attendance_id: 22, justified: false },
+            { appointment_id: 20, justified: false },
+            { appointment_id: 21, justified: false },
+            { appointment_id: 22, justified: false },
           ],
         };
 
         const result = await service.processEndOfDay(dto);
 
         expect(
-          mockAttendanceService.getNextAvailableDateForAttendance,
+          mockAppointmentService.getNextAvailableDateForAppointment,
         ).toHaveBeenCalledTimes(3);
-        expect(mockAttendanceService.reschedule).toHaveBeenCalledTimes(3);
+        expect(mockAppointmentService.reschedule).toHaveBeenCalledTimes(3);
         expect(result.rescheduled).toHaveLength(3);
       });
     });
 
     describe('resilience – partial failures do not prevent day finalization', () => {
-      it('should finalize day even when attendanceService.update throws for one attendance', async () => {
-        mockAttendanceService.update
+      it('should finalize day even when appointmentService.update throws for one appointment', async () => {
+        mockAppointmentService.update
           .mockRejectedValueOnce(new Error('DB error'))
           .mockResolvedValueOnce({
-            ...mockAttendance,
+            ...mockAppointment,
             id: 2,
             patient_id: 2,
-            type: AttendanceType.ASSESSMENT,
+            type: AppointmentType.ASSESSMENT,
             scheduled_date: '2024-01-15',
           });
 
         const dto: ProcessEndOfDayRequestDto = {
           date: '2024-01-15',
           absence_justifications: [
-            { attendance_id: 1, justified: false },
-            { attendance_id: 2, justified: false },
+            { appointment_id: 1, justified: false },
+            { appointment_id: 2, justified: false },
           ],
         };
 
@@ -612,14 +612,14 @@ describe('EndOfDayProcessService', () => {
       });
 
       it('should finalize day and push to could_not_reschedule when patientService.findOne throws', async () => {
-        mockAttendanceService.update.mockResolvedValue(mockAttendance);
+        mockAppointmentService.update.mockResolvedValue(mockAppointment);
         mockPatientService.findOne.mockRejectedValue(
           new Error('Patient not found'),
         );
 
         const dto: ProcessEndOfDayRequestDto = {
           date: '2024-01-15',
-          absence_justifications: [{ attendance_id: 1, justified: false }],
+          absence_justifications: [{ appointment_id: 1, justified: false }],
         };
 
         const result = await service.processEndOfDay(dto);
@@ -632,7 +632,7 @@ describe('EndOfDayProcessService', () => {
       });
 
       it('should finalize day and push to could_not_reschedule when setPatientStatus throws at threshold', async () => {
-        mockAttendanceService.update.mockResolvedValue(mockAttendance);
+        mockAppointmentService.update.mockResolvedValue(mockAppointment);
         mockPatientService.findOne.mockResolvedValue({
           ...mockPatient,
           missing_appointments_streak: 3,
@@ -643,7 +643,7 @@ describe('EndOfDayProcessService', () => {
 
         const dto: ProcessEndOfDayRequestDto = {
           date: '2024-01-15',
-          absence_justifications: [{ attendance_id: 1, justified: false }],
+          absence_justifications: [{ appointment_id: 1, justified: false }],
         };
 
         const result = await service.processEndOfDay(dto);
@@ -657,17 +657,17 @@ describe('EndOfDayProcessService', () => {
       });
 
       it('should finalize day and push to could_not_reschedule when reschedule throws unexpectedly', async () => {
-        mockAttendanceService.update.mockResolvedValue(mockAttendance);
-        mockAttendanceService.getNextAvailableDateForAttendance.mockResolvedValue(
+        mockAppointmentService.update.mockResolvedValue(mockAppointment);
+        mockAppointmentService.getNextAvailableDateForAppointment.mockResolvedValue(
           '2024-01-22',
         );
-        mockAttendanceService.reschedule.mockRejectedValue(
+        mockAppointmentService.reschedule.mockRejectedValue(
           new Error('Slot unavailable'),
         );
 
         const dto: ProcessEndOfDayRequestDto = {
           date: '2024-01-15',
-          absence_justifications: [{ attendance_id: 1, justified: false }],
+          absence_justifications: [{ appointment_id: 1, justified: false }],
         };
 
         const result = await service.processEndOfDay(dto);
@@ -680,13 +680,13 @@ describe('EndOfDayProcessService', () => {
         );
       });
 
-      it('should process remaining attendances after one fails', async () => {
-        const attendance1 = { ...mockAttendance, id: 1, patient_id: 1 };
-        const attendance2 = { ...mockAttendance, id: 2, patient_id: 2 };
+      it('should process remaining appointments after one fails', async () => {
+        const appointment1 = { ...mockAppointment, id: 1, patient_id: 1 };
+        const appointment2 = { ...mockAppointment, id: 2, patient_id: 2 };
 
-        mockAttendanceService.update
-          .mockResolvedValueOnce(attendance1)
-          .mockResolvedValueOnce(attendance2);
+        mockAppointmentService.update
+          .mockResolvedValueOnce(appointment1)
+          .mockResolvedValueOnce(appointment2);
         mockPatientService.findOne
           .mockRejectedValueOnce(new Error('Patient 1 not found'))
           .mockResolvedValueOnce({
@@ -694,15 +694,15 @@ describe('EndOfDayProcessService', () => {
             id: 2,
             missing_appointments_streak: 1,
           });
-        mockAttendanceService.getNextAvailableDateForAttendance.mockResolvedValue(
+        mockAppointmentService.getNextAvailableDateForAppointment.mockResolvedValue(
           null,
         );
 
         const dto: ProcessEndOfDayRequestDto = {
           date: '2024-01-15',
           absence_justifications: [
-            { attendance_id: 1, justified: false },
-            { attendance_id: 2, justified: false },
+            { appointment_id: 1, justified: false },
+            { appointment_id: 2, justified: false },
           ],
         };
 
@@ -727,11 +727,11 @@ describe('EndOfDayProcessService', () => {
         ...mockPatient,
         missing_appointments_streak: 5,
       });
-      mockAttendanceService.update.mockResolvedValue({
-        ...mockAttendance,
+      mockAppointmentService.update.mockResolvedValue({
+        ...mockAppointment,
         id: 1,
         patient_id: 1,
-        type: AttendanceType.ASSESSMENT,
+        type: AppointmentType.ASSESSMENT,
         scheduled_date: '2024-01-15',
       });
       mockPatientService.setPatientStatus.mockResolvedValueOnce({
@@ -739,13 +739,13 @@ describe('EndOfDayProcessService', () => {
           ...mockPatient,
           patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
         },
-        cancelledAttendances: [],
+        cancelledAppointments: [],
       });
 
       const dto: ProcessEndOfDayRequestDto = {
         date: '2024-01-15',
         absence_justifications: [
-          { attendance_id: 1, justified: false, notes: '' },
+          { appointment_id: 1, justified: false, notes: '' },
         ],
       };
 

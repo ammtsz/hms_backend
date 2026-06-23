@@ -11,7 +11,7 @@ Originally developed as a volunteer solution to support healthcare operations in
 The current version of the project focuses on the operational needs of a physiotherapy clinic, including:
 
 - patient registration and tracking
-- attendance and appointment workflows
+- appointment and appointment workflows
 - treatment records and session history
 - scheduling rules and return consultations
 - holiday-aware scheduling adjustments
@@ -60,11 +60,11 @@ Strict TypeScript types enforced across entities, DTOs, and service interfaces.
 
 ### Patient management
 
-Register and maintain patient profiles, record identifiers and contacts, and track clinical history and notes linked to treatments and attendances.
+Register and maintain patient profiles, record identifiers and contacts, and track clinical history and notes linked to treatments and appointments.
 
-### Scheduling & attendance
+### Scheduling & appointment
 
-Create, view, reschedule and cancel appointments. Includes daily schedules, attendance status tracking, and business rules for booking windows.
+Create, view, reschedule and cancel appointments. Includes daily schedules, appointment status tracking, and business rules for booking windows.
 
 ### Treatment records & sessions
 
@@ -177,7 +177,7 @@ src/
 The canonical schema is defined in `init.sql` and includes:
 
 - patient management tables
-- attendance and scheduling tables
+- appointment and scheduling tables
 - treatment and session tracking
 - relationships and constraints
 - indexes for performance

@@ -1,22 +1,22 @@
 import { BadRequestException } from '@nestjs/common';
-import { AttendanceStatus } from '../enums';
+import { AppointmentStatus } from '../enums';
 
 /**
- * Parses repeated `status` query params for GET /attendances/schedule.
+ * Parses repeated `status` query params for GET /appointments/schedule.
  * Unknown values are dropped; empty after filter → undefined (all statuses).
  */
 export function parseScheduleStatusQuery(
   statusQuery?: string | string[],
-): AttendanceStatus[] | undefined {
+): AppointmentStatus[] | undefined {
   if (statusQuery === undefined) {
     return undefined;
   }
   const raw = Array.isArray(statusQuery) ? statusQuery : [statusQuery];
-  const allowed = new Set<string>(Object.values(AttendanceStatus));
+  const allowed = new Set<string>(Object.values(AppointmentStatus));
   const parsed = raw
     .map((s) => s?.trim())
     .filter((s): s is string => Boolean(s))
-    .filter((s) => allowed.has(s)) as AttendanceStatus[];
+    .filter((s) => allowed.has(s)) as AppointmentStatus[];
   return parsed.length > 0 ? parsed : undefined;
 }
 

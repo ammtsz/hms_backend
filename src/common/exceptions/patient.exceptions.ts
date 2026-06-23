@@ -39,13 +39,13 @@ export class PatientStatusUpdateException extends BaseException {
   }
 }
 
-export class PatientHasActiveAttendancesException extends BaseException {
-  constructor(patientId: number, activeAttendancesCount: number) {
+export class PatientHasActiveAppointmentsException extends BaseException {
+  constructor(patientId: number, activeAppointmentsCount: number) {
     super(
-      `Cannot delete patient ${patientId}: Has ${activeAttendancesCount} active attendances`,
-      'Active Attendances Exist',
+      `Cannot delete patient ${patientId}: Has ${activeAppointmentsCount} active appointments`,
+      'Active Appointments Exist',
       HttpStatus.CONFLICT,
-      { patientId, activeAttendancesCount },
+      { patientId, activeAppointmentsCount },
     );
   }
 }

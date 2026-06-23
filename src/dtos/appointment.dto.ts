@@ -10,27 +10,27 @@ import {
   Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { AttendanceType, AttendanceStatus } from '../common/enums';
+import { AppointmentType, AppointmentStatus } from '../common/enums';
 import { Sanitize } from '../common/decorators/sanitize.decorator';
 import { PatientResponseDto } from './patient.dto';
 
-export class CreateAttendanceDto {
+export class CreateAppointmentDto {
   @ApiProperty({ description: 'Patient ID', example: 1 })
   @IsNumber()
   @IsNotEmpty()
   patient_id: number;
 
   @ApiProperty({
-    description: 'Type of attendance',
-    enum: AttendanceType,
-    example: AttendanceType.ASSESSMENT,
+    description: 'Type of appointment',
+    enum: AppointmentType,
+    example: AppointmentType.ASSESSMENT,
   })
-  @IsEnum(AttendanceType)
+  @IsEnum(AppointmentType)
   @IsNotEmpty()
-  type: AttendanceType;
+  type: AppointmentType;
 
   @ApiProperty({
-    description: 'Date of attendance',
+    description: 'Date of appointment',
     example: '2025-07-22',
     format: 'YYYY-MM-DD',
   })
@@ -39,7 +39,7 @@ export class CreateAttendanceDto {
   scheduled_date: string;
 
   @ApiProperty({
-    description: 'Time of attendance',
+    description: 'Time of appointment',
     example: '19:30',
     pattern: 'HH:mm',
   })
@@ -61,41 +61,41 @@ export class CreateAttendanceDto {
 
   @ApiPropertyOptional({
     description:
-      'Parent attendance ID for linking follow-ups and generated treatments to original consultation',
+      'Parent appointment ID for linking follow-ups and generated treatments to original consultation',
     example: 123,
   })
   @IsNumber()
   @IsOptional()
-  parent_attendance_id?: number;
+  parent_appointment_id?: number;
 
   @ApiPropertyOptional({
-    description: 'Initial status for the attendance (optional, defaults to scheduled)',
-    enum: AttendanceStatus,
-    example: AttendanceStatus.SCHEDULED,
+    description: 'Initial status for the appointment (optional, defaults to scheduled)',
+    enum: AppointmentStatus,
+    example: AppointmentStatus.SCHEDULED,
   })
-  @IsEnum(AttendanceStatus)
+  @IsEnum(AppointmentStatus)
   @IsOptional()
-  status?: AttendanceStatus;
+  status?: AppointmentStatus;
 }
 
-export class UpdateAttendanceDto {
+export class UpdateAppointmentDto {
   @ApiPropertyOptional({
-    description: 'Updated type of attendance',
-    enum: AttendanceType,
-    example: AttendanceType.ASSESSMENT,
+    description: 'Updated type of appointment',
+    enum: AppointmentType,
+    example: AppointmentType.ASSESSMENT,
   })
-  @IsEnum(AttendanceType)
+  @IsEnum(AppointmentType)
   @IsOptional()
-  type?: AttendanceType;
+  type?: AppointmentType;
 
   @ApiPropertyOptional({
-    description: 'Status of attendance',
-    enum: AttendanceStatus,
-    example: AttendanceStatus.IN_PROGRESS,
+    description: 'Status of appointment',
+    enum: AppointmentStatus,
+    example: AppointmentStatus.IN_PROGRESS,
   })
-  @IsEnum(AttendanceStatus)
+  @IsEnum(AppointmentStatus)
   @IsOptional()
-  status?: AttendanceStatus;
+  status?: AppointmentStatus;
 
   @ApiPropertyOptional({
     description: 'Updated scheduled date',
@@ -193,44 +193,44 @@ export class UpdateAttendanceDto {
 
   @ApiPropertyOptional({
     description:
-      'Parent attendance ID for linking follow-ups and generated treatments',
+      'Parent appointment ID for linking follow-ups and generated treatments',
     example: 123,
   })
   @IsNumber()
   @IsOptional()
-  parent_attendance_id?: number;
+  parent_appointment_id?: number;
 }
 
-export class AttendanceResponseDto {
-  @ApiProperty({ description: 'Attendance ID', example: 1 })
+export class AppointmentResponseDto {
+  @ApiProperty({ description: 'Appointment ID', example: 1 })
   id: number;
 
   @ApiProperty({ description: 'Patient ID', example: 1 })
   patient_id: number;
 
   @ApiProperty({
-    description: 'Type of attendance',
-    enum: AttendanceType,
-    example: AttendanceType.ASSESSMENT,
+    description: 'Type of appointment',
+    enum: AppointmentType,
+    example: AppointmentType.ASSESSMENT,
   })
-  type: AttendanceType;
+  type: AppointmentType;
 
   @ApiProperty({
-    description: 'Status of attendance',
-    enum: AttendanceStatus,
-    example: AttendanceStatus.SCHEDULED,
+    description: 'Status of appointment',
+    enum: AppointmentStatus,
+    example: AppointmentStatus.SCHEDULED,
   })
-  status: AttendanceStatus;
+  status: AppointmentStatus;
 
   @ApiProperty({
-    description: 'Date of attendance',
+    description: 'Date of appointment',
     example: '2025-08-06',
     format: 'YYYY-MM-DD',
   })
   scheduled_date: string;
 
   @ApiProperty({
-    description: 'Time of attendance',
+    description: 'Time of appointment',
     example: '19:30',
     pattern: 'HH:mm',
   })
@@ -293,10 +293,10 @@ export class AttendanceResponseDto {
 
   @ApiPropertyOptional({
     description:
-      'Parent attendance ID for linked follow-ups and generated treatments',
+      'Parent appointment ID for linked follow-ups and generated treatments',
     example: 123,
   })
-  parent_attendance_id?: number;
+  parent_appointment_id?: number;
 
   @ApiProperty({
     description: 'Creation timestamp',
@@ -320,29 +320,29 @@ export class AttendanceResponseDto {
 }
 
 // Simplified DTO for schedule view - contains only essential information
-export class AttendanceScheduleDto {
-  @ApiProperty({ description: 'Attendance ID', example: 1 })
+export class AppointmentScheduleDto {
+  @ApiProperty({ description: 'Appointment ID', example: 1 })
   id: number;
 
   @ApiProperty({ description: 'Patient ID', example: 1 })
   patient_id: number;
 
   @ApiProperty({
-    description: 'Type of attendance',
-    enum: AttendanceType,
-    example: AttendanceType.ASSESSMENT,
+    description: 'Type of appointment',
+    enum: AppointmentType,
+    example: AppointmentType.ASSESSMENT,
   })
-  type: AttendanceType;
+  type: AppointmentType;
 
   @ApiProperty({
-    description: 'Status of attendance',
-    enum: AttendanceStatus,
-    example: AttendanceStatus.SCHEDULED,
+    description: 'Status of appointment',
+    enum: AppointmentStatus,
+    example: AppointmentStatus.SCHEDULED,
   })
-  status: AttendanceStatus;
+  status: AppointmentStatus;
 
   @ApiProperty({
-    description: 'Date of attendance',
+    description: 'Date of appointment',
     example: '2025-07-29',
     format: 'YYYY-MM-DD',
   })
@@ -366,23 +366,23 @@ export class AttendanceScheduleDto {
   patient_priority: string;
 }
 
-// DTO for next scheduled attendance date
-export class NextAttendanceDateDto {
+// DTO for next scheduled appointment date
+export class NextAppointmentDateDto {
   @ApiProperty({
-    description: 'Next scheduled attendance date',
+    description: 'Next scheduled appointment date',
     example: '2025-07-30',
     format: 'YYYY-MM-DD',
   })
   next_date: string;
 }
 
-// DTO for one eligible parent attendance option (ongoing treatment root)
+// DTO for one eligible parent appointment option (ongoing treatment root)
 export class EligibleParentOptionDto {
-  @ApiProperty({ description: 'Root attendance ID', example: 1 })
+  @ApiProperty({ description: 'Root appointment ID', example: 1 })
   id: number;
 
   @ApiProperty({
-    description: 'Scheduled date of the root attendance',
+    description: 'Scheduled date of the root appointment',
     example: '2025-07-22',
     format: 'YYYY-MM-DD',
   })
@@ -401,28 +401,28 @@ export class EligibleParentOptionDto {
   label: string;
 }
 
-// Response for GET /attendances/eligible-parent-options
+// Response for GET /appointments/eligible-parent-options
 export class EligibleParentOptionsResponseDto {
   @ApiProperty({
-    description: 'List of eligible parent (root) attendances for linking a new consultation',
+    description: 'List of eligible parent (root) appointments for linking a new consultation',
     type: [EligibleParentOptionDto],
   })
   options: EligibleParentOptionDto[];
 }
 
-// DTO for bulk cancelling attendances
-export class BulkCancelAttendancesDto {
+// DTO for bulk cancelling appointments
+export class BulkCancelAppointmentsDto {
   @ApiProperty({
-    description: 'Array of attendance IDs to cancel',
+    description: 'Array of appointment IDs to cancel',
     example: [1, 2, 3],
     type: [Number],
   })
   @IsNumber({}, { each: true })
   @IsNotEmpty()
-  attendance_ids: number[];
+  appointment_ids: number[];
 
   @ApiPropertyOptional({
-    description: 'Cancellation reason for all attendances',
+    description: 'Cancellation reason for all appointments',
     example: 'Patient requested cancellation',
   })
   @Sanitize()
@@ -431,16 +431,16 @@ export class BulkCancelAttendancesDto {
   cancellation_reason?: string;
 }
 
-// DTO for bulk postponing attendances (reschedule to a specific date)
-export class BulkPostponeAttendancesDto {
+// DTO for bulk postponing appointments (reschedule to a specific date)
+export class BulkPostponeAppointmentsDto {
   @ApiProperty({
-    description: 'Array of attendance IDs to postpone',
+    description: 'Array of appointment IDs to postpone',
     example: [1, 2, 3],
     type: [Number],
   })
   @IsNumber({}, { each: true })
   @IsNotEmpty()
-  attendance_ids: number[];
+  appointment_ids: number[];
 
   @ApiProperty({
     description: 'New scheduled date in YYYY-MM-DD format',
@@ -453,7 +453,7 @@ export class BulkPostponeAttendancesDto {
 
   @ApiPropertyOptional({
     description:
-      'When true, auto-reschedules linked return assessment attendances for postponed treatments (next-available mode only).',
+      'When true, auto-reschedules linked return assessment appointments for postponed treatments (next-available mode only).',
     example: true,
   })
   @IsBoolean()
@@ -464,36 +464,36 @@ export class BulkPostponeAttendancesDto {
 // DTO for next-available-date preview request
 export class NextAvailableDateRequestDto {
   @ApiProperty({
-    description: 'Array of attendance IDs to get next available date for',
+    description: 'Array of appointment IDs to get next available date for',
     example: [1, 2, 3],
     type: [Number],
   })
   @IsNumber({}, { each: true })
   @IsNotEmpty()
-  attendance_ids: number[];
+  appointment_ids: number[];
 }
 
-// DTO for next-available-date preview response (map attendance_id -> date or null)
+// DTO for next-available-date preview response (map appointment_id -> date or null)
 export class NextAvailableDateResponseDto {
   @ApiProperty({
     description:
-      'Map of attendance ID to next available date (YYYY-MM-DD) or null if none in 52 weeks',
+      'Map of appointment ID to next available date (YYYY-MM-DD) or null if none in 52 weeks',
     example: { '1': '2026-03-24', '2': '2026-04-07', '3': null },
   })
   dates: Record<number, string | null>;
 }
 
-// DTO for rescheduling cancelled or missed attendances
-export class RescheduleAttendancesDto {
+// DTO for rescheduling cancelled or missed appointments
+export class RescheduleAppointmentsDto {
   @ApiProperty({
-    description: 'IDs of cancelled or missed attendances to reschedule (e.g. all in a group: physiotherapy + tens)',
+    description: 'IDs of cancelled or missed appointments to reschedule (e.g. all in a group: physiotherapy + tens)',
     example: [1, 2, 3],
     type: [Number],
   })
   @IsArray()
   @IsNumber({}, { each: true })
   @IsNotEmpty()
-  attendance_ids: number[];
+  appointment_ids: number[];
 
   @ApiProperty({
     description: 'New scheduled date in YYYY-MM-DD format',
@@ -508,12 +508,12 @@ export class RescheduleAttendancesDto {
 // DTO for recomputing the return consultation date after treatment sessions are postponed
 export class RecomputeReturnForEpisodeDto {
   @ApiProperty({
-    description: 'ID of any treatment attendance (physiotherapy or tens) in the episode',
+    description: 'ID of any treatment appointment (physiotherapy or tens) in the episode',
     example: 42,
   })
   @IsNumber()
   @IsNotEmpty()
-  attendance_id: number;
+  appointment_id: number;
 }
 
 // Response DTO for recompute-return endpoint
@@ -524,8 +524,8 @@ export class RecomputeReturnResultDto {
   })
   rescheduled: boolean;
 
-  @ApiPropertyOptional({ description: 'Return attendance ID', example: 99 })
-  attendance_id?: number;
+  @ApiPropertyOptional({ description: 'Return appointment ID', example: 99 })
+  appointment_id?: number;
 
   @ApiPropertyOptional({ description: 'Patient ID', example: 10 })
   patient_id?: number;
@@ -543,13 +543,13 @@ export class RecomputeReturnResultDto {
 // DTO for bulk operation response
 export class BulkOperationResultDto {
   @ApiProperty({
-    description: 'Number of successfully processed attendances',
+    description: 'Number of successfully processed appointments',
     example: 2,
   })
   success_count: number;
 
   @ApiProperty({
-    description: 'Number of failed attendances',
+    description: 'Number of failed appointments',
     example: 1,
   })
   failure_count: number;
@@ -557,25 +557,25 @@ export class BulkOperationResultDto {
   @ApiProperty({
     description: 'Details of successful operations',
     example: [
-      { attendance_id: 1, message: 'Successfully cancelled' },
-      { attendance_id: 2, message: 'Successfully cancelled' },
+      { appointment_id: 1, message: 'Successfully cancelled' },
+      { appointment_id: 2, message: 'Successfully cancelled' },
     ],
   })
-  successes: Array<{ attendance_id: number; message: string }>;
+  successes: Array<{ appointment_id: number; message: string }>;
 
   @ApiProperty({
     description: 'Details of failed operations',
     example: [
-      { attendance_id: 3, error: 'Attendance not found' },
+      { appointment_id: 3, error: 'Appointment not found' },
     ],
   })
-  failures: Array<{ attendance_id: number; error: string }>;
+  failures: Array<{ appointment_id: number; error: string }>;
 
   @ApiPropertyOptional({
-    description: 'Auto-rescheduled assessment return attendances summary',
+    description: 'Auto-rescheduled assessment return appointments summary',
     example: [
       {
-        attendance_id: 55,
+        appointment_id: 55,
         patient_id: 10,
         patient_name: 'Emily',
         old_date: '2026-04-01',
@@ -584,7 +584,7 @@ export class BulkOperationResultDto {
     ],
   })
   auto_rescheduled_returns?: Array<{
-    attendance_id: number;
+    appointment_id: number;
     patient_id: number;
     patient_name: string;
     old_date: string;
@@ -593,8 +593,8 @@ export class BulkOperationResultDto {
 
   @ApiPropertyOptional({
     description:
-      'Return assessment attendances that could not be auto-rescheduled (manual action required)',
-    example: [{ attendance_id: 66, error: 'Date blocked by holiday' }],
+      'Return assessment appointments that could not be auto-rescheduled (manual action required)',
+    example: [{ appointment_id: 66, error: 'Date blocked by holiday' }],
   })
-  failed_return_reschedules?: Array<{ attendance_id: number; error: string }>;
+  failed_return_reschedules?: Array<{ appointment_id: number; error: string }>;
 }

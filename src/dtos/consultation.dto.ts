@@ -15,12 +15,12 @@ import { Consultation } from '../entities/consultation.entity';
 
 export class CreateConsultationDto {
   @ApiProperty({
-    description: 'ID of the related attendance',
+    description: 'ID of the related appointment',
     example: 1,
   })
   @IsNumber()
   @IsNotEmpty()
-  attendance_id: number;
+  appointment_id: number;
 
   @ApiPropertyOptional({
     description: 'Main concern from the patient',
@@ -108,7 +108,7 @@ export class CreateConsultationDto {
 
   @ApiPropertyOptional({
     description:
-      'Time when consultation started (attendance moved to in_progress)',
+      'Time when consultation started (appointment moved to in_progress)',
     example: '19:35:00',
     pattern: 'HH:mm:ss',
   })
@@ -142,12 +142,12 @@ export class CreateConsultationDto {
 
 export class UpdateConsultationDto {
   @ApiPropertyOptional({
-    description: 'ID of the related attendance',
+    description: 'ID of the related appointment',
     example: 1,
   })
   @IsNumber()
   @IsOptional()
-  attendance_id?: number;
+  appointment_id?: number;
 
   @ApiPropertyOptional({
     description: 'Main concern from the patient',
@@ -234,7 +234,7 @@ export class UpdateConsultationDto {
 
   @ApiPropertyOptional({
     description:
-      'Time when consultation started (attendance moved to in_progress)',
+      'Time when consultation started (appointment moved to in_progress)',
     example: '19:35:00',
     pattern: 'HH:mm:ss',
   })
@@ -274,10 +274,10 @@ export class ConsultationResponseDto {
   id: number;
 
   @ApiProperty({
-    description: 'ID of the related attendance',
+    description: 'ID of the related appointment',
     example: 1,
   })
-  attendance_id: number;
+  appointment_id: number;
 
   @ApiPropertyOptional({
     description: 'Main concern from the patient',
@@ -388,7 +388,7 @@ export class TreatmentResult {
   @ApiProperty({
     description: 'List of errors encountered during session creation',
     example: [
-      'Failed to create attendance: Patient already has appointment at this time',
+      'Failed to create appointment: Patient already has appointment at this time',
     ],
     type: [String],
   })
@@ -415,15 +415,15 @@ export class TreatmentsResult {
  */
 export class ConsultationResult {
   consultation: Consultation;
-  cancelledAttendances?: CancelledAttendanceItemDto[];
+  cancelledAppointments?: CancelledAppointmentItemDto[];
 }
 
-export class CancelledAttendanceItemDto {
-  @ApiProperty({ description: 'Attendance ID' })
+export class CancelledAppointmentItemDto {
+  @ApiProperty({ description: 'Appointment ID' })
   id: number;
 
   @ApiProperty({
-    description: 'Attendance type (assessment, physiotherapy, tens)',
+    description: 'Appointment type (assessment, physiotherapy, tens)',
   })
   type: string;
 
@@ -446,10 +446,10 @@ export class UpdateConsultationResponseDto {
 
   @ApiPropertyOptional({
     description:
-      'Attendances cancelled when treatment status was set to Discharged (D) or Consecutive no-shows (C)',
-    type: [CancelledAttendanceItemDto],
+      'Appointments cancelled when treatment status was set to Discharged (D) or Consecutive no-shows (C)',
+    type: [CancelledAppointmentItemDto],
   })
-  cancelled_attendances?: CancelledAttendanceItemDto[];
+  cancelled_appointments?: CancelledAppointmentItemDto[];
 }
 
 export class ScheduleReturnDto {

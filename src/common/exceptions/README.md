@@ -18,25 +18,25 @@ All custom exceptions extend `BaseException`, which standardizes the HTTP error 
 - `DuplicatePatientException`: duplicate patient detected
 - `InvalidPatientPriorityException`: patient priority is invalid
 - `PatientStatusUpdateException`: invalid patient status transition
-- `PatientHasActiveAttendancesException`: patient cannot be deleted while active attendances exist
+- `PatientHasActiveAppointmentsException`: patient cannot be deleted while active appointments exist
 
-### Attendance exceptions
+### Appointment exceptions
 
-- `AttendanceScheduleConflictException`: attendance already exists for the requested time
-- `InvalidAttendanceStatusTransitionException`: attendance status transition is invalid
-- `AttendanceTimeSlotUnavailableException`: requested slot is unavailable
+- `AppointmentScheduleConflictException`: appointment already exists for the requested time
+- `InvalidAppointmentStatusTransitionException`: appointment status transition is invalid
+- `AppointmentTimeSlotUnavailableException`: requested slot is unavailable
 
 ### Consultation exceptions
 
-- `DuplicateConsultationException`: consultation already exists for the attendance
-- `InvalidAttendanceStatusException`: attendance status does not allow consultation creation
+- `DuplicateConsultationException`: consultation already exists for the appointment
+- `InvalidAppointmentStatusException`: appointment status does not allow consultation creation
 - `InvalidReturnWeeksException`: return weeks value is outside the allowed range
 
 ### Schedule setting exceptions
 
 - `InvalidScheduleTimeException`: schedule time is invalid
 - `ScheduleSettingConflictException`: schedule setting already exists for the day
-- `InvalidConcurrentAttendancesException`: concurrent attendance limit is invalid
+- `InvalidConcurrentAppointmentsException`: concurrent appointment limit is invalid
 - `ScheduleSettingInUseException`: schedule setting cannot be deleted while in use
 
 ## Standard error response
@@ -67,11 +67,11 @@ All custom exceptions return the same response shape:
 throw new DuplicatePatientException(patientName, phone, existingPatientId);
 ```
 
-### Invalid attendance status transition
+### Invalid appointment status transition
 
 ```typescript
-throw new InvalidAttendanceStatusTransitionException(
-  attendanceId,
+throw new InvalidAppointmentStatusTransitionException(
+  appointmentId,
   currentStatus,
   targetStatus,
 );

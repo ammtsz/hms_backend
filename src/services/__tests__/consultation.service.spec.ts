@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConsultationService } from '../consultation.service';
-import { AttendanceService } from '../attendance.service';
+import { AppointmentService } from '../appointment.service';
 import { TreatmentService } from '../treatment.service';
 import { PatientService } from '../patient.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Consultation } from '../../entities/consultation.entity';
-import { Attendance } from '../../entities/attendance.entity';
+import { Appointment } from '../../entities/appointment.entity';
 import { Patient } from '../../entities/patient.entity';
 import { Repository, DeleteResult } from 'typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
@@ -15,35 +15,35 @@ import {
 } from '../../dtos/consultation.dto';
 import {
   DuplicateConsultationException,
-  InvalidAttendanceStatusException,
+  InvalidAppointmentStatusException,
   InvalidReturnWeeksException,
 } from '../../common/exceptions';
-import { AttendanceStatus, AttendanceType } from '../../common/enums';
+import { AppointmentStatus, AppointmentType } from '../../common/enums';
 
 describe('ConsultationService', () => {
   let service: ConsultationService;
   let repository: Repository<Consultation>;
-  let mockAttendanceRepository: Repository<Attendance>;
+  let mockAppointmentRepository: Repository<Appointment>;
 
   const mockPatient = {
     id: 1,
     name: 'John Doe',
   };
 
-  const mockAttendance = {
+  const mockAppointment = {
     id: 1,
     patient: mockPatient as any,
     patient_id: 1,
-    type: AttendanceType.ASSESSMENT,
-    status: AttendanceStatus.COMPLETED,
+    type: AppointmentType.ASSESSMENT,
+    status: AppointmentStatus.COMPLETED,
     scheduled_date: '2026-01-15',
     scheduled_time: '10:00:00',
-  } as Attendance;
+  } as Appointment;
 
   const mockConsultation: Consultation = {
     id: 1,
-    attendance_id: 1,
-    attendance: mockAttendance as any,
+    appointment_id: 1,
+    appointment: mockAppointment as any,
     food: 'Avoid processed foods',
     water: 'Drink 2L of water daily',
     ointments: 'Chamomile ointment',
@@ -78,9 +78,9 @@ describe('ConsultationService', () => {
       .mockResolvedValue({ affected: 1, raw: {} } as DeleteResult),
   };
 
-  const attendanceRepoMock = {
-    findOne: jest.fn().mockResolvedValue(mockAttendance),
-  } as unknown as Repository<Attendance>;
+  const appointmentRepoMock = {
+    findOne: jest.fn().mockResolvedValue(mockAppointment),
+  } as unknown as Repository<Appointment>;
 
   const patientRepoMock = {
     update: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -91,21 +91,21 @@ describe('ConsultationService', () => {
     createTreatment: jest.fn().mockResolvedValue({ id: 1 }),
   } as unknown as TreatmentService;
 
-  const mockAttendanceService = {
+  const mockAppointmentService = {
     create: jest.fn().mockResolvedValue({ id: 1 }),
-  } as unknown as AttendanceService;
+  } as unknown as AppointmentService;
 
   const mockPatientService = {
     setPatientStatus: jest.fn().mockResolvedValue({
       patient: mockPatient,
-      cancelledAttendances: [],
+      cancelledAppointments: [],
     }),
   } as unknown as PatientService;
 
   beforeEach(async () => {
     mockRepository.findOne.mockReset();
     mockRepository.findOne.mockImplementation(async (options: any) => {
-      if (options.where?.id === 1 || options.where?.attendance_id === 1) {
+      if (options.where?.id === 1 || options.where?.appointment_id === 1) {
         return mockConsultation;
       }
       return null;
@@ -113,9 +113,9 @@ describe('ConsultationService', () => {
 
     // Reset ALL mocks completely
     mockRepository.save.mockClear();
-    (attendanceRepoMock.findOne as jest.Mock).mockClear();
-    (attendanceRepoMock.findOne as jest.Mock).mockReset();
-    (attendanceRepoMock.findOne as jest.Mock).mockResolvedValue(mockAttendance);
+    (appointmentRepoMock.findOne as jest.Mock).mockClear();
+    (appointmentRepoMock.findOne as jest.Mock).mockReset();
+    (appointmentRepoMock.findOne as jest.Mock).mockResolvedValue(mockAppointment);
     (patientRepoMock.findOne as jest.Mock).mockClear();
     (patientRepoMock.findOne as jest.Mock).mockReset();
     (patientRepoMock.findOne as jest.Mock).mockResolvedValue(mockPatient);
@@ -128,8 +128,8 @@ describe('ConsultationService', () => {
           useValue: mockRepository,
         },
         {
-          provide: getRepositoryToken(Attendance),
-          useValue: attendanceRepoMock,
+          provide: getRepositoryToken(Appointment),
+          useValue: appointmentRepoMock,
         },
         {
           provide: getRepositoryToken(Patient),
@@ -140,8 +140,8 @@ describe('ConsultationService', () => {
           useValue: mockTreatmentService,
         },
         {
-          provide: AttendanceService,
-          useValue: mockAttendanceService,
+          provide: AppointmentService,
+          useValue: mockAppointmentService,
         },
         {
           provide: PatientService,
@@ -154,8 +154,8 @@ describe('ConsultationService', () => {
     repository = module.get<Repository<Consultation>>(
       getRepositoryToken(Consultation),
     );
-    mockAttendanceRepository = module.get<Repository<Attendance>>(
-      getRepositoryToken(Attendance),
+    mockAppointmentRepository = module.get<Repository<Appointment>>(
+      getRepositoryToken(Appointment),
     );
   });
 
@@ -165,7 +165,7 @@ describe('ConsultationService', () => {
 
   describe('create', () => {
     const createDto: CreateConsultationDto = {
-      attendance_id: 1,
+      appointment_id: 1,
       food: 'Avoid processed foods',
       water: 'Drink 2L of water daily',
       ointments: 'Chamomile ointment',
@@ -189,28 +189,28 @@ describe('ConsultationService', () => {
       expect(repository.save).toHaveBeenCalled();
     });
 
-    it('should use attendance.started_time for start_time when creating consultation', async () => {
-      const attendanceWithTimes = {
-        ...mockAttendance,
+    it('should use appointment.started_time for start_time when creating consultation', async () => {
+      const appointmentWithTimes = {
+        ...mockAppointment,
         started_time: '14:30:00',
         completed_time: '15:45:00',
-        status: AttendanceStatus.COMPLETED,
+        status: AppointmentStatus.COMPLETED,
       };
 
       // Clear all previous mock state
       mockRepository.findOne.mockClear();
       mockRepository.save.mockClear();
-      (attendanceRepoMock.findOne as jest.Mock).mockClear();
+      (appointmentRepoMock.findOne as jest.Mock).mockClear();
 
       // Set up mocks for this test using mockImplementation
       mockRepository.findOne.mockResolvedValueOnce(null); // No existing consultation
-      (attendanceRepoMock.findOne as jest.Mock).mockImplementation(
-        async () => attendanceWithTimes,
+      (appointmentRepoMock.findOne as jest.Mock).mockImplementation(
+        async () => appointmentWithTimes,
       );
 
       await service.create(createDto);
 
-      // Verify that timestamps were set (they should be populated from attendance or current time)
+      // Verify that timestamps were set (they should be populated from appointment or current time)
       const saveCall = mockRepository.save.mock.calls[0][0];
       expect(saveCall.start_time).toBeDefined();
       expect(saveCall.start_time).toMatch(/^\d{2}:\d{2}:\d{2}$/);
@@ -218,28 +218,28 @@ describe('ConsultationService', () => {
       expect(saveCall.end_time).toMatch(/^\d{2}:\d{2}:\d{2}$/);
     });
 
-    it('should set both start_time and end_time even when attendance not yet marked completed', async () => {
-      const attendanceInProgress = {
-        ...mockAttendance,
+    it('should set both start_time and end_time even when appointment not yet marked completed', async () => {
+      const appointmentInProgress = {
+        ...mockAppointment,
         started_time: '14:30:00',
         completed_time: null,
-        status: AttendanceStatus.IN_PROGRESS, // Not completed yet
+        status: AppointmentStatus.IN_PROGRESS, // Not completed yet
       };
 
       // Clear all previous mock state
       mockRepository.findOne.mockClear();
       mockRepository.save.mockClear();
-      (attendanceRepoMock.findOne as jest.Mock).mockClear();
+      (appointmentRepoMock.findOne as jest.Mock).mockClear();
 
       // Set up mocks for this test using mockImplementation
       mockRepository.findOne.mockResolvedValueOnce(null); // No existing consultation
-      (attendanceRepoMock.findOne as jest.Mock).mockImplementation(
-        async () => attendanceInProgress,
+      (appointmentRepoMock.findOne as jest.Mock).mockImplementation(
+        async () => appointmentInProgress,
       );
 
       await service.create(createDto);
 
-      // Verify that both timestamps are set (start from attendance, end from current time as fallback)
+      // Verify that both timestamps are set (start from appointment, end from current time as fallback)
       const saveCall = mockRepository.save.mock.calls[0][0];
       expect(saveCall.start_time).toBeDefined();
       expect(saveCall.start_time).toMatch(/^\d{2}:\d{2}:\d{2}$/);
@@ -247,18 +247,18 @@ describe('ConsultationService', () => {
       expect(saveCall.end_time).toMatch(/^\d{2}:\d{2}:\d{2}$/); // HH:MM:SS format
     });
 
-    it('should use current time as fallback when attendance has no started_time', async () => {
-      const attendanceWithoutTimes = {
-        ...mockAttendance,
+    it('should use current time as fallback when appointment has no started_time', async () => {
+      const appointmentWithoutTimes = {
+        ...mockAppointment,
         started_time: null,
         completed_time: null,
-        status: AttendanceStatus.COMPLETED,
+        status: AppointmentStatus.COMPLETED,
       };
 
       mockRepository.findOne.mockResolvedValueOnce(null); // No existing consultation
       jest
-        .spyOn(mockAttendanceRepository, 'findOne')
-        .mockResolvedValueOnce(attendanceWithoutTimes);
+        .spyOn(mockAppointmentRepository, 'findOne')
+        .mockResolvedValueOnce(appointmentWithoutTimes);
 
       await service.create(createDto);
 
@@ -271,13 +271,13 @@ describe('ConsultationService', () => {
     it('should throw DuplicateConsultationException when consultation already exists', async () => {
       mockRepository.findOne
         .mockResolvedValueOnce(mockConsultation) // Existing consultation found
-        .mockResolvedValueOnce(mockAttendance); // Attendance check (shouldn't reach here)
+        .mockResolvedValueOnce(mockAppointment); // Appointment check (shouldn't reach here)
 
       await expect(service.create(createDto)).rejects.toThrow(
         DuplicateConsultationException,
       );
       expect(repository.findOne).toHaveBeenCalledWith({
-        where: { attendance_id: createDto.attendance_id },
+        where: { appointment_id: createDto.appointment_id },
       });
     });
 
@@ -285,34 +285,34 @@ describe('ConsultationService', () => {
       const invalidDto = { ...createDto, return_weeks: 53 };
       mockRepository.findOne
         .mockResolvedValueOnce(null) // No existing consultation
-        .mockResolvedValueOnce(mockAttendance); // Attendance check (shouldn't reach here)
+        .mockResolvedValueOnce(mockAppointment); // Appointment check (shouldn't reach here)
 
       await expect(service.create(invalidDto)).rejects.toThrow(
         InvalidReturnWeeksException,
       );
     });
 
-    it('should throw InvalidAttendanceStatusException when attendance is cancelled', async () => {
-      const cancelledAttendance = {
-        ...mockAttendance,
-        status: AttendanceStatus.CANCELLED,
+    it('should throw InvalidAppointmentStatusException when appointment is cancelled', async () => {
+      const cancelledAppointment = {
+        ...mockAppointment,
+        status: AppointmentStatus.CANCELLED,
       };
 
       mockRepository.findOne.mockResolvedValueOnce(null); // No existing consultation
       jest
-        .spyOn(mockAttendanceRepository, 'findOne')
-        .mockResolvedValueOnce(cancelledAttendance); // Cancelled attendance
+        .spyOn(mockAppointmentRepository, 'findOne')
+        .mockResolvedValueOnce(cancelledAppointment); // Cancelled appointment
 
       await expect(service.create(createDto)).rejects.toThrow(
-        InvalidAttendanceStatusException,
+        InvalidAppointmentStatusException,
       );
     });
 
-    it('should throw NotFoundException when attendance not found', async () => {
+    it('should throw NotFoundException when appointment not found', async () => {
       mockRepository.findOne.mockResolvedValueOnce(null); // No existing consultation
       jest
-        .spyOn(mockAttendanceRepository, 'findOne')
-        .mockResolvedValueOnce(null); // Attendance not found
+        .spyOn(mockAppointmentRepository, 'findOne')
+        .mockResolvedValueOnce(null); // Appointment not found
 
       await expect(service.create(createDto)).rejects.toThrow(
         NotFoundException,
@@ -322,13 +322,13 @@ describe('ConsultationService', () => {
     it('should handle database unique constraint violation', async () => {
       const dbError = {
         code: '23505',
-        detail: 'Key (attendance_id)=(1) already exists.',
+        detail: 'Key (appointment_id)=(1) already exists.',
       };
 
       mockRepository.findOne.mockResolvedValueOnce(null); // No existing consultation found initially
       jest
-        .spyOn(mockAttendanceRepository, 'findOne')
-        .mockResolvedValueOnce(mockAttendance);
+        .spyOn(mockAppointmentRepository, 'findOne')
+        .mockResolvedValueOnce(mockAppointment);
       mockRepository.save.mockRejectedValueOnce(dbError);
 
       await expect(service.create(createDto)).rejects.toThrow(
@@ -336,16 +336,16 @@ describe('ConsultationService', () => {
       );
     });
 
-    it('should handle database error with invalid attendance ID format', async () => {
+    it('should handle database error with invalid appointment ID format', async () => {
       const dbError = {
         code: '23505',
-        detail: 'Key (attendance_id)=(invalid) already exists.',
+        detail: 'Key (appointment_id)=(invalid) already exists.',
       };
 
       mockRepository.findOne.mockResolvedValueOnce(null);
       jest
-        .spyOn(mockAttendanceRepository, 'findOne')
-        .mockResolvedValueOnce(mockAttendance);
+        .spyOn(mockAppointmentRepository, 'findOne')
+        .mockResolvedValueOnce(mockAppointment);
       mockRepository.save.mockRejectedValueOnce(dbError);
 
       await expect(service.create(createDto)).rejects.toThrow(
@@ -358,8 +358,8 @@ describe('ConsultationService', () => {
 
       mockRepository.findOne.mockResolvedValueOnce(null);
       jest
-        .spyOn(mockAttendanceRepository, 'findOne')
-        .mockResolvedValueOnce(mockAttendance);
+        .spyOn(mockAppointmentRepository, 'findOne')
+        .mockResolvedValueOnce(mockAppointment);
       mockRepository.save.mockRejectedValueOnce(genericError);
 
       await expect(service.create(createDto)).rejects.toThrow(
@@ -375,8 +375,8 @@ describe('ConsultationService', () => {
 
       mockRepository.findOne.mockResolvedValueOnce(null); // No existing consultation
       jest
-        .spyOn(mockAttendanceRepository, 'findOne')
-        .mockResolvedValueOnce(mockAttendance);
+        .spyOn(mockAppointmentRepository, 'findOne')
+        .mockResolvedValueOnce(mockAppointment);
 
       const result = await service.create(createDtoWithNoReturnWeeks);
 
@@ -394,7 +394,7 @@ describe('ConsultationService', () => {
 
       expect(result).toEqual([mockConsultation]);
       expect(repository.find).toHaveBeenCalledWith({
-        relations: ['attendance', 'attendance.patient'],
+        relations: ['appointment', 'appointment.patient'],
       });
     });
   });
@@ -406,7 +406,7 @@ describe('ConsultationService', () => {
       expect(result).toEqual(mockConsultation);
       expect(repository.findOne).toHaveBeenCalledWith({
         where: { id: 1 },
-        relations: ['attendance', 'attendance.patient'],
+        relations: ['appointment', 'appointment.patient'],
       });
     });
 
@@ -416,20 +416,20 @@ describe('ConsultationService', () => {
     });
   });
 
-  describe('findByAttendance', () => {
-    it('should return a consultation for a specific attendance', async () => {
-      const result = await service.findByAttendance(1);
+  describe('findByAppointment', () => {
+    it('should return a consultation for a specific appointment', async () => {
+      const result = await service.findByAppointment(1);
 
       expect(result).toEqual(mockConsultation);
       expect(repository.findOne).toHaveBeenCalledWith({
-        where: { attendance_id: 1 },
-        relations: ['attendance', 'attendance.patient'],
+        where: { appointment_id: 1 },
+        relations: ['appointment', 'appointment.patient'],
       });
     });
 
-    it('should throw NotFoundException when no consultation exists for attendance', async () => {
+    it('should throw NotFoundException when no consultation exists for appointment', async () => {
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.findByAttendance(999)).rejects.toThrow(
+      await expect(service.findByAppointment(999)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -438,7 +438,7 @@ describe('ConsultationService', () => {
   describe('update', () => {
     it('should update a consultation', async () => {
       const updateDto = {
-        attendance_id: 1,
+        appointment_id: 1,
         food: 'Updated food recommendations',
         water: 'Updated water recommendations',
         notes: 'Updated treatment notes',
@@ -458,7 +458,7 @@ describe('ConsultationService', () => {
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
 
       const updateDto = {
-        attendance_id: 1,
+        appointment_id: 1,
         food: 'Updated food recommendations',
       } as UpdateConsultationDto;
 

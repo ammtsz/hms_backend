@@ -1,4 +1,4 @@
-import { AttendanceType } from '../../enums';
+import { AppointmentType } from '../../enums';
 import {
   normalizeSchedulingKey,
   treatmentSignaturesConflict,
@@ -15,7 +15,7 @@ describe('scheduling-signature.utils', () => {
     it('returns true for tens with same location', () => {
       expect(
         treatmentSignaturesConflict(
-          AttendanceType.TENS,
+          AppointmentType.TENS,
           { bodyLocation: 'Neck' },
           { bodyLocation: 'neck' },
         ),
@@ -25,7 +25,7 @@ describe('scheduling-signature.utils', () => {
     it('returns false for tens with different locations', () => {
       expect(
         treatmentSignaturesConflict(
-          AttendanceType.TENS,
+          AppointmentType.TENS,
           { bodyLocation: 'Neck' },
           { bodyLocation: 'Left Shoulder' },
         ),
@@ -35,7 +35,7 @@ describe('scheduling-signature.utils', () => {
     it('returns true for physiotherapy with same location and color', () => {
       expect(
         treatmentSignaturesConflict(
-          AttendanceType.PHYSIOTHERAPY,
+          AppointmentType.PHYSIOTHERAPY,
           { bodyLocation: 'Neck', color: 'Blue' },
           { bodyLocation: 'Neck', color: 'blue' },
         ),
@@ -45,7 +45,7 @@ describe('scheduling-signature.utils', () => {
     it('returns false for physiotherapy with same location but different color', () => {
       expect(
         treatmentSignaturesConflict(
-          AttendanceType.PHYSIOTHERAPY,
+          AppointmentType.PHYSIOTHERAPY,
           { bodyLocation: 'Neck', color: 'Blue' },
           { bodyLocation: 'Neck', color: 'Red' },
         ),

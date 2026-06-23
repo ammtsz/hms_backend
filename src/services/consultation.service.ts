@@ -7,11 +7,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Consultation } from '../entities/consultation.entity';
-import { Attendance } from '../entities/attendance.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { Patient } from '../entities/patient.entity';
 import { TreatmentService } from './treatment.service';
-import { AttendanceService } from './attendance.service';
-import { AttendanceType } from '../common/enums';
+import { AppointmentService } from './appointment.service';
+import { AppointmentType } from '../common/enums';
 import { addDaysToDateString } from '../utils/date-string-helpers';
 import {
   CreateConsultationDto,
@@ -21,7 +21,7 @@ import {
 import {
   DuplicateConsultationException,
   InvalidReturnWeeksException,
-  InvalidAttendanceStatusException,
+  InvalidAppointmentStatusException,
 } from '../common/exceptions';
 import { PatientService } from './patient.service';
 import { PatientStatus } from '../common/enums';
@@ -31,12 +31,12 @@ export class ConsultationService {
   constructor(
     @InjectRepository(Consultation)
     private consultationRepository: Repository<Consultation>,
-    @InjectRepository(Attendance)
-    private attendanceRepository: Repository<Attendance>,
+    @InjectRepository(Appointment)
+    private appointmentRepository: Repository<Appointment>,
     @InjectRepository(Patient)
     private patientRepository: Repository<Patient>,
     private treatmentService: TreatmentService,
-    private attendanceService: AttendanceService,
+    private appointmentService: AppointmentService,
     private patientService: PatientService,
   ) {}
 
@@ -45,29 +45,29 @@ export class ConsultationService {
   ): Promise<ConsultationResult> {
     try {
       await this.validateForCreate(createConsultationDto);
-      const attendance = await this.getAttendanceForCreate(
-        createConsultationDto.attendance_id,
+      const appointment = await this.getAppointmentForCreate(
+        createConsultationDto.appointment_id,
       );
       const consultationEntity = this.buildConsultationWithTiming(
         createConsultationDto,
-        attendance,
+        appointment,
       );
       const savedConsultation =
         await this.consultationRepository.save(consultationEntity);
 
       // Update patient's main_concern if this is a new treatment episode or new patient
-      await this.updatePatientMainConcern(savedConsultation, attendance);
+      await this.updatePatientMainConcern(savedConsultation, appointment);
 
       const { patient_status } = createConsultationDto;
       if (patient_status) {
         const applied = await this.applyPatientStatusFromConsultation(
-          attendance.id,
-          attendance.patient_id,
+          appointment.id,
+          appointment.patient_id,
           patient_status,
         );
         return {
           consultation: savedConsultation,
-          cancelledAttendances: applied.cancelledAttendances,
+          cancelledAppointments: applied.cancelledAppointments,
         };
       }
 
@@ -79,9 +79,9 @@ export class ConsultationService {
       // Handle database-specific errors
       if (error.code === '23505') {
         // unique_violation
-        const match = error.detail.match(/Key \(attendance_id\)=\((\d+)\)/);
-        const attendanceId = match ? parseInt(match[1]) : -1;
-        throw new DuplicateConsultationException(attendanceId, -1);
+        const match = error.detail.match(/Key \(appointment_id\)=\((\d+)\)/);
+        const appointmentId = match ? parseInt(match[1]) : -1;
+        throw new DuplicateConsultationException(appointmentId, -1);
       }
       throw error;
     }
@@ -89,14 +89,14 @@ export class ConsultationService {
 
   async findAll(): Promise<Consultation[]> {
     return await this.consultationRepository.find({
-      relations: ['attendance', 'attendance.patient'],
+      relations: ['appointment', 'appointment.patient'],
     });
   }
 
   async findOne(id: number): Promise<Consultation> {
     const consultation = await this.consultationRepository.findOne({
       where: { id },
-      relations: ['attendance', 'attendance.patient'],
+      relations: ['appointment', 'appointment.patient'],
     });
     if (!consultation) {
       throw new NotFoundException(`Consultation with ID ${id} not found`);
@@ -104,14 +104,14 @@ export class ConsultationService {
     return consultation;
   }
 
-  async findByAttendance(attendanceId: number): Promise<Consultation> {
+  async findByAppointment(appointmentId: number): Promise<Consultation> {
     const consultation = await this.consultationRepository.findOne({
-      where: { attendance_id: attendanceId },
-      relations: ['attendance', 'attendance.patient'],
+      where: { appointment_id: appointmentId },
+      relations: ['appointment', 'appointment.patient'],
     });
     if (!consultation) {
       throw new NotFoundException(
-        `Consultation not found for attendance ${attendanceId}`,
+        `Consultation not found for appointment ${appointmentId}`,
       );
     }
     return consultation;
@@ -122,9 +122,9 @@ export class ConsultationService {
   ): Promise<Consultation | null> {
     const consultation = await this.consultationRepository.findOne({
       where: {
-        attendance: { patient_id: patientId },
+        appointment: { patient_id: patientId },
       },
-      relations: ['attendance', 'attendance.patient'],
+      relations: ['appointment', 'appointment.patient'],
       order: {
         created_date: 'DESC',
         created_time: 'DESC',
@@ -157,19 +157,19 @@ export class ConsultationService {
     const updatedConsultation = await this.findOne(id);
 
     if (patient_status) {
-      const attendance = await this.attendanceRepository.findOne({
-        where: { id: updatedConsultation.attendance_id },
+      const appointment = await this.appointmentRepository.findOne({
+        where: { id: updatedConsultation.appointment_id },
         select: ['patient_id', 'id'],
       });
-      if (attendance) {
+      if (appointment) {
         const applied = await this.applyPatientStatusFromConsultation(
-          attendance.id,
-          attendance.patient_id,
+          appointment.id,
+          appointment.patient_id,
           patient_status,
         );
         return {
           consultation: updatedConsultation,
-          cancelledAttendances: applied.cancelledAttendances,
+          cancelledAppointments: applied.cancelledAppointments,
         };
       }
     }
@@ -179,20 +179,20 @@ export class ConsultationService {
 
   /**
    * Apply patient treatment status from a consultation (single entry point).
-   * Calls setPatientStatus with excludeAttendanceIds so the current attendance is not cancelled.
+   * Calls setPatientStatus with excludeAppointmentIds so the current appointment is not cancelled.
    */
   private async applyPatientStatusFromConsultation(
-    attendanceId: number,
+    appointmentId: number,
     patientId: number,
     treatmentStatus: string,
-  ): Promise<{ cancelledAttendances: Array<{ id: number; type: string; scheduled_date: string }> }> {
+  ): Promise<{ cancelledAppointments: Array<{ id: number; type: string; scheduled_date: string }> }> {
     const result = await this.patientService.setPatientStatus(
       patientId,
       this.treatmentStatusStringToEnum(treatmentStatus),
-      { excludeAttendanceIds: [attendanceId] },
+      { excludeAppointmentIds: [appointmentId] },
     );
     return {
-      cancelledAttendances: result.cancelledAttendances ?? [],
+      cancelledAppointments: result.cancelledAppointments ?? [],
     };
   }
 
@@ -226,65 +226,65 @@ export class ConsultationService {
       throw new InvalidReturnWeeksException(dto.return_weeks);
     }
     const existingConsultation = await this.consultationRepository.findOne({
-      where: { attendance_id: dto.attendance_id },
+      where: { appointment_id: dto.appointment_id },
     });
     if (existingConsultation) {
       throw new DuplicateConsultationException(
-        dto.attendance_id,
+        dto.appointment_id,
         existingConsultation.id,
       );
     }
   }
 
-  /** Load attendance for create; throws if not found or cancelled. */
-  private async getAttendanceForCreate(
-    attendanceId: number,
-  ): Promise<Attendance> {
-    const attendance = await this.attendanceRepository.findOne({
-      where: { id: attendanceId },
+  /** Load appointment for create; throws if not found or cancelled. */
+  private async getAppointmentForCreate(
+    appointmentId: number,
+  ): Promise<Appointment> {
+    const appointment = await this.appointmentRepository.findOne({
+      where: { id: appointmentId },
       relations: ['patient'],
     });
-    if (!attendance) {
+    if (!appointment) {
       throw new NotFoundException(
-        `Attendance with ID ${attendanceId} not found`,
+        `Appointment with ID ${appointmentId} not found`,
       );
     }
-    if (attendance.status === 'cancelled') {
-      throw new InvalidAttendanceStatusException(
-        attendanceId,
-        attendance.status,
+    if (appointment.status === 'cancelled') {
+      throw new InvalidAppointmentStatusException(
+        appointmentId,
+        appointment.status,
       );
     }
-    return attendance;
+    return appointment;
   }
 
-  /** Build consultation entity with start_time/end_time from attendance. */
+  /** Build consultation entity with start_time/end_time from appointment. */
   private buildConsultationWithTiming(
     dto: CreateConsultationDto,
-    attendance: Attendance,
+    appointment: Appointment,
   ): Consultation {
     const consultation = this.consultationRepository.create(dto);
     const fallbackTime = new Date().toTimeString().split(' ')[0].substring(0, 8);
     if (!consultation.start_time) {
-      consultation.start_time = attendance.started_time ?? fallbackTime;
+      consultation.start_time = appointment.started_time ?? fallbackTime;
     }
     if (!consultation.end_time) {
-      consultation.end_time = attendance.completed_time ?? fallbackTime;
+      consultation.end_time = appointment.completed_time ?? fallbackTime;
     }
     return consultation;
   }
 
   /**
-   * Schedule return attendance for a consultation
+   * Schedule return appointment for a consultation
    * Handles both legacy (immediate) and auto-return (deferred) modes
    * @param consultationId - ID of the consultation
    * @param mode - 'legacy' for immediate return, 'auto-return' for deferred return after sessions
-   * @returns The created return attendance
+   * @returns The created return appointment
    */
-  async scheduleReturnAttendance(
+  async scheduleReturnAppointment(
     consultationId: number,
     mode: 'legacy' | 'auto-return',
-  ): Promise<Attendance> {
+  ): Promise<Appointment> {
     const consultation = await this.findOne(consultationId);
 
     if (!consultation.return_weeks || consultation.return_weeks <= 0) {
@@ -293,11 +293,11 @@ export class ConsultationService {
       );
     }
 
-    const currentAttendance = consultation.attendance;
+    const currentAppointment = consultation.appointment;
 
-    if (currentAttendance.patient.patient_status === 'D') {
+    if (currentAppointment.patient.patient_status === 'D') {
       throw new BadRequestException(
-        `Cannot schedule return for discharged patient ${currentAttendance.patient_id}`,
+        `Cannot schedule return for discharged patient ${currentAppointment.patient_id}`,
       );
     }
 
@@ -307,7 +307,7 @@ export class ConsultationService {
       );
     }
 
-    return await this.createNextAttendance(consultation, currentAttendance);
+    return await this.createNextAppointment(consultation, currentAppointment);
   }
   async remove(id: number): Promise<void> {
     const result = await this.consultationRepository.delete(id);
@@ -317,51 +317,51 @@ export class ConsultationService {
   }
 
   /**
-   * Create next attendance based on return_weeks recommendation
+   * Create next appointment based on return_weeks recommendation
    * @private
    */
-  private async createNextAttendance(
+  private async createNextAppointment(
     consultation: Consultation,
-    currentAttendance: Attendance,
-  ): Promise<Attendance> {
+    currentAppointment: Appointment,
+  ): Promise<Appointment> {
     try {
       // Use timezone-agnostic date string utilities
       const initialDateStr = addDaysToDateString(
-        currentAttendance.scheduled_date,
+        currentAppointment.scheduled_date,
         consultation.return_weeks * 7
       );
 
       // Check for holidays and finalized days and postpone if necessary for assessment consultations
       const adjustedDate =
-        await this.attendanceService.findNextSchedulableDate(
+        await this.appointmentService.findNextSchedulableDate(
           initialDateStr,
-          AttendanceType.ASSESSMENT, // Follow-up is always assessment consultation
+          AppointmentType.ASSESSMENT, // Follow-up is always assessment consultation
         );
 
-      // Determine parent attendance ID:
-      // - If current attendance has a parent, use that parent (link to original)
-      // - Otherwise, use current attendance as parent (this is the original consultation)
-      const parentAttendanceId =
-        currentAttendance.parent_attendance_id || currentAttendance.id;
+      // Determine parent appointment ID:
+      // - If current appointment has a parent, use that parent (link to original)
+      // - Otherwise, use current appointment as parent (this is the original consultation)
+      const parentAppointmentId =
+        currentAppointment.parent_appointment_id || currentAppointment.id;
 
-      // Create next attendance
-      const returnAttendance = await this.attendanceService.create({
-        patient_id: currentAttendance.patient_id,
-        type: AttendanceType.ASSESSMENT, // Follow-up is always assessment consultation
+      // Create next appointment
+      const returnAppointment = await this.appointmentService.create({
+        patient_id: currentAppointment.patient_id,
+        type: AppointmentType.ASSESSMENT, // Follow-up is always assessment consultation
         scheduled_date: adjustedDate,
-        scheduled_time: currentAttendance.scheduled_time, // Same time as current
+        scheduled_time: currentAppointment.scheduled_time, // Same time as current
         notes: `Return automatically scheduled - ${consultation.return_weeks} week(s) after previous consultation`,
-        parent_attendance_id: parentAttendanceId, // Link to original consultation
+        parent_appointment_id: parentAppointmentId, // Link to original consultation
       });
 
       console.log(
-        `✅ Auto-created next attendance for patient ${currentAttendance.patient_id} on ${adjustedDate} (parent_attendance_id: ${parentAttendanceId})`,
+        `✅ Auto-created next appointment for patient ${currentAppointment.patient_id} on ${adjustedDate} (parent_appointment_id: ${parentAppointmentId})`,
       );
 
-      return returnAttendance;
+      return returnAppointment;
     } catch (error) {
       console.error(
-        `❌ Error creating next attendance for consultation ${consultation.id}:`,
+        `❌ Error creating next appointment for consultation ${consultation.id}:`,
         error,
       );
       throw error; // Throw so frontend knows scheduling failed
@@ -372,12 +372,12 @@ export class ConsultationService {
    * Updates the patient's main_concern based on consultation logic
    * Updates when:
    * - New patient (patient_status = 'N')
-   * - New treatment episode (attendance.parent_attendance_id is null)
+   * - New treatment episode (appointment.parent_appointment_id is null)
    * - Complaint is different from current patient complaint
    */
   private async updatePatientMainConcern(
     consultation: Consultation,
-    attendance: Attendance,
+    appointment: Appointment,
   ): Promise<void> {
     try {
       // Only update if there's a main_concern in the consultation
@@ -387,11 +387,11 @@ export class ConsultationService {
 
       // Get the current patient data
       const patient = await this.patientRepository.findOne({
-        where: { id: attendance.patient_id },
+        where: { id: appointment.patient_id },
       });
 
       if (!patient) {
-        console.warn(`Patient not found for ID: ${attendance.patient_id}`);
+        console.warn(`Patient not found for ID: ${appointment.patient_id}`);
         return;
       }
 
@@ -399,14 +399,14 @@ export class ConsultationService {
       const shouldUpdate =
         // New patient
         patient.patient_status === 'N' ||
-        // New treatment episode (not a follow-up - attendance has no parent)
-        !attendance.parent_attendance_id ||
+        // New treatment episode (not a follow-up - appointment has no parent)
+        !appointment.parent_appointment_id ||
         // Complaint is different from current patient complaint
         patient.main_concern !== consultation.main_concern;
 
       if (shouldUpdate) {
         await this.patientRepository.update(
-          { id: attendance.patient_id },
+          { id: appointment.patient_id },
           {
             main_concern: consultation.main_concern,
             updated_date: new Date().toISOString().split('T')[0],
@@ -418,16 +418,16 @@ export class ConsultationService {
         );
 
         console.log(
-          `✅ Updated patient ${attendance.patient_id} main_concern: "${consultation.main_concern}"`,
+          `✅ Updated patient ${appointment.patient_id} main_concern: "${consultation.main_concern}"`,
         );
       } else {
         console.log(
-          `ℹ️ Patient ${attendance.patient_id} main_concern unchanged (follow-up or same complaint)`,
+          `ℹ️ Patient ${appointment.patient_id} main_concern unchanged (follow-up or same complaint)`,
         );
       }
     } catch (error) {
       console.error(
-        `❌ Error updating patient main_concern for patient ${attendance.patient_id}:`,
+        `❌ Error updating patient main_concern for patient ${appointment.patient_id}:`,
         error,
       );
       // Don't throw - this shouldn't break the consultation creation

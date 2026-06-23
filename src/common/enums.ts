@@ -14,13 +14,13 @@ export enum PatientStatus {
   CONSECUTIVE_NO_SHOWS = 'C',
 }
 
-export enum AttendanceType {
+export enum AppointmentType {
   ASSESSMENT = 'assessment',
   PHYSIOTHERAPY = 'physiotherapy',
   TENS = 'tens',
 }
 
-export enum AttendanceStatus {
+export enum AppointmentStatus {
   SCHEDULED = 'scheduled',
   CHECKED_IN = 'checked_in',
   IN_PROGRESS = 'in_progress',

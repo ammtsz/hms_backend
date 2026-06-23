@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Patient } from '../entities/patient.entity';
-import { Attendance } from '../entities/attendance.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { Consultation } from '../entities/consultation.entity';
 import { ScheduleSetting } from '../entities/schedule-setting.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -44,7 +44,7 @@ import { getDatabaseSslConfig } from '../common/utils/databaseSsl';
     }),
     TypeOrmModule.forFeature([
       Patient,
-      Attendance,
+      Appointment,
       Consultation,
       ScheduleSetting,
     ]),

@@ -70,7 +70,7 @@ describe('DayFinalizationController', () => {
       const body: ProcessEndOfDayRequestDto = {
         date: '2024-01-15',
         absence_justifications: [
-          { attendance_id: 1, justified: false, notes: '' },
+          { appointment_id: 1, justified: false, notes: '' },
         ],
       };
 

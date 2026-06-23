@@ -1,13 +1,13 @@
-import { AttendanceTransformer } from './attendance.transformer';
-import { Attendance } from '../entities/attendance.entity';
-import { AttendanceType, AttendanceStatus } from '../common/enums';
+import { AppointmentTransformer } from './appointment.transformer';
+import { Appointment } from '../entities/appointment.entity';
+import { AppointmentType, AppointmentStatus } from '../common/enums';
 
-describe('AttendanceTransformer', () => {
-  const mockAttendance: Partial<Attendance> = {
+describe('AppointmentTransformer', () => {
+  const mockAppointment: Partial<Appointment> = {
     id: 1,
     patient_id: 1,
-    type: AttendanceType.ASSESSMENT,
-    status: AttendanceStatus.SCHEDULED,
+    type: AppointmentType.ASSESSMENT,
+    status: AppointmentStatus.SCHEDULED,
     scheduled_date: '2025-07-22',
     scheduled_time: '14:30',
     checked_in_time: '14:25:00',
@@ -23,16 +23,16 @@ describe('AttendanceTransformer', () => {
   };
 
   describe('toResponseDto', () => {
-    it('should transform an attendance entity to response dto', () => {
-      const result = AttendanceTransformer.toResponseDto(
-        mockAttendance as Attendance,
+    it('should transform an appointment entity to response dto', () => {
+      const result = AppointmentTransformer.toResponseDto(
+        mockAppointment as Appointment,
       );
 
       expect(result).toEqual({
         id: 1,
         patient_id: 1,
-        type: AttendanceType.ASSESSMENT,
-        status: AttendanceStatus.SCHEDULED,
+        type: AppointmentType.ASSESSMENT,
+        status: AppointmentStatus.SCHEDULED,
         scheduled_date: '2025-07-22',
         scheduled_time: '14:30',
         checked_in_time: '14:25:00',
@@ -48,15 +48,15 @@ describe('AttendanceTransformer', () => {
     });
 
     it('should handle null dates correctly', () => {
-      const attendanceWithNullDates: Partial<Attendance> = {
-        ...mockAttendance,
+      const appointmentWithNullDates: Partial<Appointment> = {
+        ...mockAppointment,
         checked_in_time: null,
         started_time: null,
         completed_time: null,
       };
 
-      const result = AttendanceTransformer.toResponseDto(
-        attendanceWithNullDates as Attendance,
+      const result = AppointmentTransformer.toResponseDto(
+        appointmentWithNullDates as Appointment,
       );
 
       expect(result.checked_in_time).toBeNull();
@@ -66,17 +66,17 @@ describe('AttendanceTransformer', () => {
   });
 
   describe('toResponseDtoList', () => {
-    it('should transform an array of attendance entities to response dtos', () => {
-      const attendances = [mockAttendance, mockAttendance] as Attendance[];
-      const results = AttendanceTransformer.toResponseDtoList(attendances);
+    it('should transform an array of appointment entities to response dtos', () => {
+      const appointments = [mockAppointment, mockAppointment] as Appointment[];
+      const results = AppointmentTransformer.toResponseDtoList(appointments);
 
       expect(results).toHaveLength(2);
       results.forEach((result) => {
         expect(result).toEqual({
           id: 1,
           patient_id: 1,
-          type: AttendanceType.ASSESSMENT,
-          status: AttendanceStatus.SCHEDULED,
+          type: AppointmentType.ASSESSMENT,
+          status: AppointmentStatus.SCHEDULED,
           scheduled_date: '2025-07-22',
           scheduled_time: '14:30',
           checked_in_time: '14:25:00',
@@ -93,7 +93,7 @@ describe('AttendanceTransformer', () => {
     });
 
     it('should return empty array when input is empty', () => {
-      const results = AttendanceTransformer.toResponseDtoList([]);
+      const results = AppointmentTransformer.toResponseDtoList([]);
       expect(results).toEqual([]);
     });
   });

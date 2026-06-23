@@ -3,11 +3,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Treatment } from '../entities/treatment.entity';
 import { Session } from '../entities/session.entity';
 import { Consultation } from '../entities/consultation.entity';
-import { Attendance } from '../entities/attendance.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { Patient } from '../entities/patient.entity';
 import { TreatmentService } from '../services/treatment.service';
 import { TreatmentController } from '../controllers/treatment.controller';
-import { AttendanceModule } from './attendance.module';
+import { AppointmentModule } from './appointment.module';
 
 @Module({
   imports: [
@@ -15,10 +15,10 @@ import { AttendanceModule } from './attendance.module';
       Treatment,
       Session,
       Consultation,
-      Attendance,
+      Appointment,
       Patient,
     ]),
-    forwardRef(() => AttendanceModule),
+    forwardRef(() => AppointmentModule),
   ],
   controllers: [TreatmentController],
   providers: [TreatmentService],
