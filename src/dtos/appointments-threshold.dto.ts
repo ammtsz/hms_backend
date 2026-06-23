@@ -3,7 +3,8 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class AppointmentsThresholdResponseDto {
   @ApiProperty({
-    description: 'Number of unjustified consecutive absences that trigger status F',
+    description:
+      'Number of unjustified consecutive no-shows that trigger status C',
     minimum: 1,
     maximum: 10,
     example: 3,
@@ -13,7 +14,8 @@ export class AppointmentsThresholdResponseDto {
 
 export class UpdateAppointmentsThresholdDto {
   @ApiProperty({
-    description: 'Number of unjustified consecutive absences that trigger status F',
+    description:
+      'Number of unjustified consecutive no-shows that trigger status C',
     minimum: 1,
     maximum: 10,
     example: 3,

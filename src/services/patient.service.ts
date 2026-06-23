@@ -27,7 +27,7 @@ import { formatDisplayDate } from '../utils/date-string-helpers';
 import { PatientNoteService } from './patient-note.service';
 import { CreatePatientNoteDto } from '../dtos/patient-note.dto';
 
-interface TransitionToDischargedOrAbsentResult {
+interface TransitionToDischargedOrConsecutiveNoShowsResult {
   patient: Patient;
   cancelledAttendances: Array<{
     id: number;
@@ -165,10 +165,10 @@ export class PatientService {
   private validateNoDirectAf(updatePatientDto: UpdatePatientDto): void {
     if (
       updatePatientDto.patient_status === PatientStatus.DISCHARGED ||
-      updatePatientDto.patient_status === PatientStatus.ABSENT
+      updatePatientDto.patient_status === PatientStatus.CONSECUTIVE_NO_SHOWS
     ) {
       throw new ValidationException(
-        'Use setPatientStatus to set status to Discharged (A) or Missed (F).',
+        'Use setPatientStatus to set status to Discharged (D) or Consecutive no-shows (C).',
       );
     }
   }
@@ -187,15 +187,15 @@ export class PatientService {
     const validTransitions: Record<PatientStatus, PatientStatus[]> = {
       [PatientStatus.NEW_PATIENT]: [
         PatientStatus.IN_TREATMENT,
-        PatientStatus.ABSENT,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
       ],
       [PatientStatus.IN_TREATMENT]: [
         PatientStatus.DISCHARGED,
-        PatientStatus.ABSENT,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
         PatientStatus.NEW_PATIENT,
       ],
       [PatientStatus.DISCHARGED]: [PatientStatus.IN_TREATMENT],
-      [PatientStatus.ABSENT]: [
+      [PatientStatus.CONSECUTIVE_NO_SHOWS]: [
         PatientStatus.IN_TREATMENT,
         PatientStatus.NEW_PATIENT,
       ],
@@ -285,8 +285,8 @@ export class PatientService {
   }
 
   /**
-   * Single entry point for setting patient treatment status (N, T, A, or F).
-   * For A/F: cancels open attendances and non-completed sessions, then updates patient.
+   * Single entry point for setting patient treatment status (N, T, D, or C).
+   * For D/C: cancels open attendances and non-completed sessions, then updates patient.
    * For N/T: validates transition and updates patient only.
    * Returns unchanged: true when the patient already has the target status.
    */
@@ -303,13 +303,17 @@ export class PatientService {
 
     if (
       newStatus === PatientStatus.DISCHARGED ||
-      newStatus === PatientStatus.ABSENT
+      newStatus === PatientStatus.CONSECUTIVE_NO_SHOWS
     ) {
-      const result = await this.transitionToDischargedOrAbsent(id, newStatus, {
-        excludeAttendanceIds: options?.excludeAttendanceIds,
-        cancellationReason: options?.cancellationReason,
-        triggerAttendanceIds: options?.triggerAttendanceIds,
-      });
+      const result = await this.transitionToDischargedOrConsecutiveNoShows(
+        id,
+        newStatus,
+        {
+          excludeAttendanceIds: options?.excludeAttendanceIds,
+          cancellationReason: options?.cancellationReason,
+          triggerAttendanceIds: options?.triggerAttendanceIds,
+        },
+      );
       return {
         patient: result.patient,
         cancelledAttendances: result.cancelledAttendances,
@@ -321,15 +325,15 @@ export class PatientService {
     const validTransitions: Record<PatientStatus, PatientStatus[]> = {
       [PatientStatus.NEW_PATIENT]: [
         PatientStatus.IN_TREATMENT,
-        PatientStatus.ABSENT,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
       ],
       [PatientStatus.IN_TREATMENT]: [
         PatientStatus.DISCHARGED,
-        PatientStatus.ABSENT,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
         PatientStatus.NEW_PATIENT,
       ],
       [PatientStatus.DISCHARGED]: [PatientStatus.IN_TREATMENT],
-      [PatientStatus.ABSENT]: [
+      [PatientStatus.CONSECUTIVE_NO_SHOWS]: [
         PatientStatus.IN_TREATMENT,
         PatientStatus.NEW_PATIENT,
       ],
@@ -364,35 +368,35 @@ export class PatientService {
   }
 
   /**
-   * Transition patient to Discharged (A) or Missed (F).
+   * Transition patient to Discharged (D) or Consecutive no-shows (C).
    * Validates the transition, cancels all open attendances and non-completed treatments,
    * updates the patient, and returns the patient plus the list of cancelled attendances.
    * @internal Used only by setPatientStatus; callers should use setPatientStatus.
    */
-  private async transitionToDischargedOrAbsent(
+  private async transitionToDischargedOrConsecutiveNoShows(
     id: number,
-    newStatus: PatientStatus.DISCHARGED | PatientStatus.ABSENT,
+    newStatus: PatientStatus.DISCHARGED | PatientStatus.CONSECUTIVE_NO_SHOWS,
     options?: {
       cancellationReason?: string;
       /** Exclude these attendance IDs from cancellation (e.g. the one just completed via consultation flow). */
       excludeAttendanceIds?: number[];
       triggerAttendanceIds?: number[];
     },
-  ): Promise<TransitionToDischargedOrAbsentResult> {
+  ): Promise<TransitionToDischargedOrConsecutiveNoShowsResult> {
     const patient = await this.findOne(id);
 
     const validTransitions: Record<PatientStatus, PatientStatus[]> = {
       [PatientStatus.NEW_PATIENT]: [
         PatientStatus.IN_TREATMENT,
-        PatientStatus.ABSENT,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
       ],
       [PatientStatus.IN_TREATMENT]: [
         PatientStatus.DISCHARGED,
-        PatientStatus.ABSENT,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
         PatientStatus.NEW_PATIENT,
       ],
       [PatientStatus.DISCHARGED]: [PatientStatus.IN_TREATMENT],
-      [PatientStatus.ABSENT]: [
+      [PatientStatus.CONSECUTIVE_NO_SHOWS]: [
         PatientStatus.IN_TREATMENT,
         PatientStatus.NEW_PATIENT,
       ],
@@ -413,7 +417,7 @@ export class PatientService {
         ? cancellationReasonFromOptions
         : newStatus === PatientStatus.DISCHARGED
           ? 'Discharged'
-          : 'Missed — consecutive';
+          : 'Consecutive no-shows';
 
     const { date: nowInPatientTimezone } = getCurrentDateTimeInTimezone(
       patient.timezone,
@@ -439,7 +443,7 @@ export class PatientService {
     const statusLabel =
       newStatus === PatientStatus.DISCHARGED
         ? 'Discharged'
-        : 'Missed — consecutive';
+        : 'Consecutive no-shows';
 
     const cancelledAttendances =
       await this.attendanceService.cancelOpenAttendancesForPatient(

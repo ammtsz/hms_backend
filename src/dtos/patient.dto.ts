@@ -125,7 +125,7 @@ export class UpdatePatientDto {
   patient_status?: PatientStatus;
 
   @ApiPropertyOptional({
-    description: 'Cancellation reason used when setting patient status to A or F',
+    description: 'Cancellation reason used when setting patient status to D or C',
     example: 'Patient decided to cancel because they did not feel comfortable with future dates',
     maxLength: 2000,
   })

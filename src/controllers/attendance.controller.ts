@@ -215,7 +215,7 @@ export class AttendanceController {
 
   @Get('eligible-parent-options')
   @ApiAttendanceOperation(
-    'Get eligible parent (root) attendances for linking a new assessment consultation. Excludes treatments finished with A or F.',
+    'Get eligible parent (root) attendances for linking a new assessment consultation. Excludes treatments finished with D or C.',
   )
   @ApiQuery({
     name: 'patient_id',

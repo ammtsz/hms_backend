@@ -69,7 +69,7 @@ export class PatientController {
   ): Promise<PatientResponseDto> {
     if (
       updatePatientDto.patient_status === PatientStatus.DISCHARGED ||
-      updatePatientDto.patient_status === PatientStatus.ABSENT
+      updatePatientDto.patient_status === PatientStatus.CONSECUTIVE_NO_SHOWS
     ) {
       const { patient_status, cancellation_reason, ...otherFields } =
         updatePatientDto;
@@ -81,7 +81,7 @@ export class PatientController {
           ? { cancellationReason: cancellation_reason }
           : undefined,
       );
-      // Apply other fields (name, phone, discharge_date, etc.) - setPatientStatus sets status and default discharge_date for A
+      // Apply other fields (name, phone, discharge_date, etc.) - setPatientStatus sets status and default discharge_date for D
       if (Object.keys(otherFields).length > 0) {
         return await this.patientService.update(+id, otherFields);
       }

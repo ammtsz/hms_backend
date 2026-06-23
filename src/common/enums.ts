@@ -10,8 +10,8 @@ export enum PatientPriority {
 export enum PatientStatus {
   NEW_PATIENT = 'N',
   IN_TREATMENT = 'T',
-  DISCHARGED = 'A',
-  ABSENT = 'F',
+  DISCHARGED = 'D',
+  CONSECUTIVE_NO_SHOWS = 'C',
 }
 
 export enum AttendanceType {

@@ -26,7 +26,7 @@ describe('Consultation - patient_status field', () => {
 
   const mockPatientService = {
     setPatientStatus: jest.fn().mockResolvedValue({
-      patient: { id: 1, patient_status: 'A' },
+      patient: { id: 1, patient_status: 'D' },
       cancelledAttendances: [],
     }),
   };
@@ -207,7 +207,7 @@ describe('Consultation - patient_status field', () => {
       expect(result.consultation.patient_status).toBe('N');
     });
 
-    it('should store patient_status "A" for discharged patients', async () => {
+    it('should store patient_status "D" for discharged patients', async () => {
       const mockAttendance = {
         id: 1,
         patient_id: 1,
@@ -224,7 +224,7 @@ describe('Consultation - patient_status field', () => {
       const createDto: CreateConsultationDto = {
         attendance_id: 1,
         main_concern: 'Final consultation',
-        patient_status: 'A',
+        patient_status: 'D',
       };
 
       jest.spyOn(consultationRepository, 'findOne').mockResolvedValue(null);
@@ -248,10 +248,10 @@ describe('Consultation - patient_status field', () => {
 
       const result = await service.create(createDto);
 
-      expect(result.consultation.patient_status).toBe('A');
+      expect(result.consultation.patient_status).toBe('D');
       expect(result.cancelledAttendances).toBeDefined();
 
-      // When status is A, setPatientStatus is used (cancels open attendances)
+      // When status is D, setPatientStatus is used (cancels open attendances)
       expect(mockPatientService.setPatientStatus).toHaveBeenCalledWith(
         1,
         PatientStatus.DISCHARGED,
@@ -329,9 +329,7 @@ describe('Consultation - patient_status field', () => {
         patient_status: 'T',
       };
 
-      jest
-        .spyOn(consultationRepository, 'update')
-        .mockResolvedValue({} as any);
+      jest.spyOn(consultationRepository, 'update').mockResolvedValue({} as any);
       jest.spyOn(consultationRepository, 'findOne').mockResolvedValue({
         ...mockExistingConsultation,
         patient_status: 'T',

@@ -333,7 +333,7 @@ describe('PatientService', () => {
       ).rejects.toThrow(ValidationException);
     });
 
-    it('should update treatment status with valid transition (non-A/F)', async () => {
+    it('should update treatment status with valid transition (non-D/C)', async () => {
       const patientInTreatment = {
         ...mockPatient,
         patient_status: PatientStatus.IN_TREATMENT,
@@ -464,16 +464,16 @@ describe('PatientService', () => {
       await expect(
         service.update(1, updateDto as UpdatePatientDto),
       ).rejects.toThrow(
-        'Use setPatientStatus to set status to Discharged (A) or Missed (F).',
+        'Use setPatientStatus to set status to Discharged (D) or Consecutive no-shows (C).',
       );
       expect(
         mockAttendanceService.cancelOpenAttendancesForPatient,
       ).not.toHaveBeenCalled();
     });
 
-    it('should throw ValidationException when transitioning to ABSENT via update', async () => {
+    it('should throw ValidationException when transitioning to CONSECUTIVE_NO_SHOWS via update', async () => {
       const updateDto: Partial<UpdatePatientDto> = {
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       };
 
       await expect(
@@ -484,7 +484,7 @@ describe('PatientService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should throw PatientStatusUpdateException when transitioning from DISCHARGED to ABSENT via setPatientStatus', async () => {
+    it('should throw PatientStatusUpdateException when transitioning from DISCHARGED to CONSECUTIVE_NO_SHOWS via setPatientStatus', async () => {
       const patientDischarged = {
         ...mockPatient,
         patient_status: PatientStatus.DISCHARGED,
@@ -495,14 +495,14 @@ describe('PatientService', () => {
         .mockResolvedValueOnce(patientDischarged);
 
       await expect(
-        service.setPatientStatus(1, PatientStatus.ABSENT),
+        service.setPatientStatus(1, PatientStatus.CONSECUTIVE_NO_SHOWS),
       ).rejects.toThrow(PatientStatusUpdateException);
     });
 
-    it('should throw PatientStatusUpdateException when transitioning from ABSENT to DISCHARGED via setPatientStatus', async () => {
+    it('should throw PatientStatusUpdateException when transitioning from CONSECUTIVE_NO_SHOWS to DISCHARGED via setPatientStatus', async () => {
       const patientAbsent = {
         ...mockPatient,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       };
       jest
         .spyOn(repository, 'findOne')
@@ -515,7 +515,7 @@ describe('PatientService', () => {
     });
   });
 
-  describe('setPatientStatus A/F transition behavior', () => {
+  describe('setPatientStatus D/C transition behavior', () => {
     beforeEach(() => {
       mockAttendanceService.cancelOpenAttendancesForPatient.mockClear();
       mockTreatmentService.getTreatmentsByPatient.mockClear();
@@ -523,7 +523,7 @@ describe('PatientService', () => {
       mockRepository.findOne.mockResolvedValue(mockPatient);
     });
 
-    it('should cancel open attendances and treatment sessions and return patient and list when transitioning to ABSENT', async () => {
+    it('should cancel open attendances and treatment sessions and return patient and list when transitioning to CONSECUTIVE_NO_SHOWS', async () => {
       const patientInTreatment = {
         ...mockPatient,
         patient_status: PatientStatus.IN_TREATMENT,
@@ -534,7 +534,7 @@ describe('PatientService', () => {
         .mockResolvedValueOnce(patientInTreatment);
       mockRepository.save.mockResolvedValueOnce({
         ...patientInTreatment,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       });
       const cancelledList = [
         { id: 10, type: 'assessment', scheduled_date: '2024-01-20' },
@@ -543,13 +543,17 @@ describe('PatientService', () => {
         cancelledList,
       );
 
-      const result = await service.setPatientStatus(1, PatientStatus.ABSENT, {
-        cancellationReason: 'Missed — consecutive - test',
-      });
+      const result = await service.setPatientStatus(
+        1,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
+        {
+          cancellationReason: 'Consecutive no-shows - test',
+        },
+      );
 
       expect(
         mockAttendanceService.cancelOpenAttendancesForPatient,
-      ).toHaveBeenCalledWith(1, 'Missed — consecutive - test', {
+      ).toHaveBeenCalledWith(1, 'Consecutive no-shows - test', {
         excludeAttendanceIds: undefined,
       });
       expect(mockPatientNoteService.create).toHaveBeenCalledWith(
@@ -561,7 +565,9 @@ describe('PatientService', () => {
       expect(mockTreatmentService.getTreatmentsByPatient).toHaveBeenCalledWith(
         1,
       );
-      expect(result.patient.patient_status).toBe(PatientStatus.ABSENT);
+      expect(result.patient.patient_status).toBe(
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
+      );
       expect(result.cancelledAttendances).toEqual(cancelledList);
     });
 
@@ -576,7 +582,7 @@ describe('PatientService', () => {
         .mockResolvedValueOnce(patientInTreatment);
       mockRepository.save.mockResolvedValueOnce({
         ...patientInTreatment,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       });
       mockAttendanceService.cancelOpenAttendancesForPatient.mockResolvedValueOnce(
         [],
@@ -585,7 +591,7 @@ describe('PatientService', () => {
         { id: 5, status: 'active', patient_id: 1 },
       ]);
 
-      await service.setPatientStatus(1, PatientStatus.ABSENT);
+      await service.setPatientStatus(1, PatientStatus.CONSECUTIVE_NO_SHOWS);
 
       expect(mockTreatmentService.cancelTreatment).toHaveBeenCalledWith(
         5,
@@ -644,10 +650,10 @@ describe('PatientService', () => {
         .mockResolvedValueOnce(patientInTreatment);
       mockRepository.save.mockResolvedValueOnce({
         ...patientInTreatment,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       });
 
-      await service.setPatientStatus(1, PatientStatus.ABSENT, {
+      await service.setPatientStatus(1, PatientStatus.CONSECUTIVE_NO_SHOWS, {
         cancellationReason: '  Custom reason  ',
       });
 
@@ -675,14 +681,14 @@ describe('PatientService', () => {
         .mockResolvedValueOnce(patientInTreatment);
       mockRepository.save.mockResolvedValueOnce({
         ...patientInTreatment,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       });
       mockAttendanceRepository.findOne.mockResolvedValueOnce({
         id: 44,
         scheduled_date: '2026-03-10',
       });
 
-      await service.setPatientStatus(1, PatientStatus.ABSENT, {
+      await service.setPatientStatus(1, PatientStatus.CONSECUTIVE_NO_SHOWS, {
         triggerAttendanceIds: [44],
       });
 
@@ -706,7 +712,7 @@ describe('PatientService', () => {
       mockRepository.findOne.mockResolvedValue(mockPatient);
     });
 
-    it('should return unchanged when patient already has target status (A)', async () => {
+    it('should return unchanged when patient already has target status (D)', async () => {
       const patientDischarged = {
         ...mockPatient,
         patient_status: PatientStatus.DISCHARGED,
@@ -728,14 +734,17 @@ describe('PatientService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should return unchanged when patient already has target status (F)', async () => {
+    it('should return unchanged when patient already has target status (M)', async () => {
       const patientAbsent = {
         ...mockPatient,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       };
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(patientAbsent);
 
-      const result = await service.setPatientStatus(1, PatientStatus.ABSENT);
+      const result = await service.setPatientStatus(
+        1,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
+      );
 
       expect(result.unchanged).toBe(true);
       expect(result.cancelledAttendances).toEqual([]);
@@ -744,7 +753,7 @@ describe('PatientService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should call internal transition and return result when transitioning to ABSENT', async () => {
+    it('should call internal transition and return result when transitioning to CONSECUTIVE_NO_SHOWS', async () => {
       const patientInTreatment = {
         ...mockPatient,
         patient_status: PatientStatus.IN_TREATMENT,
@@ -754,7 +763,7 @@ describe('PatientService', () => {
         .mockResolvedValueOnce(patientInTreatment);
       const savedPatient = {
         ...patientInTreatment,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       };
       mockRepository.save.mockResolvedValueOnce(savedPatient);
       const cancelledList = [
@@ -764,9 +773,13 @@ describe('PatientService', () => {
         cancelledList,
       );
 
-      const result = await service.setPatientStatus(1, PatientStatus.ABSENT, {
-        cancellationReason: 'Test reason',
-      });
+      const result = await service.setPatientStatus(
+        1,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
+        {
+          cancellationReason: 'Test reason',
+        },
+      );
 
       expect(
         mockAttendanceService.cancelOpenAttendancesForPatient,
@@ -779,7 +792,9 @@ describe('PatientService', () => {
           category: 'status_change',
         }),
       );
-      expect(result.patient.patient_status).toBe(PatientStatus.ABSENT);
+      expect(result.patient.patient_status).toBe(
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
+      );
       expect(result.cancelledAttendances).toEqual(cancelledList);
       expect(result.unchanged).toBe(false);
     });

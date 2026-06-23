@@ -147,13 +147,13 @@ describe('PatientController', () => {
       expect(service.update).not.toHaveBeenCalled();
     });
 
-    it('should call setPatientStatus and return patient when patient_status is ABSENT', async () => {
+    it('should call setPatientStatus and return patient when patient_status is CONSECUTIVE_NO_SHOWS', async () => {
       const updateDto: UpdatePatientDto = {
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       };
       const absentPatient = {
         ...mockPatient,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       };
       mockPatientService.setPatientStatus.mockResolvedValueOnce({
         patient: absentPatient,
@@ -164,7 +164,7 @@ describe('PatientController', () => {
       expect(result).toEqual(absentPatient);
       expect(service.setPatientStatus).toHaveBeenCalledWith(
         1,
-        PatientStatus.ABSENT,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
         undefined,
       );
       expect(service.update).not.toHaveBeenCalled();
@@ -172,12 +172,12 @@ describe('PatientController', () => {
 
     it('should pass cancellation_reason to setPatientStatus options', async () => {
       const updateDto: UpdatePatientDto = {
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
         cancellation_reason: 'Patient requested cancellation',
       };
       const absentPatient = {
         ...mockPatient,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       };
       mockPatientService.setPatientStatus.mockResolvedValueOnce({
         patient: absentPatient,
@@ -188,7 +188,7 @@ describe('PatientController', () => {
       expect(result).toEqual(absentPatient);
       expect(service.setPatientStatus).toHaveBeenCalledWith(
         1,
-        PatientStatus.ABSENT,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
         { cancellationReason: 'Patient requested cancellation' },
       );
       expect(service.update).not.toHaveBeenCalled();
@@ -228,14 +228,14 @@ describe('PatientController', () => {
       expect(result).toEqual(updatedPatient);
     });
 
-    it('should call setPatientStatus then update with other fields when patient_status is ABSENT and other fields provided', async () => {
+    it('should call setPatientStatus then update with other fields when patient_status is CONSECUTIVE_NO_SHOWS and other fields provided', async () => {
       const updateDto: UpdatePatientDto = {
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
         phone: '(11) 88888-8888',
       };
       const absentPatient = {
         ...mockPatient,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       };
       const updatedPatient = {
         ...absentPatient,
@@ -250,7 +250,7 @@ describe('PatientController', () => {
 
       expect(service.setPatientStatus).toHaveBeenCalledWith(
         1,
-        PatientStatus.ABSENT,
+        PatientStatus.CONSECUTIVE_NO_SHOWS,
         undefined,
       );
       expect(service.update).toHaveBeenCalledWith(1, { phone: '(11) 88888-8888' });

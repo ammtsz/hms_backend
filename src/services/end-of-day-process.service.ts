@@ -11,7 +11,11 @@ import { PatientService } from './patient.service';
 import { TreatmentService } from './treatment.service';
 import { SessionService } from './session.service';
 import { Attendance } from '../entities/attendance.entity';
-import { AttendanceStatus, AttendanceType, PatientStatus } from '../common/enums';
+import {
+  AttendanceStatus,
+  AttendanceType,
+  PatientStatus,
+} from '../common/enums';
 import {
   addDaysToDateString,
   compareDateStrings,
@@ -52,8 +56,8 @@ export class EndOfDayProcessService {
 
     const summary: ProcessEndOfDayResponseDto = {
       rescheduled: [],
-      status_changed_to_f: [],
-      cancelled_for_f: [],
+      status_changed_to_c: [],
+      cancelled_for_c: [],
       could_not_reschedule: [],
     };
 
@@ -69,11 +73,14 @@ export class EndOfDayProcessService {
     const missedAttendancesMap = new Map<number, Attendance>();
     for (const item of absence_justifications) {
       try {
-        const attendance = await this.attendanceService.update(item.attendance_id, {
-          status: AttendanceStatus.MISSED,
-          absence_justified: item.justified,
-          absence_notes: item.notes ?? null,
-        });
+        const attendance = await this.attendanceService.update(
+          item.attendance_id,
+          {
+            status: AttendanceStatus.MISSED,
+            absence_justified: item.justified,
+            absence_notes: item.notes ?? null,
+          },
+        );
         missedAttendancesMap.set(attendance.id, attendance);
       } catch (err) {
         this.logger.error(
@@ -91,8 +98,8 @@ export class EndOfDayProcessService {
       missed.push({ attendance });
     }
 
-    // Track patients already processed for F to avoid duplicates
-    const patientsProcessedForF = new Set<number>();
+    // Track patients already processed for C to avoid duplicates
+    const patientsProcessedForC = new Set<number>();
 
     // Accumulate furthest return date per assessment attendance (so we reschedule each return only once)
     const assessmentReturnRescheduleMap = new Map<number, string>();
@@ -108,41 +115,47 @@ export class EndOfDayProcessService {
         continue;
       }
       try {
-        const patient = await this.patientService.findOne(attendance.patient_id);
+        const patient = await this.patientService.findOne(
+          attendance.patient_id,
+        );
         const streak = patient.missing_appointments_streak;
-        const patientName = attendance.patient?.name ?? patient.name ?? 'Patient';
+        const patientName =
+          attendance.patient?.name ?? patient.name ?? 'Patient';
 
         if (streak === threshold) {
-          // Rule 2: Set patient to F and cancel all future (dedupe by patient)
-          if (!patientsProcessedForF.has(attendance.patient_id)) {
-            patientsProcessedForF.add(attendance.patient_id);
+          // Rule 2: Set patient to C and cancel all future (dedupe by patient)
+          if (!patientsProcessedForC.has(attendance.patient_id)) {
+            patientsProcessedForC.add(attendance.patient_id);
             try {
               const result = await this.patientService.setPatientStatus(
                 attendance.patient_id,
-                PatientStatus.ABSENT,
-                { cancellationReason: `${threshold} consecutive unjustified absences` },
+                PatientStatus.CONSECUTIVE_NO_SHOWS,
+                {
+                  cancellationReason: `${threshold} consecutive unjustified absences`,
+                },
               );
               const cancelledAttendances = result.cancelledAttendances ?? [];
 
-              summary.status_changed_to_f.push({
+              summary.status_changed_to_c.push({
                 patient_id: attendance.patient_id,
                 patient_name: patientName,
               });
-              summary.cancelled_for_f.push({
+              summary.cancelled_for_c.push({
                 patient_id: attendance.patient_id,
                 patient_name: patientName,
                 attendances: cancelledAttendances,
               });
             } catch (err) {
               // Undo reservation so a retry (another attendance for same patient) can attempt again
-              patientsProcessedForF.delete(attendance.patient_id);
+              patientsProcessedForC.delete(attendance.patient_id);
               throw err;
             }
           }
         } else {
-          // Non-T patients (N, A, F) may reschedule only their first assessment attendance
+          // Non-T patients (N, D, C) may reschedule only their first assessment attendance
           // (parent_attendance_id null = root consultation, i.e. starting a new treatment episode).
-          const isNonTreatmentPatient = patient.patient_status !== PatientStatus.IN_TREATMENT;
+          const isNonTreatmentPatient =
+            patient.patient_status !== PatientStatus.IN_TREATMENT;
           const isFirstAssessmentForNonTreatment =
             isNonTreatmentPatient &&
             attendance.type === AttendanceType.ASSESSMENT &&
@@ -154,7 +167,7 @@ export class EndOfDayProcessService {
               patient_id: attendance.patient_id,
               patient_name: patientName,
               type: attendance.type,
-                reason: "Patient doesn't have an active treatment",
+              reason: "Patient doesn't have an active treatment",
             });
             continue;
           }
@@ -205,8 +218,7 @@ export class EndOfDayProcessService {
               patient_id: attendance.patient_id,
               patient_name: patientName,
               type: attendance.type,
-              reason:
-                'Could not find an available date within 52 weeks',
+              reason: 'Could not find an available date within 52 weeks',
             });
           }
         }
@@ -227,7 +239,8 @@ export class EndOfDayProcessService {
     // 4b. Apply assessment return reschedules once per attendance (using furthest date)
     for (const [assessmentAttId, newDate] of assessmentReturnRescheduleMap) {
       try {
-        const assessmentAtt = await this.attendanceService.findOne(assessmentAttId);
+        const assessmentAtt =
+          await this.attendanceService.findOne(assessmentAttId);
         if (assessmentAtt.scheduled_date === newDate) {
           continue;
         }
@@ -346,9 +359,7 @@ export class EndOfDayProcessService {
     minScheduledDate: string,
   ): Promise<Attendance[]> {
     const sessionInfo =
-      await this.treatmentService.getSessionWithReturnConfig(
-        treatmentId,
-      );
+      await this.treatmentService.getSessionWithReturnConfig(treatmentId);
     if (!sessionInfo) return [];
 
     const patientAttendances = await this.attendanceService.findByPatientId(
@@ -363,7 +374,11 @@ export class EndOfDayProcessService {
       for (const att of patientAttendances) {
         const parentId = (att as unknown as { parent_attendance_id?: number })
           .parent_attendance_id;
-        if (parentId != null && chainIds.has(parentId) && !chainIds.has(att.id)) {
+        if (
+          parentId != null &&
+          chainIds.has(parentId) &&
+          !chainIds.has(att.id)
+        ) {
           chainIds.add(att.id);
           added = true;
         }
@@ -374,7 +389,9 @@ export class EndOfDayProcessService {
     // with scheduled_date >= lastTreatmentDate and status SCHEDULED.
     const assessment: Attendance[] = [];
     for (const att of patientAttendances) {
-      const a = att as unknown as Attendance & { parent_attendance_id?: number };
+      const a = att as unknown as Attendance & {
+        parent_attendance_id?: number;
+      };
       if (
         a.type === AttendanceType.ASSESSMENT &&
         a.status === AttendanceStatus.SCHEDULED &&

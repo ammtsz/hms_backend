@@ -162,7 +162,7 @@ describe('ConsultationController', () => {
       );
     });
 
-    it('should return cancelled_attendances when create triggers A/F transition', async () => {
+    it('should return cancelled_attendances when create triggers D/C transition', async () => {
       const cancelledAttendances = [
         { id: 2, patient_id: 1, scheduled_date: '2026-01-20', type: 'assessment' },
       ];
@@ -240,10 +240,10 @@ describe('ConsultationController', () => {
       expect(result.consultation.ointments).toBe(updateDto.ointments);
     });
 
-    it('should return cancelled_attendances when update triggers A/F transition', async () => {
+    it('should return cancelled_attendances when update triggers D/C transition', async () => {
       const updatedConsultation = {
         ...mockConsultation,
-        patient_status: 'A',
+        patient_status: 'D',
       };
       const cancelledAttendances = [
         { id: 3, patient_id: 1, scheduled_date: '2026-01-22', type: 'assessment' },
@@ -255,7 +255,7 @@ describe('ConsultationController', () => {
 
       const result = await controller.update('1', {
         ...updateDto,
-        patient_status: 'A',
+        patient_status: 'D',
       });
 
       expect(result.consultation).toBeDefined();

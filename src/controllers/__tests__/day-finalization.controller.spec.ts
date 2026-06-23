@@ -22,8 +22,8 @@ describe('DayFinalizationController', () => {
 
   const mockProcessResult = {
     rescheduled: [],
-    status_changed_to_f: [],
-    cancelled_for_f: [],
+    status_changed_to_c: [],
+    cancelled_for_c: [],
     could_not_reschedule: [],
   };
 

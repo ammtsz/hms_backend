@@ -19,7 +19,11 @@ import {
   EligibleParentOptionsResponseDto,
 } from '../dtos/attendance.dto';
 import { ScheduleSetting } from '../entities/schedule-setting.entity';
-import { AttendanceStatus, AttendanceType, PatientStatus } from '../common/enums';
+import {
+  AttendanceStatus,
+  AttendanceType,
+  PatientStatus,
+} from '../common/enums';
 import {
   ResourceNotFoundException,
   InvalidAttendanceStatusTransitionException,
@@ -47,7 +51,7 @@ import {
 
 export type { TreatmentSchedulingSignature };
 
-/** Only these statuses are considered "open" and can be cancelled when patient goes to F/A. MISSED must never be cancelled. */
+/** Only these statuses are considered "open" and can be cancelled when patient goes to C/D. MISSED must never be cancelled. */
 const OPEN_ATTENDANCE_STATUSES = [
   AttendanceStatus.SCHEDULED,
   AttendanceStatus.CHECKED_IN,
@@ -187,9 +191,11 @@ export class AttendanceService {
 
   /**
    * Find all open (scheduled, checked_in, in_progress) attendances for a patient.
-   * Used when changing patient status to Discharged (A) or Missed (F) to cancel them.
+   * Used when changing patient status to Discharged (D) or Consecutive no-shows (C) to cancel them.
    */
-  async findOpenAttendancesByPatientId(patientId: number): Promise<Attendance[]> {
+  async findOpenAttendancesByPatientId(
+    patientId: number,
+  ): Promise<Attendance[]> {
     return this.attendanceRepository.find({
       where: {
         patient_id: patientId,
@@ -217,10 +223,10 @@ export class AttendanceService {
     const ids = toCancel.map((a) => a.id);
 
     if (ids.length === 0) return [];
-    
+
     const result = await this.bulkCancel(ids, cancellationReason);
     const successIds = new Set(result.successes.map((s) => s.attendance_id));
-    
+
     return toCancel
       .filter((a) => successIds.has(a.id))
       .map((a) => ({
@@ -246,20 +252,20 @@ export class AttendanceService {
     const openStatusSet = new Set<string>(OPEN_ATTENDANCE_STATUSES);
     let toCancel = openAttendances.filter((a) => openStatusSet.has(a.status));
     const excludeIds = new Set(options?.excludeAttendanceIds ?? []);
-   
+
     if (excludeIds.size > 0) {
       toCancel = toCancel.filter((a) => !excludeIds.has(a.id));
     }
-   
+
     const ids = toCancel.map((a) => a.id);
-   
+
     if (ids.length === 0) {
       return [];
     }
-   
+
     const result = await this.bulkCancel(ids, cancellationReason);
     const successIds = new Set(result.successes.map((s) => s.attendance_id));
-   
+
     return toCancel
       .filter((a) => successIds.has(a.id))
       .map((a) => ({
@@ -271,7 +277,7 @@ export class AttendanceService {
 
   /**
    * Returns eligible parent (root) attendances for linking a new assessment consultation.
-   * Excludes roots whose chain has any attendance with patient_status 'A' (Discharged (A)) or 'F' (Missed (F)).
+   * Excludes roots whose chain has any attendance with patient_status 'D' (Discharged) or 'C' (Consecutive no-shows).
    */
   async findEligibleParentOptions(
     patientId: number,
@@ -285,7 +291,7 @@ export class AttendanceService {
     const finishedRootIds = new Set<number>();
     for (const att of attendances) {
       const status = att.consultation?.patient_status;
-      if (status === 'A' || status === 'F') {
+      if (status === 'D' || status === 'C') {
         const rootId = att.parent_attendance_id ?? att.id;
         finishedRootIds.add(rootId);
       }
@@ -316,7 +322,7 @@ export class AttendanceService {
 
   /**
    * parent_attendance_id is only valid for patients in treatment (T).
-   * For A/F (new complaint) or N, the client must not send a parent; stale tabs are rejected here.
+   * For D/C (new complaint) or N, the client must not send a parent; stale tabs are rejected here.
    * Also verifies the parent row is an assessment root for this patient and is still eligible (same rules as eligible-parent-options).
    */
   private async assertParentAttendanceAllowedForCreate(
@@ -340,9 +346,7 @@ export class AttendanceService {
       where: { id: parentAttendanceId },
     });
     if (!parentRow) {
-      throw new BadRequestException(
-        'First consultation not found.',
-      );
+      throw new BadRequestException('First consultation not found.');
     }
     if (parentRow.patient_id !== patientId) {
       throw new BadRequestException(
@@ -574,9 +578,7 @@ export class AttendanceService {
       attendance.type === AttendanceType.PHYSIOTHERAPY ||
       attendance.type === AttendanceType.TENS
     ) {
-      await this.sessionService.cancelSessionsByAttendanceId(
-        attendance.id,
-      );
+      await this.sessionService.cancelSessionsByAttendanceId(attendance.id);
     }
   }
 
@@ -608,9 +610,7 @@ export class AttendanceService {
           attendance.type === AttendanceType.PHYSIOTHERAPY ||
           attendance.type === AttendanceType.TENS
         ) {
-          await this.sessionService.cancelSessionsByAttendanceId(
-            attendance.id,
-          );
+          await this.sessionService.cancelSessionsByAttendanceId(attendance.id);
         }
       }
     }
@@ -713,7 +713,7 @@ export class AttendanceService {
       );
     }
 
-    // Assessment without parent: rules by patient_status — open root first, then T vs N vs A/F.
+    // Assessment without parent: rules by patient_status — open root first, then T vs N vs D/C.
     // Skip entire block when rescheduling (skipCompletedRootAssessmentCheck).
     const skipRootCheck = options?.skipCompletedRootAssessmentCheck === true;
     const parentId = dto.parent_attendance_id;
@@ -728,12 +728,12 @@ export class AttendanceService {
       });
       const allowNewRootAssessmentWithoutParent =
         patient?.patient_status === PatientStatus.DISCHARGED ||
-        patient?.patient_status === PatientStatus.ABSENT;
-      
+        patient?.patient_status === PatientStatus.CONSECUTIVE_NO_SHOWS;
+
       const inTreatment =
         patient?.patient_status === PatientStatus.IN_TREATMENT;
 
-      // No more than one open root assessment (parent null) at a time (N, T, A/F).
+      // No more than one open root assessment (parent null) at a time (N, T, D/C).
       const openRoot = await this.attendanceRepository.findOne({
         where: {
           patient_id: dto.patient_id,
@@ -745,10 +745,10 @@ export class AttendanceService {
         order: { scheduled_date: 'ASC' },
       });
       if (openRoot) {
-        const patient_name = openRoot.patient?.name ?? "";
+        const patient_name = openRoot.patient?.name ?? '';
         const scheduled_date = formatDisplayDate(openRoot.scheduled_date);
         throw new BadRequestException(
-            `The patient ${patient_name + " "}has not yet completed the first consultation scheduled for ${scheduled_date}. Complete this consultation before scheduling a new one.`,
+          `The patient ${patient_name + ' '}has not yet completed the first consultation scheduled for ${scheduled_date}. Complete this consultation before scheduling a new one.`,
         );
       }
 
@@ -760,7 +760,7 @@ export class AttendanceService {
       }
 
       // New patient (N) or unknown status: block "first attendance" if any completed root exists.
-      // A/F: skip — "New complaint" is allowed when there is no open root (checked above).
+      // D/C: skip — "New complaint" is allowed when there is no open root (checked above).
       if (!allowNewRootAssessmentWithoutParent) {
         const completedRootCount = await this.attendanceRepository.count({
           where: {
@@ -779,9 +779,10 @@ export class AttendanceService {
     }
 
     // Block scheduling on finalized days
-    const finalization = await this.dayFinalizationService.getFinalizationStatus(
-      dto.scheduled_date,
-    );
+    const finalization =
+      await this.dayFinalizationService.getFinalizationStatus(
+        dto.scheduled_date,
+      );
     if (finalization) {
       throw new BadRequestException(
         'Day already finalized. It is no longer possible to schedule attendances for this day.',
@@ -797,9 +798,11 @@ export class AttendanceService {
       const treatmentTypeNames = {
         assessment: 'Assessment consultations',
         physiotherapy: 'Physiotherapy',
-        tens: 'TENS'
+        tens: 'TENS',
       };
-      const treatmentName = treatmentTypeNames[dto.type as keyof typeof treatmentTypeNames] || dto.type;
+      const treatmentName =
+        treatmentTypeNames[dto.type as keyof typeof treatmentTypeNames] ||
+        dto.type;
       throw new BadRequestException(
         `This date is a holiday and it is not possible to schedule ${treatmentName}.`,
       );
@@ -945,12 +948,14 @@ export class AttendanceService {
       scheduledTime?: string;
     } = {},
   ): Promise<boolean> {
-    const { patientId, originalAttendanceId, scheduledTime = '09:00:00' } =
-      options;
+    const {
+      patientId,
+      originalAttendanceId,
+      scheduledTime = '09:00:00',
+    } = options;
 
-    const finalization = await this.dayFinalizationService.getFinalizationStatus(
-      date,
-    );
+    const finalization =
+      await this.dayFinalizationService.getFinalizationStatus(date);
     if (finalization) return false;
 
     const isHoliday = await this.holidayService.isHolidayForTreatment(
@@ -1036,7 +1041,9 @@ export class AttendanceService {
     attendanceId: number,
   ): Promise<string | null> {
     const attendance = await this.findOne(attendanceId);
-    const fromDate = attendance.scheduled_date ?? addDaysToDateString(getCurrentDateString(), 7);
+    const fromDate =
+      attendance.scheduled_date ??
+      addDaysToDateString(getCurrentDateString(), 7);
     const scheduledTime = attendance.scheduled_time ?? undefined;
 
     if (attendance.type === AttendanceType.ASSESSMENT) {
@@ -1048,9 +1055,7 @@ export class AttendanceService {
       );
     }
 
-    const treatmentId = await this.getTreatmentIdForAttendance(
-      attendance,
-    );
+    const treatmentId = await this.getTreatmentIdForAttendance(attendance);
     return this.getNextAvailableDateForTreatment(
       attendance.type,
       attendance.patient_id,
@@ -1103,17 +1108,15 @@ export class AttendanceService {
   private async getTreatmentIdForAttendance(
     attendance: Attendance,
   ): Promise<number | null> {
-    const linkedSessions =
-      await this.sessionService.getSessionsByAttendance(
-        attendance.id,
-      );
+    const linkedSessions = await this.sessionService.getSessionsByAttendance(
+      attendance.id,
+    );
     if (linkedSessions.length > 0 && linkedSessions[0].treatment_id) {
       return linkedSessions[0].treatment_id;
     }
-    const sessions =
-      await this.treatmentService.getTreatmentsByPatient(
-        attendance.patient_id,
-      );
+    const sessions = await this.treatmentService.getTreatmentsByPatient(
+      attendance.patient_id,
+    );
     const match = sessions.find(
       (s) =>
         ((s.treatment_type === TreatmentType.PHYSIOTHERAPY &&
@@ -1139,9 +1142,7 @@ export class AttendanceService {
     let candidate = addDaysToDateString(fromDate, 7);
     if (treatmentId) {
       const lastDate =
-        await this.sessionService.getMaxScheduledDateForTreatment(
-          treatmentId,
-        );
+        await this.sessionService.getMaxScheduledDateForTreatment(treatmentId);
       const lastDateStr = lastDate ? toDateStringOnly(lastDate) : null;
       if (lastDateStr && compareDateStrings(candidate, lastDateStr) <= 0) {
         while (compareDateStrings(candidate, lastDateStr) <= 0) {
@@ -1494,7 +1495,7 @@ export class AttendanceService {
         // Log that no active treatment session was found
         console.warn(
           `No active treatment session found for patient ${attendance.patient_id} ` +
-          `and type ${attendance.type}. Attendance ${attendance.id} completed but no session created.`,
+            `and type ${attendance.type}. Attendance ${attendance.id} completed but no session created.`,
         );
       }
     } catch (error) {
@@ -1527,7 +1528,8 @@ export class AttendanceService {
     const originalDateObj = new Date(originalDate + 'T00:00:00');
 
     // Block postponing to a finalized day
-    const finalization = await this.dayFinalizationService.getFinalizationStatus(newDate);
+    const finalization =
+      await this.dayFinalizationService.getFinalizationStatus(newDate);
     if (finalization) {
       throw new BadRequestException(
         'Day finalized. It is no longer possible to schedule attendances for this day.',
@@ -1543,9 +1545,12 @@ export class AttendanceService {
       const treatmentTypeNames = {
         assessment: 'Assessment consultations',
         physiotherapy: 'Physiotherapy',
-        tens: 'TENS'
+        tens: 'TENS',
       };
-      const treatmentName = treatmentTypeNames[attendance.type as keyof typeof treatmentTypeNames] || attendance.type;
+      const treatmentName =
+        treatmentTypeNames[
+          attendance.type as keyof typeof treatmentTypeNames
+        ] || attendance.type;
       throw new BadRequestException(
         `The day ${newDate} is a holiday for ${treatmentName}.`,
       );
@@ -1597,12 +1602,14 @@ export class AttendanceService {
     const setting = await this.scheduleSettingRepository.findOne({
       where: {
         day_of_week: dayOfWeek,
-        is_active: true
+        is_active: true,
       },
     });
 
     if (!setting) {
-      throw new Error(`Attendances are not available on ${getDayOfTheWeekName(dayOfWeek)}s.`);
+      throw new Error(
+        `Attendances are not available on ${getDayOfTheWeekName(dayOfWeek)}s.`,
+      );
     }
 
     const maxConcurrent =
@@ -1640,8 +1647,10 @@ export class AttendanceService {
 
     // For physiotherapy and tens treatments, also update any linked sessions
     if (attendance.type === 'physiotherapy' || attendance.type === 'tens') {
-      const sessionRows = await this.sessionService.getSessionsByAttendance(attendance.id);
-      
+      const sessionRows = await this.sessionService.getSessionsByAttendance(
+        attendance.id,
+      );
+
       for (const sessionRow of sessionRows) {
         // Only update if the session is still scheduled (not completed/missed/cancelled)
         if (sessionRow.status === 'scheduled') {
@@ -1662,7 +1671,8 @@ export class AttendanceService {
     dto: RescheduleAttendancesDto,
     options?: { allowFirstAssessmentForNonTreatment?: boolean },
   ): Promise<AttendanceResponseDto[]> {
-    const { attendance_ids: attendanceIdsRaw, new_scheduled_date: newDate } = dto;
+    const { attendance_ids: attendanceIdsRaw, new_scheduled_date: newDate } =
+      dto;
 
     if (attendanceIdsRaw.length === 0) {
       throw new BadRequestException('attendance_ids cannot be empty.');
@@ -1683,14 +1693,16 @@ export class AttendanceService {
     if (attendances.length !== attendanceIds.length) {
       const foundIds = new Set(attendances.map((a) => a.id));
       const missing = attendanceIds.filter((id) => !foundIds.has(id));
-      throw new ResourceNotFoundException(
-        'Attendance',
-        missing.join(', '),
-      );
+      throw new ResourceNotFoundException('Attendance', missing.join(', '));
     }
 
-    const allowedStatuses = [AttendanceStatus.CANCELLED, AttendanceStatus.MISSED];
-    const invalid = attendances.filter((a) => !allowedStatuses.includes(a.status));
+    const allowedStatuses = [
+      AttendanceStatus.CANCELLED,
+      AttendanceStatus.MISSED,
+    ];
+    const invalid = attendances.filter(
+      (a) => !allowedStatuses.includes(a.status),
+    );
     if (invalid.length > 0) {
       throw new BadRequestException(
         `Only cancelled or missed attendances can be rescheduled. Invalid IDs: ${invalid.map((a) => a.id).join(', ')}`,
@@ -1701,9 +1713,14 @@ export class AttendanceService {
     const isAllowedBypass =
       options?.allowFirstAssessmentForNonTreatment === true &&
       attendances.every(
-        (a) => a.type === AttendanceType.ASSESSMENT && a.parent_attendance_id == null,
+        (a) =>
+          a.type === AttendanceType.ASSESSMENT &&
+          a.parent_attendance_id == null,
       );
-    if (patient.patient_status !== PatientStatus.IN_TREATMENT && !isAllowedBypass) {
+    if (
+      patient.patient_status !== PatientStatus.IN_TREATMENT &&
+      !isAllowedBypass
+    ) {
       throw new BadRequestException(
         'Patient is not in treatment. Only patients in treatment can reschedule attendances.',
       );
@@ -1722,7 +1739,10 @@ export class AttendanceService {
       );
     }
 
-    const timeToCount = new Map<string, { type: AttendanceType; count: number }>();
+    const timeToCount = new Map<
+      string,
+      { type: AttendanceType; count: number }
+    >();
     for (const a of attendances) {
       const key = `${a.type}:${a.scheduled_time}`;
       const current = timeToCount.get(key) || { type: a.type, count: 0 };
@@ -1801,13 +1821,12 @@ export class AttendanceService {
       created.push(saved);
 
       if (original.type === 'physiotherapy' || original.type === 'tens') {
-        const sessionRows =
-          await this.sessionService.getSessionsForReschedule(
-            original.id,
-            original.patient_id,
-            original.type,
-            original.scheduled_date,
-          );
+        const sessionRows = await this.sessionService.getSessionsForReschedule(
+          original.id,
+          original.patient_id,
+          original.type,
+          original.scheduled_date,
+        );
         for (const rec of sessionRows) {
           await this.sessionService.createSession({
             treatment_id: rec.treatment_id,
@@ -1940,9 +1959,7 @@ export class AttendanceService {
       };
     }
 
-    const treatmentId = await this.getTreatmentIdForAttendanceId(
-      attendance.id,
-    );
+    const treatmentId = await this.getTreatmentIdForAttendanceId(attendance.id);
     if (!treatmentId) {
       return {
         shouldEvaluate: false,
@@ -1952,12 +1969,11 @@ export class AttendanceService {
     }
 
     let oldLastTreatmentDate =
-      await this.sessionService.getMaxScheduledDateForTreatment(
-        treatmentId,
-      );
+      await this.sessionService.getMaxScheduledDateForTreatment(treatmentId);
     if (
       attendance.scheduled_date &&
-      (!oldLastTreatmentDate || attendance.scheduled_date > oldLastTreatmentDate)
+      (!oldLastTreatmentDate ||
+        attendance.scheduled_date > oldLastTreatmentDate)
     ) {
       oldLastTreatmentDate = attendance.scheduled_date;
     }
@@ -1990,10 +2006,12 @@ export class AttendanceService {
     const sessionInfo = await this.treatmentService.getSessionWithReturnConfig(
       context.treatmentId,
     );
-    const returnWhenComplete = sessionInfo?.return_when_treatment_complete ?? false;
+    const returnWhenComplete =
+      sessionInfo?.return_when_treatment_complete ?? false;
     const returnWeeks = sessionInfo?.return_weeks ?? 0;
     const shouldRescheduleReturns =
-      returnAssessmentAttendances.length > 0 && (returnWhenComplete || returnWeeks > 0);
+      returnAssessmentAttendances.length > 0 &&
+      (returnWhenComplete || returnWeeks > 0);
 
     if (!shouldRescheduleReturns) {
       return;
@@ -2025,7 +2043,10 @@ export class AttendanceService {
     assessmentReturnRescheduleMap: Map<number, string>,
     results: BulkPostponeResult,
   ): Promise<void> {
-    for (const [assessmentAttendanceId, targetDate] of assessmentReturnRescheduleMap) {
+    for (const [
+      assessmentAttendanceId,
+      targetDate,
+    ] of assessmentReturnRescheduleMap) {
       try {
         const assessmentAttendance = await this.findOne(assessmentAttendanceId);
         if (assessmentAttendance.scheduled_date === targetDate) {
@@ -2043,7 +2064,8 @@ export class AttendanceService {
       } catch (error) {
         results.failed_return_reschedules.push({
           attendance_id: assessmentAttendanceId,
-          error: error instanceof Error ? error.message : 'Unknown error occurred',
+          error:
+            error instanceof Error ? error.message : 'Unknown error occurred',
         });
       }
     }
@@ -2058,12 +2080,12 @@ export class AttendanceService {
     minScheduledDate: string,
   ): Promise<Attendance[]> {
     const sessionInfo =
-      await this.treatmentService.getSessionWithReturnConfig(
-        treatmentId,
-      );
+      await this.treatmentService.getSessionWithReturnConfig(treatmentId);
     if (!sessionInfo) return [];
 
-    const patientAttendances = await this.findByPatientId(sessionInfo.patient_id);
+    const patientAttendances = await this.findByPatientId(
+      sessionInfo.patient_id,
+    );
     const rootId = sessionInfo.attendance_id;
     const chainIds = new Set<number>([rootId]);
 
@@ -2072,7 +2094,11 @@ export class AttendanceService {
       added = false;
       for (const attDto of patientAttendances) {
         const parentId = attDto.parent_attendance_id;
-        if (parentId != null && chainIds.has(parentId) && !chainIds.has(attDto.id)) {
+        if (
+          parentId != null &&
+          chainIds.has(parentId) &&
+          !chainIds.has(attDto.id)
+        ) {
           chainIds.add(attDto.id);
           added = true;
         }
@@ -2137,11 +2163,12 @@ export class AttendanceService {
       return scheduledDate;
     }
 
-    const reason = isFinalized && isBlockedByHoliday
-      ? 'finalized and holiday'
-      : isFinalized
-        ? 'finalized'
-        : 'holiday';
+    const reason =
+      isFinalized && isBlockedByHoliday
+        ? 'finalized and holiday'
+        : isFinalized
+          ? 'finalized'
+          : 'holiday';
     const nextDateStr = addDaysToDateString(scheduledDate, 7);
 
     this.logger.log(
@@ -2170,23 +2197,33 @@ export class AttendanceService {
     old_date?: string;
     new_date?: string;
   }> {
-    const treatmentId = await this.getTreatmentIdForAttendanceId(treatmentAttendanceId);
+    const treatmentId = await this.getTreatmentIdForAttendanceId(
+      treatmentAttendanceId,
+    );
     if (!treatmentId) return { rescheduled: false };
 
-    const sessionInfo = await this.treatmentService.getSessionWithReturnConfig(treatmentId);
+    const sessionInfo =
+      await this.treatmentService.getSessionWithReturnConfig(treatmentId);
     if (!sessionInfo?.consultation_id) return { rescheduled: false };
 
-    const { consultation_id, return_weeks, return_when_treatment_complete } = sessionInfo;
+    const { consultation_id, return_weeks, return_when_treatment_complete } =
+      sessionInfo;
 
-    const shouldReschedule = return_when_treatment_complete || (return_weeks !== null && return_weeks > 0);
+    const shouldReschedule =
+      return_when_treatment_complete ||
+      (return_weeks !== null && return_weeks > 0);
     if (!shouldReschedule) return { rescheduled: false };
 
-    const treatmentIds = await this.treatmentService.getTreatmentIdsByConsultationId(consultation_id);
+    const treatmentIds =
+      await this.treatmentService.getTreatmentIdsByConsultationId(
+        consultation_id,
+      );
     if (treatmentIds.length === 0) return { rescheduled: false };
 
     let maxSessionDate: string | null = null;
     for (const tid of treatmentIds) {
-      const date = await this.sessionService.getMaxScheduledDateForTreatment(tid);
+      const date =
+        await this.sessionService.getMaxScheduledDateForTreatment(tid);
       if (date && (!maxSessionDate || date > maxSessionDate)) {
         maxSessionDate = date;
       }
@@ -2194,15 +2231,20 @@ export class AttendanceService {
     if (!maxSessionDate) return { rescheduled: false };
 
     const returnWeeksValue = return_weeks ?? 0;
-    const rawReturnDate = returnWeeksValue > 0
-      ? addDaysToDateString(maxSessionDate, returnWeeksValue * 7)
-      : maxSessionDate;
-    const targetDate = await this.findNextSchedulableDate(rawReturnDate, AttendanceType.ASSESSMENT);
-
-    const returnAttendances = await this.findReturnAssessmentAttendancesForTreatment(
-      treatmentId,
-      maxSessionDate,
+    const rawReturnDate =
+      returnWeeksValue > 0
+        ? addDaysToDateString(maxSessionDate, returnWeeksValue * 7)
+        : maxSessionDate;
+    const targetDate = await this.findNextSchedulableDate(
+      rawReturnDate,
+      AttendanceType.ASSESSMENT,
     );
+
+    const returnAttendances =
+      await this.findReturnAssessmentAttendancesForTreatment(
+        treatmentId,
+        maxSessionDate,
+      );
     if (returnAttendances.length === 0) return { rescheduled: false };
 
     const returnAtt = returnAttendances[0];
@@ -2265,4 +2307,3 @@ export class AttendanceService {
     };
   }
 }
-

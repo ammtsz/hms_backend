@@ -48,7 +48,7 @@ export interface RescheduledItemDto {
   new_date: string;
 }
 
-export interface StatusChangedToFItemDto {
+export interface StatusChangedToCItemDto {
   patient_id: number;
   patient_name: string;
 }
@@ -59,7 +59,7 @@ export interface CancelledAttendanceDto {
   scheduled_date: string;
 }
 
-export interface CancelledForFItemDto {
+export interface CancelledForCItemDto {
   patient_id: number;
   patient_name: string;
   attendances: CancelledAttendanceDto[];
@@ -75,7 +75,7 @@ export interface CouldNotRescheduleItemDto {
 
 export interface ProcessEndOfDayResponseDto {
   rescheduled: RescheduledItemDto[];
-  status_changed_to_f: StatusChangedToFItemDto[];
-  cancelled_for_f: CancelledForFItemDto[];
+  status_changed_to_c: StatusChangedToCItemDto[];
+  cancelled_for_c: CancelledForCItemDto[];
   could_not_reschedule: CouldNotRescheduleItemDto[];
 }

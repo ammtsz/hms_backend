@@ -21,8 +21,8 @@ CREATE TYPE PATIENT_PRIORITY AS ENUM (
 CREATE TYPE PATIENT_STATUS AS ENUM (
     'N',  -- New patient (N)
     'T',  -- In treatment (T)
-    'A',  -- Discharged
-    'F'   -- Missed — consecutive (F)
+    'D',  -- Discharged
+    'C'   -- Consecutive no-shows (C)
 );
 
 CREATE TYPE ATTENDANCE_TYPE AS ENUM (
@@ -281,7 +281,7 @@ created_date DATE DEFAULT CURRENT_DATE,
 );
 
 -- Table: hms_system_settings
--- Purpose: Key-value store for global system configuration (e.g. appointments threshold for status F)
+-- Purpose: Key-value store for global system configuration (e.g. appointments threshold for status C)
 CREATE TABLE hms_system_settings (
     key VARCHAR(100) PRIMARY KEY,
     value VARCHAR(500) NOT NULL
@@ -723,7 +723,7 @@ COMMENT ON COLUMN hms_attendance.completed_time IS 'Treatment completion time (d
 
 COMMENT ON COLUMN hms_consultation.main_concern IS 'Main concern from the patient during this specific consultation session';
 
-COMMENT ON COLUMN hms_consultation.patient_status IS 'Patient lifecycle status at time of consultation: N=New, T=Treatment, A=Discharged, F=Missed';
+COMMENT ON COLUMN hms_consultation.patient_status IS 'Patient lifecycle status at time of consultation: N=New, T=Treatment, D=Discharged, C=Consecutive no-shows';
 
 COMMENT ON COLUMN hms_consultation.start_time IS 'Consultation start time (date derived from attendance_date context)';
 

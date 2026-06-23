@@ -197,7 +197,7 @@ export class ConsultationService {
   }
 
   /**
-   * Map treatment status string from DTO ('N'|'T'|'A'|'F') to PatientStatus enum.
+   * Map treatment status string from DTO ('N'|'T'|'D'|'C') to PatientStatus enum.
    */
   private treatmentStatusStringToEnum(
     status: string,
@@ -205,8 +205,8 @@ export class ConsultationService {
     const map: Record<string, PatientStatus> = {
       N: PatientStatus.NEW_PATIENT,
       T: PatientStatus.IN_TREATMENT,
-      A: PatientStatus.DISCHARGED,
-      F: PatientStatus.ABSENT,
+      D: PatientStatus.DISCHARGED,
+      C: PatientStatus.CONSECUTIVE_NO_SHOWS,
     };
     const value = map[status];
     if (!value) {
@@ -295,7 +295,7 @@ export class ConsultationService {
 
     const currentAttendance = consultation.attendance;
 
-    if (currentAttendance.patient.patient_status === 'A') {
+    if (currentAttendance.patient.patient_status === 'D') {
       throw new BadRequestException(
         `Cannot schedule return for discharged patient ${currentAttendance.patient_id}`,
       );

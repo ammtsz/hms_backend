@@ -18,7 +18,7 @@ export class SystemSettingsService {
   ) {}
 
   /**
-   * Returns the configured threshold for unjustified absences that trigger status F.
+   * Returns the configured threshold for unjustified absences that trigger status C.
    * Defaults to 3 if not set or invalid.
    */
   async getMissingAppointmentsThreshold(): Promise<number> {

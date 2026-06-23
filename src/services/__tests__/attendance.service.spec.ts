@@ -258,7 +258,7 @@ describe('AttendanceService', () => {
       expect(result.options[0].label).toBe('2025-07-22 - Back pain');
     });
 
-    it('should exclude roots whose chain has patient_status A or F', async () => {
+    it('should exclude roots whose chain has patient_status D or C', async () => {
       const rootWithAlta = {
         ...mockAttendance,
         id: 1,
@@ -267,7 +267,7 @@ describe('AttendanceService', () => {
         parent_attendance_id: null,
         scheduled_date: '2025-07-20',
         consultation: {
-          patient_status: 'A',
+          patient_status: 'D',
           main_concern: 'Discharged',
         },
       } as unknown as Attendance;
@@ -696,7 +696,7 @@ describe('AttendanceService', () => {
       );
     });
 
-    it('should reject parent_attendance_id when patient is DISCHARGED (A)', async () => {
+    it('should reject parent_attendance_id when patient is DISCHARGED (D)', async () => {
       jest.spyOn(patientRepository, 'findOne').mockResolvedValue({
         id: 1,
         patient_status: PatientStatus.DISCHARGED,
@@ -717,10 +717,10 @@ describe('AttendanceService', () => {
       );
     });
 
-    it('should reject parent_attendance_id when patient is ABSENT (F)', async () => {
+    it('should reject parent_attendance_id when patient is CONSECUTIVE_NO_SHOWS (C)', async () => {
       jest.spyOn(patientRepository, 'findOne').mockResolvedValue({
         id: 1,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       } as Patient);
 
       const dto: CreateAttendanceDto = {
@@ -814,7 +814,7 @@ describe('AttendanceService', () => {
       await expect(service.create(dto)).resolves.toBeDefined();
     });
 
-    it('should allow assessment attendance without parent_attendance_id for DISCHARGED or ABSENT patient', async () => {
+    it('should allow assessment attendance without parent_attendance_id for DISCHARGED or CONSECUTIVE_NO_SHOWS patient', async () => {
       const dto: CreateAttendanceDto = {
         patient_id: 1,
         type: AttendanceType.ASSESSMENT,
@@ -846,7 +846,7 @@ describe('AttendanceService', () => {
 
       jest.spyOn(patientRepository, 'findOne').mockResolvedValueOnce({
         id: 1,
-        patient_status: PatientStatus.ABSENT,
+        patient_status: PatientStatus.CONSECUTIVE_NO_SHOWS,
       } as Patient);
       await expect(service.create(dto)).resolves.toBeDefined();
     });
@@ -1275,7 +1275,7 @@ describe('AttendanceService', () => {
 
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(missedAttendance);
 
-      await expect(service.cancel(1, 'Missed — consecutive')).rejects.toThrow(
+      await expect(service.cancel(1, 'Consecutive no-shows')).rejects.toThrow(
         InvalidAttendanceStatusTransitionException,
       );
     });
@@ -1339,12 +1339,12 @@ describe('AttendanceService', () => {
 
       const result = await service.cancelOpenAttendancesForPatient(
         1,
-        'Missed — consecutive',
+        'Consecutive no-shows',
       );
 
       // Only the SCHEDULED attendance should be cancelled (defensive filter excludes MISSED)
       expect(cancelSpy).toHaveBeenCalledTimes(1);
-      expect(cancelSpy).toHaveBeenCalledWith(10, 'Missed — consecutive');
+      expect(cancelSpy).toHaveBeenCalledWith(10, 'Consecutive no-shows');
       expect(result).toEqual([
         { id: 10, type: 'assessment', scheduled_date: '2025-02-01' },
       ]);

@@ -347,7 +347,7 @@ export class TreatmentService {
    * Cancel a treatment and its non-completed session rows.
    * Optionally cancel linked attendances that are still open (scheduled, checked_in, in_progress).
    * Attendance status is owned by AttendanceService: we only delegate, never update directly.
-   * When cancelLinkedOpenAttendances is false (e.g. patient transition to A/F), caller has already
+   * When cancelLinkedOpenAttendances is false (e.g. patient transition to D/C), caller has already
    * cancelled open attendances; we must not overwrite MISSED or other statuses.
    */
   async cancelTreatment(
@@ -626,7 +626,7 @@ export class TreatmentService {
       // Only process if flag is true and patient isn't dismissed
       if (
         !consultation.return_when_treatment_complete ||
-        consultation.attendance?.patient?.patient_status === 'A'
+        consultation.attendance?.patient?.patient_status === 'D'
       ) {
         return;
       }

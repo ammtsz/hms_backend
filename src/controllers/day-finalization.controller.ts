@@ -82,7 +82,7 @@ export class DayFinalizationController {
 
     this.logger.log(
       `Successfully processed end-of-day: ${result.rescheduled.length} rescheduled, ` +
-        `${result.status_changed_to_f.length} status F, ${result.cancelled_for_f.length} cancelled`,
+        `${result.status_changed_to_c.length} status C, ${result.cancelled_for_c.length} cancelled`,
     );
 
     return result;

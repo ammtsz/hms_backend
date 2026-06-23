@@ -35,11 +35,11 @@ export class CreateConsultationDto {
     description:
       'Treatment status (stored on consultation and used for patient update)',
     example: 'T',
-    enum: ['N', 'T', 'A', 'F'],
+    enum: ['N', 'T', 'D', 'C'],
   })
   @IsString()
   @IsOptional()
-  @IsIn(['N', 'T', 'A', 'F'])
+  @IsIn(['N', 'T', 'D', 'C'])
   patient_status?: string;
 
   @ApiPropertyOptional({
@@ -120,8 +120,7 @@ export class CreateConsultationDto {
   start_time?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Time when consultation completed (consultation submitted)',
+    description: 'Time when consultation completed (consultation submitted)',
     example: '20:00:00',
     pattern: 'HH:mm:ss',
   })
@@ -163,7 +162,7 @@ export class UpdateConsultationDto {
     description:
       'Treatment status for patient update (not stored on consultation row)',
     example: 'T',
-    enum: ['N', 'T', 'A', 'F'],
+    enum: ['N', 'T', 'D', 'C'],
   })
   @IsString()
   @IsOptional()
@@ -247,8 +246,7 @@ export class UpdateConsultationDto {
   start_time?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Time when consultation completed (consultation submitted)',
+    description: 'Time when consultation completed (consultation submitted)',
     example: '20:00:00',
     pattern: 'HH:mm:ss',
   })
@@ -288,9 +286,9 @@ export class ConsultationResponseDto {
   main_concern?: string;
 
   @ApiPropertyOptional({
-    description: 'Treatment status (N, T, A, or F)',
+    description: 'Treatment status (N, T, D, or C)',
     example: 'T',
-    enum: ['N', 'T', 'A', 'F'],
+    enum: ['N', 'T', 'D', 'C'],
   })
   patient_status?: string;
 
@@ -381,7 +379,8 @@ export class ConsultationResponseDto {
 
 export class TreatmentResult {
   @ApiProperty({
-    description: 'Whether the treatment plan row and its sessions were created successfully',
+    description:
+      'Whether the treatment plan row and its sessions were created successfully',
     example: true,
   })
   success: boolean;
@@ -411,7 +410,7 @@ export class TreatmentsResult {
 }
 
 /**
- * Result type for consultation create/update when status is A or F.
+ * Result type for consultation create/update when status is D or C.
  * Used by ConsultationService and mapped to UpdateConsultationResponseDto by the controller.
  */
 export class ConsultationResult {
@@ -423,7 +422,9 @@ export class CancelledAttendanceItemDto {
   @ApiProperty({ description: 'Attendance ID' })
   id: number;
 
-  @ApiProperty({ description: 'Attendance type (assessment, physiotherapy, tens)' })
+  @ApiProperty({
+    description: 'Attendance type (assessment, physiotherapy, tens)',
+  })
   type: string;
 
   @ApiProperty({ description: 'Scheduled date (YYYY-MM-DD)' })
@@ -445,7 +446,7 @@ export class UpdateConsultationResponseDto {
 
   @ApiPropertyOptional({
     description:
-      'Attendances cancelled when treatment status was set to Discharged (A) or Missed (F)',
+      'Attendances cancelled when treatment status was set to Discharged (D) or Consecutive no-shows (C)',
     type: [CancelledAttendanceItemDto],
   })
   cancelled_attendances?: CancelledAttendanceItemDto[];
