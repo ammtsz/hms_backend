@@ -436,7 +436,7 @@ export class PatientService {
       }
     }
 
-    const triggerDateBR = triggerDate
+    const triggerDateDisplay = triggerDate
       ? formatDisplayDate(triggerDate.slice(0, 10))
       : triggerDate;
 
@@ -501,7 +501,7 @@ export class PatientService {
       const sortedDates = Array.from(byDate.keys()).sort();
       const maxNoteLength = 1900; // keep below backend 2000 char validation
 
-      let noteContent = `Patient status changed to ${statusLabel} on ${triggerDateBR}.\nReason: ${cancellationReason}\nCancelled appointments:\n`;
+      let noteContent = `Patient status changed to ${statusLabel} on ${triggerDateDisplay}.\nReason: ${cancellationReason}\nCancelled appointments:\n`;
 
       for (const date of sortedDates) {
         const bucket = byDate.get(date);
@@ -518,8 +518,8 @@ export class PatientService {
         }
 
         if (parts.length === 0) continue;
-        const dateBR = formatDisplayDate(date.slice(0, 10));
-        const line = `- ${dateBR}: ${parts.join(', ')}\n`;
+        const dateDisplay = formatDisplayDate(date.slice(0, 10));
+        const line = `- ${dateDisplay}: ${parts.join(', ')}\n`;
         if (noteContent.length + line.length > maxNoteLength) break;
         noteContent += line;
       }
@@ -536,7 +536,7 @@ export class PatientService {
       await this.patientNoteService.create(id, noteDto);
     } else {
       const noteDto: CreatePatientNoteDto = {
-        note_content: `Patient status changed to ${statusLabel} on ${triggerDateBR}.\nReason: ${cancellationReason}\nAll open appointments were cancelled.`,
+        note_content: `Patient status changed to ${statusLabel} on ${triggerDateDisplay}.\nReason: ${cancellationReason}\nAll open appointments were cancelled.`,
         category: noteCategory,
       };
       await this.patientNoteService.create(id, noteDto);
