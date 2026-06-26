@@ -44,9 +44,9 @@ describe('ConsultationService', () => {
     id: 1,
     appointment_id: 1,
     appointment: mockAppointment as any,
-    food: 'Avoid processed foods',
-    water: 'Drink 2L of water daily',
-    ointments: 'Chamomile ointment',
+    home_exercises: 'Cat-camel stretches, 3x daily',
+    pain_management: 'Ice 15 min, 3x/day',
+    medications: 'Diclofenac gel',
     physiotherapy: true,
     tens: false,
     start_time: '10:00',
@@ -166,9 +166,9 @@ describe('ConsultationService', () => {
   describe('create', () => {
     const createDto: CreateConsultationDto = {
       appointment_id: 1,
-      food: 'Avoid processed foods',
-      water: 'Drink 2L of water daily',
-      ointments: 'Chamomile ointment',
+      home_exercises: 'Cat-camel stretches, 3x daily',
+      pain_management: 'Ice 15 min, 3x/day',
+      medications: 'Diclofenac gel',
       physiotherapy: true,
       tens: false,
       return_weeks: 2,
@@ -439,8 +439,8 @@ describe('ConsultationService', () => {
     it('should update a consultation', async () => {
       const updateDto = {
         appointment_id: 1,
-        food: 'Updated food recommendations',
-        water: 'Updated water recommendations',
+        home_exercises: 'Updated home exercises',
+        pain_management: 'Updated pain management',
         notes: 'Updated treatment notes',
       } as UpdateConsultationDto;
 
@@ -459,7 +459,7 @@ describe('ConsultationService', () => {
 
       const updateDto = {
         appointment_id: 1,
-        food: 'Updated food recommendations',
+        home_exercises: 'Updated home exercises',
       } as UpdateConsultationDto;
 
       await expect(service.update(999, updateDto)).rejects.toThrow(
@@ -501,7 +501,7 @@ describe('ConsultationService', () => {
         .mockResolvedValueOnce(mockConsultation);
 
       const updateDto = {
-        food: 'Updated food only',
+        home_exercises: 'Updated home exercises only',
       } as UpdateConsultationDto;
 
       await service.update(1, updateDto);

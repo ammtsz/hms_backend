@@ -79,52 +79,6 @@ export class SettingsController {
     return { message: 'Body location deleted successfully' };
   }
 
-  @Get('colors')
-  @UseGuards(JwtAuthGuard)
-  async getColors(@Query('all') includeInactive?: string) {
-    return this.systemOptionService.findAllWithUsageCount(
-      SystemOptionType.COLOR,
-      includeInactive === 'true',
-    );
-  }
-
-  @Get('colors/check-similar')
-  @UseGuards(JwtAuthGuard)
-  async checkSimilarColors(@Query('value') value: string) {
-    if (!value) {
-      return [];
-    }
-    return this.systemOptionService.findSimilar(
-      SystemOptionType.COLOR,
-      value,
-    );
-  }
-
-  @Post('colors')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async createColor(@Body() dto: CreateSystemOptionValueDto) {
-    return this.systemOptionService.create({
-      type: SystemOptionType.COLOR,
-      value: dto.value,
-    });
-  }
-
-  @Put('colors/:id')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async updateColor(
-    @Param('id') id: string,
-    @Body() updateDto: UpdateSystemOptionDto,
-  ) {
-    return this.systemOptionService.update(+id, updateDto);
-  }
-
-  @Delete('colors/:id')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async deleteColor(@Param('id') id: string) {
-    await this.systemOptionService.delete(+id);
-    return { message: 'Color deleted successfully' };
-  }
-
   @Get('appointments-threshold')
   @UseGuards(JwtAuthGuard)
   async getAppointmentsThreshold(): Promise<AppointmentsThresholdResponseDto> {

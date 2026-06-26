@@ -162,9 +162,9 @@ CREATE TABLE hms_consultation (
     appointment_id INTEGER REFERENCES hms_appointment (id) ON DELETE CASCADE UNIQUE,
     main_concern TEXT,
     patient_status PATIENT_STATUS,
-    food TEXT,
-    water TEXT,
-    ointments TEXT,
+    home_exercises TEXT,
+    pain_management TEXT,
+    medications TEXT,
     physiotherapy BOOLEAN DEFAULT false,
     tens BOOLEAN DEFAULT false,
     return_weeks INTEGER CHECK (return_weeks >= 0 AND return_weeks <= 52),
@@ -198,15 +198,8 @@ CREATE TABLE hms_treatment (
     end_date DATE,
     status TREATMENT_STATUS DEFAULT 'scheduled',
 
--- Physiotherapy specific fields
-duration_minutes INTEGER CHECK (
-    duration_minutes IS NULL
-    OR (
-        duration_minutes > 0
-        AND duration_minutes <= 70
-    )
-),
-color VARCHAR(50),
+-- Session duration in minutes (30, 45, or 60)
+duration_minutes INTEGER NOT NULL CHECK (duration_minutes IN (30, 45, 60)),
 notes TEXT,
 cancellation_reason TEXT,
 
@@ -214,13 +207,7 @@ cancellation_reason TEXT,
 created_date DATE DEFAULT CURRENT_DATE,
 created_time TIME DEFAULT CURRENT_TIME,
 updated_date DATE DEFAULT CURRENT_DATE,
-updated_time TIME DEFAULT CURRENT_TIME,
-
--- Physiotherapy constraints
-CONSTRAINT check_physiotherapy_requirements CHECK (
-        (treatment_type = 'physiotherapy' AND duration_minutes IS NOT NULL AND color IS NOT NULL) OR
-        (treatment_type = 'tens' AND duration_minutes IS NULL AND color IS NULL)
-    )
+updated_time TIME DEFAULT CURRENT_TIME
 );
 
 -- Sessions (`hms_session`): scheduled occurrences for a treatment
@@ -418,7 +405,7 @@ COMMENT ON FUNCTION has_scheduled_appointments (DATE) IS 'Checks if a date has n
 -- ============================================================================
 -- SYSTEM OPTIONS TABLE
 -- ============================================================================
--- Purpose: Configurable options for system features (body locations, colors,
+-- Purpose: Configurable options for system features (body locations,
 -- priorities, note categories, etc.)
 -- Version: 2.0
 -- Last Updated: 2026-03-20
@@ -430,7 +417,6 @@ CREATE TABLE hms_system_options (
     type VARCHAR(20) NOT NULL CHECK (
         type IN (
             'body_location',
-            'color',
             'priority',
             'note_category'
         )
@@ -448,9 +434,9 @@ CREATE TABLE hms_system_options (
 CREATE INDEX idx_system_options_type_active 
 ON hms_system_options(type, is_active);
 
-COMMENT ON TABLE hms_system_options IS 'Stores configurable system options (body locations, colors, priorities, note categories)';
+COMMENT ON TABLE hms_system_options IS 'Stores configurable system options (body locations, priorities, note categories)';
 
-COMMENT ON COLUMN hms_system_options.type IS 'Option domain: body_location | color | priority | note_category';
+COMMENT ON COLUMN hms_system_options.type IS 'Option domain: body_location | priority | note_category';
 
 COMMENT ON COLUMN hms_system_options.value IS 'Stored code/value (e.g., "Head", "Blue", "1", "general")';
 
@@ -912,7 +898,7 @@ VALUES (
 
 -- =====================================================================================
 -- Seed Data: System Options
--- Purpose: Pre-populate body locations, colors, and priority definitions
+-- Purpose: Pre-populate body locations and priority definitions
 -- =====================================================================================
 
 -- Seed body locations
@@ -941,17 +927,6 @@ VALUES ('body_location', 'Head'),
     ('body_location', 'Left Ankle'),
     ('body_location', 'Right Foot'),
     ('body_location', 'Left Foot');
-
--- Seed colors
-INSERT INTO
-    hms_system_options (type, value)
-VALUES ('color', 'Blue'),
-    ('color', 'Yellow'),
-    ('color', 'White'),
-    ('color', 'Red'),
-    ('color', 'Green'),
-    ('color', 'Violet'),
-    ('color', 'Pink');
 
 -- Seed priorities (initially 1-2 active, 3-5 inactive)
 INSERT INTO
@@ -1023,21 +998,21 @@ VALUES (
     ),
     (
         'note_category',
-        'medicamentos',
+        'medication',
         'Medications',
         3,
         true
     ),
     (
         'note_category',
-        'progresso',
+        'progress',
         'Progress',
         4,
         true
     ),
     (
         'note_category',
-        'emergencia',
+        'emergency',
         'Emergency',
         5,
         true

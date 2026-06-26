@@ -30,13 +30,13 @@ export class Consultation {
   patient_status: string;
 
   @Column({ type: 'text', nullable: true })
-  food: string;
+  home_exercises: string;
 
   @Column({ type: 'text', nullable: true })
-  water: string;
+  pain_management: string;
 
   @Column({ type: 'text', nullable: true })
-  ointments: string;
+  medications: string;
 
   @Column({ default: false })
   physiotherapy: boolean;

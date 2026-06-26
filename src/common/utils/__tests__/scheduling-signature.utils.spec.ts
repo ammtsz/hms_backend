@@ -32,22 +32,22 @@ describe('scheduling-signature.utils', () => {
       ).toBe(false);
     });
 
-    it('returns true for physiotherapy with same location and color', () => {
+    it('returns true for physiotherapy with same location', () => {
       expect(
         treatmentSignaturesConflict(
           AppointmentType.PHYSIOTHERAPY,
-          { bodyLocation: 'Neck', color: 'Blue' },
-          { bodyLocation: 'Neck', color: 'blue' },
+          { bodyLocation: 'Neck' },
+          { bodyLocation: 'Neck' },
         ),
       ).toBe(true);
     });
 
-    it('returns false for physiotherapy with same location but different color', () => {
+    it('returns false for physiotherapy with different locations', () => {
       expect(
         treatmentSignaturesConflict(
           AppointmentType.PHYSIOTHERAPY,
-          { bodyLocation: 'Neck', color: 'Blue' },
-          { bodyLocation: 'Neck', color: 'Red' },
+          { bodyLocation: 'Neck' },
+          { bodyLocation: 'Left Shoulder' },
         ),
       ).toBe(false);
     });

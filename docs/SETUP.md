@@ -72,6 +72,8 @@ The backend will be available at `http://localhost:3002` with API docs at `/api`
 
 The database schema is initialized from `init.sql` when Docker starts the PostgreSQL container.
 
+> **Physiotherapy domain schema (2026):** `init.sql` / `railway-init.sql` define consultation fields `home_exercises`, `pain_management`, `medications`; treatment `duration_minutes` (30 / 45 / 60, required). Existing local DBs from older schemas must be **reset** (`./reset-database.sh` or `docker-compose down -v`) — there are no incremental migrations for this change.
+
 ## Running Tests
 
 ```bash
@@ -138,7 +140,7 @@ docker-compose exec -T postgres psql -U user database < backup.sql
 
 ## First Admin User
 
-`init.sql` no longer seeds a default admin account. After running migrations, create the first admin user:
+`init.sql` no longer seeds a default admin account. After the database is initialized, create the first admin user:
 
 ```bash
 # Production (prompts for a secure password ≥ 12 characters)

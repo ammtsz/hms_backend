@@ -27,8 +27,7 @@ describe('TreatmentService', () => {
       planned_sessions: 5,
       completed_sessions: 0,
       status: TreatmentPlanStatus.SCHEDULED,
-      duration_minutes: 2,
-      color: 'blue',
+      duration_minutes: 45,
       sessions: [],
       created_date: '2025-01-01',
       created_time: '10:00:00',
@@ -108,7 +107,7 @@ describe('TreatmentService', () => {
       );
     });
 
-    it('should allow body_location, duration_minutes, color when no treatment session is completed', async () => {
+    it('should allow body_location and duration_minutes when no treatment session is completed', async () => {
       const session = createMockSession({
         sessions: [
           { id: 1, status: SessionAppointmentStatus.SCHEDULED } as Session,
@@ -118,16 +117,14 @@ describe('TreatmentService', () => {
 
       const dto: UpdateTreatmentDto = {
         body_location: 'back',
-        duration_minutes: 3,
-        color: 'green',
+        duration_minutes: 60,
       };
       await service.updateTreatment(1, dto);
 
       expect(mockSave).toHaveBeenCalledWith(
         expect.objectContaining({
           body_location: 'back',
-          duration_minutes: 3,
-          color: 'green',
+          duration_minutes: 60,
         }),
       );
     });
@@ -151,22 +148,21 @@ describe('TreatmentService', () => {
       expect(mockSave).not.toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException when tens session receives duration_minutes or color', async () => {
+    it('should allow duration_minutes update for tens treatments', async () => {
       const session = createMockSession({
         treatment_type: TreatmentType.TENS,
-        duration_minutes: null,
-        color: null,
+        duration_minutes: 30,
         sessions: [],
       });
       mockFindOne.mockResolvedValue(session);
 
-      await expect(
-        service.updateTreatment(1, { color: 'blue' }),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.updateTreatment(1, { duration_minutes: 2 }),
-      ).rejects.toThrow(BadRequestException);
-      expect(mockSave).not.toHaveBeenCalled();
+      await service.updateTreatment(1, { duration_minutes: 45 });
+
+      expect(mockSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          duration_minutes: 45,
+        }),
+      );
     });
 
     it('should throw NotFoundException when treatment does not exist', async () => {

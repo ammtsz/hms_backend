@@ -108,8 +108,7 @@ describe('TreatmentService - Appointment Creation', () => {
         planned_sessions: plannedSessions,
         completed_sessions: 0,
         status: 'scheduled',
-        duration_minutes: 30,
-        color: 'blue',
+        duration_minutes: 45,
       };
 
       // Mock repository responses
@@ -144,8 +143,7 @@ describe('TreatmentService - Appointment Creation', () => {
         body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
-        duration_minutes: 30,
-        color: 'blue',
+        duration_minutes: 45,
       });
 
       // Verify treatment session was created
@@ -193,6 +191,7 @@ describe('TreatmentService - Appointment Creation', () => {
         planned_sessions: plannedSessions,
         completed_sessions: 0,
         status: 'scheduled',
+        duration_minutes: 30,
       };
 
       // Mock repository responses
@@ -230,6 +229,7 @@ describe('TreatmentService - Appointment Creation', () => {
         body_location: 'Back',
         start_date: startDate,
         planned_sessions: plannedSessions,
+        duration_minutes: 30,
       });
 
       // Verify appointments were created with TENS type
@@ -263,8 +263,7 @@ describe('TreatmentService - Appointment Creation', () => {
         planned_sessions: plannedSessions,
         completed_sessions: 0,
         status: 'scheduled',
-        duration_minutes: 30,
-        color: 'blue',
+        duration_minutes: 45,
       };
 
       // Mock repository responses
@@ -296,8 +295,7 @@ describe('TreatmentService - Appointment Creation', () => {
         body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
-        duration_minutes: 30,
-        color: 'blue',
+        duration_minutes: 45,
       });
 
       // Verify sessions were created with weekly intervals
@@ -333,8 +331,7 @@ describe('TreatmentService - Appointment Creation', () => {
         planned_sessions: plannedSessions,
         completed_sessions: 0,
         status: 'scheduled',
-        duration_minutes: 30,
-        color: 'blue',
+        duration_minutes: 45,
       };
 
       mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
@@ -368,8 +365,7 @@ describe('TreatmentService - Appointment Creation', () => {
         body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
-        duration_minutes: 30,
-        color: 'blue',
+        duration_minutes: 45,
       });
 
       // Verify all appointments use 19:30 time
@@ -398,8 +394,7 @@ describe('TreatmentService - Appointment Creation', () => {
         planned_sessions: plannedSessions,
         completed_sessions: 0,
         status: 'scheduled',
-        duration_minutes: 30,
-        color: 'blue',
+        duration_minutes: 45,
       };
 
       mockConsultationRepository.findOne.mockResolvedValue(mockConsultation);
@@ -433,8 +428,7 @@ describe('TreatmentService - Appointment Creation', () => {
         body_location: 'Head',
         start_date: startDate,
         planned_sessions: plannedSessions,
-        duration_minutes: 30,
-        color: 'blue',
+        duration_minutes: 45,
       });
 
       // Verify all treatment appointments link to the original consultation

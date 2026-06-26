@@ -84,13 +84,11 @@ export class TreatmentService {
       );
     }
 
-    // Validate physiotherapy requirements
-    if (dto.treatment_type === TreatmentType.PHYSIOTHERAPY) {
-      if (!dto.duration_minutes || !dto.color) {
-        throw new BadRequestException(
-          'Physiotherapy treatments require duration_minutes and color',
-        );
-      }
+    // Validate duration is allowed
+    if (!dto.duration_minutes) {
+      throw new BadRequestException(
+        'Treatments require duration_minutes (30, 45, or 60)',
+      );
     }
 
     // Use timezone-agnostic string dates
@@ -106,7 +104,6 @@ export class TreatmentService {
       end_date: dto.end_date || null,
       status: TreatmentPlanStatus.SCHEDULED,
       duration_minutes: dto.duration_minutes,
-      color: dto.color,
       notes: dto.notes,
     });
 
@@ -284,8 +281,7 @@ export class TreatmentService {
 
     const isConfigEdit =
       dto.body_location !== undefined ||
-      dto.duration_minutes !== undefined ||
-      dto.color !== undefined;
+      dto.duration_minutes !== undefined;
 
     if (isConfigEdit) {
       const hasCompletedSession =
@@ -297,28 +293,6 @@ export class TreatmentService {
           'The treatment cannot be edited because it already has a completed session',
         );
       }
-      if (treatment.treatment_type === TreatmentType.TENS) {
-        if (dto.duration_minutes !== undefined || dto.color !== undefined) {
-          throw new BadRequestException(
-            'Duration and color are only allowed for physiotherapy treatments',
-          );
-        }
-      }
-      if (treatment.treatment_type === TreatmentType.PHYSIOTHERAPY) {
-        const effectiveDuration =
-          dto.duration_minutes ?? treatment.duration_minutes ?? null;
-        const effectiveColor =
-          (dto.color !== undefined ? dto.color : treatment.color) ?? null;
-        if (
-          effectiveDuration == null ||
-          effectiveColor === null ||
-          effectiveColor === ''
-        ) {
-          throw new BadRequestException(
-            'Physiotherapy treatment requires both duration and color',
-          );
-        }
-      }
     }
 
     // Update fields if provided
@@ -329,7 +303,6 @@ export class TreatmentService {
     if (dto.body_location !== undefined) treatment.body_location = dto.body_location;
     if (dto.duration_minutes !== undefined)
       treatment.duration_minutes = dto.duration_minutes;
-    if (dto.color !== undefined) treatment.color = dto.color;
 
     // Auto-complete if all sessions are done
     if (treatment.completed_sessions >= treatment.planned_sessions) {
@@ -555,10 +528,6 @@ export class TreatmentService {
       } else {
         const treatmentSignature = {
           bodyLocation: treatment.body_location,
-          color:
-            treatment.treatment_type === TreatmentType.PHYSIOTHERAPY
-              ? treatment.color
-              : undefined,
         };
         await this.appointmentService.assertNoTreatmentSchedulingConflict(
           treatment.patient_id,
@@ -738,7 +707,6 @@ export class TreatmentService {
       end_date: treatment.end_date,
       status: treatment.status,
       duration_minutes: treatment.duration_minutes,
-      color: treatment.color,
       notes: treatment.notes,
       cancellation_reason: treatment.cancellation_reason,
       sessions: treatment.sessions,

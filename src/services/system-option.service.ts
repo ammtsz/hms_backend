@@ -247,16 +247,6 @@ export class SystemOptionService {
       return parseInt(result?.total || '0', 10);
     }
 
-    if (option.type === SystemOptionType.COLOR) {
-      const result = await this.treatmentRepository
-        .createQueryBuilder('session')
-        .select('COALESCE(SUM(session.completed_sessions), 0)', 'total')
-        .where('session.color = :value', { value: option.value })
-        .getRawOne();
-
-      return parseInt(result?.total || '0', 10);
-    }
-
     if (option.type === SystemOptionType.PRIORITY) {
       const result = await this.patientRepository
         .createQueryBuilder('patient')

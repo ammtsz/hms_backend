@@ -500,7 +500,6 @@ export class SessionService {
       dto.planned_sessions = session.treatment.planned_sessions;
       dto.completed_sessions = session.treatment.completed_sessions;
       dto.duration_minutes = session.treatment.duration_minutes;
-      dto.color = session.treatment.color;
       dto.treatment_notes = session.treatment.notes;
       dto.treatment_status = session.treatment.status;
     }

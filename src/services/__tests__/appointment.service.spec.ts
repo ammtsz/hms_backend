@@ -1094,7 +1094,7 @@ describe('AppointmentService', () => {
       jest.spyOn(repository, 'find').mockResolvedValue([]);
     });
 
-    it('returns false for physiotherapy when another open appointment has same body location and color', async () => {
+    it('returns false for physiotherapy when another open appointment has same body location', async () => {
       const sessionService = module.get<SessionService>(SessionService);
       jest.spyOn(repository, 'find').mockImplementation((args) => {
         const w = args as { where?: { patient_id?: number } };
@@ -1110,7 +1110,6 @@ describe('AppointmentService', () => {
             return Promise.resolve([
               {
                 body_location: 'Neck',
-                color: 'Blue',
               },
             ]);
           }
@@ -1118,7 +1117,6 @@ describe('AppointmentService', () => {
             return Promise.resolve([
               {
                 body_location: 'Neck',
-                color: 'Blue',
               },
             ]);
           }
@@ -1132,36 +1130,6 @@ describe('AppointmentService', () => {
       );
 
       expect(result).toBe(false);
-    });
-
-    it('returns true for physiotherapy when other appointment has same location but different color', async () => {
-      const sessionService = module.get<SessionService>(SessionService);
-      jest.spyOn(repository, 'find').mockImplementation((args) => {
-        const w = args as { where?: { patient_id?: number } };
-        if (w?.where?.patient_id != null) {
-          return Promise.resolve([{ id: 10 } as Appointment]);
-        }
-        return Promise.resolve([]);
-      });
-      jest
-        .spyOn(sessionService, 'getSessionsByAppointment')
-        .mockImplementation((appointmentId: number) => {
-          if (appointmentId === 99) {
-            return Promise.resolve([{ body_location: 'Neck', color: 'Blue' }]);
-          }
-          if (appointmentId === 10) {
-            return Promise.resolve([{ body_location: 'Neck', color: 'Red' }]);
-          }
-          return Promise.resolve([]);
-        });
-
-      const result = await service.isDateAvailableForScheduling(
-        testDate,
-        AppointmentType.PHYSIOTHERAPY,
-        { patientId: 1, originalAppointmentId: 99, scheduledTime: '09:00:00' },
-      );
-
-      expect(result).toBe(true);
     });
   });
 

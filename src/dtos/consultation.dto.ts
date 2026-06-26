@@ -43,31 +43,31 @@ export class CreateConsultationDto {
   patient_status?: string;
 
   @ApiPropertyOptional({
-    description: 'Food recommendations',
-    example: 'Avoid dairy products',
+    description: 'Home exercise program recommendations',
+    example: '3x daily: cat-camel, pelvic tilt',
   })
   @Sanitize()
   @IsString()
   @IsOptional()
-  food?: string;
+  home_exercises?: string;
 
   @ApiPropertyOptional({
-    description: 'Water recommendations',
-    example: 'Drink 2L of fluidized water daily',
+    description: 'Pain management recommendations (ice, heat, rest, ergonomics)',
+    example: 'Ice 15 min, 3x/day for 48 hours',
   })
   @Sanitize()
   @IsString()
   @IsOptional()
-  water?: string;
+  pain_management?: string;
 
   @ApiPropertyOptional({
-    description: 'Ointment recommendations',
-    example: 'Apply chamomile ointment before bed',
+    description: 'Medication and topical recommendations',
+    example: 'Diclofenac gel twice daily',
   })
   @Sanitize()
   @IsString()
   @IsOptional()
-  ointments?: string;
+  medications?: string;
 
   @ApiPropertyOptional({
     description: 'Whether physiotherapy treatment was given',
@@ -169,31 +169,31 @@ export class UpdateConsultationDto {
   patient_status?: string;
 
   @ApiPropertyOptional({
-    description: 'Food recommendations',
-    example: 'Avoid dairy products',
+    description: 'Home exercise program recommendations',
+    example: '3x daily: cat-camel, pelvic tilt',
   })
   @Sanitize()
   @IsString()
   @IsOptional()
-  food?: string;
+  home_exercises?: string;
 
   @ApiPropertyOptional({
-    description: 'Water recommendations',
-    example: 'Drink 2L of fluidized water daily',
+    description: 'Pain management recommendations (ice, heat, rest, ergonomics)',
+    example: 'Ice 15 min, 3x/day for 48 hours',
   })
   @Sanitize()
   @IsString()
   @IsOptional()
-  water?: string;
+  pain_management?: string;
 
   @ApiPropertyOptional({
-    description: 'Ointment recommendations',
-    example: 'Apply chamomile ointment before bed',
+    description: 'Medication and topical recommendations',
+    example: 'Diclofenac gel twice daily',
   })
   @Sanitize()
   @IsString()
   @IsOptional()
-  ointments?: string;
+  medications?: string;
 
   @ApiPropertyOptional({
     description: 'Whether physiotherapy treatment was given',
@@ -293,22 +293,22 @@ export class ConsultationResponseDto {
   patient_status?: string;
 
   @ApiPropertyOptional({
-    description: 'Food recommendations',
-    example: 'Avoid dairy products',
+    description: 'Home exercise program recommendations',
+    example: '3x daily: cat-camel, pelvic tilt',
   })
-  food?: string;
+  home_exercises?: string;
 
   @ApiPropertyOptional({
-    description: 'Water recommendations',
-    example: 'Drink 2L of fluidized water daily',
+    description: 'Pain management recommendations (ice, heat, rest, ergonomics)',
+    example: 'Ice 15 min, 3x/day for 48 hours',
   })
-  water?: string;
+  pain_management?: string;
 
   @ApiPropertyOptional({
-    description: 'Ointment recommendations',
-    example: 'Apply chamomile ointment before bed',
+    description: 'Medication and topical recommendations',
+    example: 'Diclofenac gel twice daily',
   })
-  ointments?: string;
+  medications?: string;
 
   @ApiPropertyOptional({
     description: 'Whether physiotherapy treatment was given',

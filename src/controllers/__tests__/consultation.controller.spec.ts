@@ -59,9 +59,9 @@ describe('ConsultationController', () => {
     appointment: mockAppointment,
     main_concern: 'Test complaint',
     patient_status: null,
-    food: 'Test food recommendations',
-    water: 'Test water recommendations',
-    ointments: 'Test ointments',
+    home_exercises: 'Test home exercises',
+    pain_management: 'Test pain management',
+    medications: 'Test medications',
     physiotherapy: true,
     tens: false,
     return_weeks: 2,
@@ -103,9 +103,9 @@ describe('ConsultationController', () => {
   describe('create', () => {
     const createDto: CreateConsultationDto = {
       appointment_id: 1,
-      food: 'Test food recommendations',
-      water: 'Test water recommendations',
-      ointments: 'Test ointments',
+      home_exercises: 'Test home exercises',
+      pain_management: 'Test pain management',
+      medications: 'Test medications',
       physiotherapy: true,
       tens: false,
       return_weeks: 2,
@@ -126,7 +126,7 @@ describe('ConsultationController', () => {
       expect(result.consultation.appointment_id).toBe(
         mockConsultation.appointment_id,
       );
-      expect(result.consultation.food).toBe(mockConsultation.food);
+      expect(result.consultation.home_exercises).toBe(mockConsultation.home_exercises);
     });
 
     it('should handle DuplicateConsultationException', async () => {
@@ -211,9 +211,9 @@ describe('ConsultationController', () => {
   describe('update', () => {
     const updateDto: UpdateConsultationDto = {
       appointment_id: 1,
-      food: 'Updated food recommendations',
-      water: 'Updated water recommendations',
-      ointments: 'Updated ointments',
+      home_exercises: 'Updated home exercises',
+      pain_management: 'Updated pain management',
+      medications: 'Updated medications',
       physiotherapy: false,
       tens: true,
       return_weeks: 3,
@@ -235,9 +235,9 @@ describe('ConsultationController', () => {
       expect(result).toBeDefined();
       expect(result.consultation).toBeDefined();
       expect(result.consultation.id).toBe(updatedConsultation.id);
-      expect(result.consultation.food).toBe(updateDto.food);
-      expect(result.consultation.water).toBe(updateDto.water);
-      expect(result.consultation.ointments).toBe(updateDto.ointments);
+      expect(result.consultation.home_exercises).toBe(updateDto.home_exercises);
+      expect(result.consultation.pain_management).toBe(updateDto.pain_management);
+      expect(result.consultation.medications).toBe(updateDto.medications);
     });
 
     it('should return cancelled_appointments when update triggers D/C transition', async () => {

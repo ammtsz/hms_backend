@@ -30,13 +30,7 @@ export enum TreatmentPlanStatus {
 
 @Entity('hms_treatment')
 @Check(`"planned_sessions" > 0 AND "planned_sessions" <= 50`)
-@Check(
-  `"duration_minutes" IS NULL OR ("duration_minutes" > 0 AND "duration_minutes" <= 70)`,
-)
-@Check(`
-  (treatment_type = 'physiotherapy' AND duration_minutes IS NOT NULL AND color IS NOT NULL) OR
-  (treatment_type = 'tens' AND duration_minutes IS NULL AND color IS NULL)
-`)
+@Check(`"duration_minutes" IN (30, 45, 60)`)
 export class Treatment {
   @PrimaryGeneratedColumn()
   id: number;
@@ -92,11 +86,8 @@ export class Treatment {
   })
   status: TreatmentPlanStatus;
 
-  @Column({ type: 'integer', nullable: true })
+  @Column({ type: 'integer' })
   duration_minutes: number;
-
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  color: string;
 
   @Column({ type: 'text', nullable: true })
   notes: string;

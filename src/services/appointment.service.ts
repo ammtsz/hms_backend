@@ -617,7 +617,7 @@ export class AppointmentService {
   }
 
   /**
-   * Treatment signature from linked session rows (body location, color for physiotherapy).
+   * Treatment signature from linked session rows (body location).
    */
   async getTreatmentSignatureForAppointmentId(
     appointmentId: number,
@@ -630,7 +630,6 @@ export class AppointmentService {
     }
     return {
       bodyLocation: first.body_location,
-      color: first.color ?? undefined,
     };
   }
 
@@ -670,10 +669,7 @@ export class AppointmentService {
   private throwTreatmentSchedulingConflict(
     type: AppointmentType.PHYSIOTHERAPY | AppointmentType.TENS,
   ): never {
-    const detail =
-      type === AppointmentType.PHYSIOTHERAPY
-        ? 'body location and color'
-        : 'body location';
+    const detail = 'body location';
     throw new BadRequestException(
       `This patient already has a ${type === AppointmentType.PHYSIOTHERAPY ? 'physiotherapy' : 'TENS'} appointment scheduled for this date with the same ${detail}.`,
     );
@@ -1010,7 +1006,7 @@ export class AppointmentService {
       if (hasOtherAssessment) return false;
     }
 
-    // BR-306: physiotherapy / tens — same location (+ color) on same day
+    // BR-306: physiotherapy / tens — same body location on same day
     if (
       (type === AppointmentType.PHYSIOTHERAPY || type === AppointmentType.TENS) &&
       patientId != null &&

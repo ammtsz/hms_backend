@@ -108,8 +108,8 @@ describe('SystemOptionService', () => {
     it('should reject when option is not PRIORITY type', async () => {
       systemOptionRepo.findOne.mockResolvedValueOnce({
         id: 1,
-        type: SystemOptionType.COLOR,
-        value: 'blue',
+        type: SystemOptionType.BODY_LOCATION,
+        value: 'Neck',
       });
 
       await expect(service.deactivatePriority(1)).rejects.toThrow(

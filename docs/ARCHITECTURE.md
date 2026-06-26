@@ -152,6 +152,17 @@ The frontend and backend communicate with these date formats:
 - Responses send string dates: `"scheduled_date": "2026-06-15"`
 - No Date object conversions needed in API layer
 
+### Physiotherapy domain model
+
+| Entity / area | Key fields | Rules |
+|---------------|------------|-------|
+| `hms_consultation` | `home_exercises`, `pain_management`, `medications` | Replaced legacy `food`, `water`, `ointments` columns |
+| `hms_treatment` | `treatment_type` (`physiotherapy` \| `tens`), `body_location`, `duration_minutes` | `duration_minutes` NOT NULL, CHECK IN (30, 45, 60) |
+| Scheduling signature | Body location + patient + date | `scheduling-signature.utils.ts` |
+| Constants | `TREATMENT_SESSION_DURATIONS`, defaults 45 / 30 | `src/common/constants/treatment.constants.ts` |
+
+DTOs and entities mirror these names in camelCase at the API boundary. Recreate databases from `init.sql` after schema changes (no migration path for the 2026 physiotherapy refactor).
+
 ### Authentication & Authorization
 
 - **Strategy**: JWT-based with refresh tokens

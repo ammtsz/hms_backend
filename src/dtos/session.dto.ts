@@ -93,7 +93,6 @@ export class SessionResponseDto {
   planned_sessions?: number;
   completed_sessions?: number;
   duration_minutes?: number;
-  color?: string;
   /** Notes on the parent treatment plan (`hms_treatment.notes`), not this session row. */
   treatment_notes?: string;
   cancellation_reason?: string;

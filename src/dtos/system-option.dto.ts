@@ -10,7 +10,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Sanitize } from '../common/decorators/sanitize.decorator';
 import { SystemOptionType } from '../entities/system-option.entity';
 
-/** Value-only payload for body-location and color create endpoints */
+/** Value-only payload for body-location create endpoints */
 export class CreateSystemOptionValueDto {
   @Sanitize()
   @IsString()

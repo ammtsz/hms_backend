@@ -7,14 +7,15 @@ import {
   IsDateString,
   Min,
   Max,
-  ValidateIf,
   IsArray,
   ValidateNested,
   IsBoolean,
+  IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Sanitize } from '../common/decorators/sanitize.decorator';
 import { TreatmentType } from '../entities/treatment.entity';
+import { TREATMENT_SESSION_DURATIONS } from '../common/constants/treatment.constants';
 import type { SessionResponseDto } from './session.dto';
 
 /** Payload to create one `hms_treatment` row (modality + schedule). */
@@ -53,17 +54,10 @@ export class CreateTreatmentDto {
   @IsOptional()
   end_date?: string;
 
-  @ValidateIf((o) => o.treatment_type === TreatmentType.PHYSIOTHERAPY)
   @IsNotEmpty()
   @IsNumber()
-  @Min(1)
-  @Max(10)
-  duration_minutes?: number;
-
-  @ValidateIf((o) => o.treatment_type === TreatmentType.PHYSIOTHERAPY)
-  @IsNotEmpty()
-  @IsString()
-  color?: string;
+  @IsIn(TREATMENT_SESSION_DURATIONS)
+  duration_minutes: number;
 
   @Sanitize()
   @IsString()
@@ -109,15 +103,9 @@ export class UpdateTreatmentDto {
   body_location?: string;
 
   @IsNumber()
-  @Min(1)
-  @Max(10)
+  @IsIn(TREATMENT_SESSION_DURATIONS)
   @IsOptional()
   duration_minutes?: number;
-
-  @Sanitize()
-  @IsString()
-  @IsOptional()
-  color?: string;
 }
 
 export class TreatmentResponseDto {
@@ -132,8 +120,7 @@ export class TreatmentResponseDto {
   completed_sessions: number;
   end_date?: string;
   status: string;
-  duration_minutes?: number;
-  color?: string;
+  duration_minutes: number;
   notes?: string;
   cancellation_reason?: string;
   sessions?: SessionResponseDto[];

@@ -68,7 +68,7 @@ Create, view, reschedule and cancel appointments. Includes daily schedules, appo
 
 ### Treatment records & sessions
 
-Persist treatment plans and per-session records with notes, outcomes, and links to attending clinicians and patient history.
+Persist treatment plans (`hms_treatment`) and per-session rows (`hms_session`) for **physiotherapy** and **TENS**. Each plan has body location, planned/completed session counts, and **duration in minutes** (30, 45, or 60 — required for both types). Consultation general recommendations use `home_exercises`, `pain_management`, and `medications` (legacy food/water/ointments fields removed). Scheduling conflicts for the same patient on the same date are evaluated by **body location only**.
 
 ### Auto-return scheduling
 
@@ -84,7 +84,7 @@ Clinic-level configuration for working hours, slot durations, booking thresholds
 
 ### Dynamic treatment options
 
-Support dynamic creation of treatment types and metadata (e.g., body location) so new therapies can be added without code changes.
+Configurable **body locations** via system options (`hms_system_options`). Treatments are defined by body location, duration (30 / 45 / 60 minutes), and type (physiotherapy / TENS).
 
 ### Authentication & security
 
