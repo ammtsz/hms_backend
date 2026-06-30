@@ -3,7 +3,7 @@
 -- to eliminate timezone-related issues.
 
 -- Step 1: Create new init.sql with timezone-agnostic schema
--- PostgreSQL schema for HMS (Helthcare Management System) - Timezone Agnostic Version
+-- PostgreSQL schema for HMS (Healthcare Management System) - Timezone Agnostic Version
 -- This schema manages patient records, appointments, treatments, and scheduling
 -- All dates stored as DATE type, all times as TIME type - no timezone dependencies
 -- Version: 3.0 (Timezone Agnostic)
@@ -377,7 +377,7 @@ CREATE TABLE hms_holiday_template (
     description TEXT,
 
 -- JSONB column to store array of holidays with month/day/name/description
--- Example: [{"month": 12, "day": 25, "name": "Natal", "description": "Feriado Nacional"}]
+-- Example: [{"month": 12, "day": 25, "name": "Christmas Day", "description": "Federal Statutory Holiday"}]
 holidays JSONB NOT NULL,
 
 -- Audit field
@@ -845,47 +845,53 @@ VALUES (
 -- Purpose: Pre-populate common holiday templates
 -- =====================================================================================
 
--- Template 1: National Holidays
+-- Template 1: Fixed Statutory Holidays
 INSERT INTO
     hms_holiday_template (name, description, holidays)
 VALUES (
-        'National Holidays',
-        NULL,
+        'Fixed Statutory Holidays',
+        'Recurring federal holidays on the same calendar date every year.',
         '[
-        {"month": 1, "day": 1, "name": "Confraternização Universal", "description": "Feriado Nacional"},
-        {"month": 4, "day": 21, "name": "Tiradentes", "description": "Feriado Nacional"},
-        {"month": 5, "day": 1, "name": "Dia do Trabalho", "description": "Feriado Nacional"},
-        {"month": 9, "day": 7, "name": "Independência do Brasil", "description": "Feriado Nacional"},
-        {"month": 10, "day": 12, "name": "Nossa Senhora Aparecida", "description": "Feriado Nacional"},
-        {"month": 11, "day": 2, "name": "Finados", "description": "Feriado Nacional"},
-        {"month": 11, "day": 15, "name": "Proclamação da República", "description": "Feriado Nacional"},
-        {"month": 12, "day": 25, "name": "Natal", "description": "Feriado Nacional"}
+        {"month": 1, "day": 1, "name": "New Year''s Day", "description": "Federal Statutory Holiday"},
+        {"month": 7, "day": 1, "name": "Canada Day", "description": "Federal Statutory Holiday"},
+        {"month": 9, "day": 30, "name": "National Day for Truth and Reconciliation", "description": "Federal Statutory Holiday"},
+        {"month": 11, "day": 11, "name": "Remembrance Day", "description": "Federal Statutory Holiday"},
+        {"month": 12, "day": 25, "name": "Christmas Day", "description": "Federal Statutory Holiday"},
+        {"month": 12, "day": 26, "name": "Boxing Day", "description": "Federal Statutory Holiday"}
     ]'::jsonb
     );
 
--- Template 2: Sao Paulo State Holidays
+-- Template 2: Variable Statutory Holidays (2026)
 INSERT INTO
     hms_holiday_template (name, description, holidays)
 VALUES (
-        'Sao Paulo State Holidays',
-        NULL,
+        'Variable Statutory Holidays (2026)',
+        'Movable BC statutory holidays — apply to 2026 only.',
         '[
-        {"month": 7, "day": 9, "name": "Revolução Constitucionalista de 1932", "description": "Feriado Estadual de São Paulo"}
+        {"month": 2, "day": 16, "name": "Family Day", "description": "Statutory Holiday (third Monday in February)"},
+        {"month": 4, "day": 3, "name": "Good Friday", "description": "Statutory Holiday (Friday before Easter)"},
+        {"month": 5, "day": 18, "name": "Victoria Day", "description": "Statutory Holiday (Monday before May 25)"},
+        {"month": 8, "day": 3, "name": "BC Day", "description": "Statutory Holiday (first Monday in August)"},
+        {"month": 9, "day": 7, "name": "Labour Day", "description": "Statutory Holiday (first Monday in September)"},
+        {"month": 10, "day": 12, "name": "Thanksgiving Day", "description": "Statutory Holiday (second Monday in October)"}
     ]'::jsonb
     );
 
--- Template 3: Santo Andre Municipal Holidays
+-- Template 3: Variable Statutory Holidays (2027)
 INSERT INTO
     hms_holiday_template (name, description, holidays)
 VALUES (
-        'Feriados Municipais de Santo André',
-        NULL,
+        'Variable Statutory Holidays (2027)',
+        'Movable BC statutory holidays — apply to 2027 only.',
         '[
-        {"month": 4, "day": 8, "name": "Aniversário da cidade de Santo André", "description": "Feriado Municipal de Santo André"},
-        {"month": 11, "day": 20, "name": "Dia da Consciência Negra", "description": "Feriado Municipal de Santo André"}
+        {"month": 2, "day": 15, "name": "Family Day", "description": "Statutory Holiday (third Monday in February)"},
+        {"month": 3, "day": 26, "name": "Good Friday", "description": "Statutory Holiday (Friday before Easter)"},
+        {"month": 5, "day": 24, "name": "Victoria Day", "description": "Statutory Holiday (Monday before May 25)"},
+        {"month": 8, "day": 2, "name": "BC Day", "description": "Statutory Holiday (first Monday in August)"},
+        {"month": 9, "day": 6, "name": "Labour Day", "description": "Statutory Holiday (first Monday in September)"},
+        {"month": 10, "day": 11, "name": "Thanksgiving Day", "description": "Statutory Holiday (second Monday in October)"}
     ]'::jsonb
     );
--- Saturday: 6 AM to 11 PM
 
 -- =====================================================================================
 -- Seed Data: System Options

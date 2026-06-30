@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsString, IsOptional, IsArray, ValidateNested, IsInt, Min, Max } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsInt,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { Sanitize } from '../common/decorators/sanitize.decorator';
@@ -30,19 +39,28 @@ export class HolidayTemplateItemDto {
 }
 
 export class CreateHolidayTemplateDto {
-  @ApiProperty({ example: 'Brazilian National Holidays', description: 'Template name' })
+  @ApiProperty({
+    example: 'Fixed Statutory Holidays',
+    description: 'Template name',
+  })
   @Sanitize()
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'Official national holidays of Brazil', required: false })
+  @ApiProperty({
+    example: 'Recurring federal holidays on the same calendar date every year.',
+    required: false,
+  })
   @Sanitize()
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ type: [HolidayTemplateItemDto], description: 'List of holidays in the template' })
+  @ApiProperty({
+    type: [HolidayTemplateItemDto],
+    description: 'List of holidays in the template',
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => HolidayTemplateItemDto)
