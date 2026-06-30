@@ -405,7 +405,6 @@ describe('AppointmentService', () => {
         start_date: '2025-01-01',
         discharge_date: null,
         missing_appointments_streak: 0,
-        timezone: 'America/Sao_Paulo',
         created_date: '2025-01-01',
         created_time: '09:00:00',
         updated_date: '2025-01-01',

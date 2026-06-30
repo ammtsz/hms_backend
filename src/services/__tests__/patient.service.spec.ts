@@ -52,7 +52,6 @@ describe('PatientService', () => {
     start_date: '2025-07-22',
     discharge_date: null,
     missing_appointments_streak: 0,
-    timezone: 'America/Sao_Paulo',
     created_date: '2025-07-22',
     created_time: '09:00:00',
     updated_date: '2025-07-22',
@@ -171,7 +170,6 @@ describe('PatientService', () => {
       expect(result).toEqual({
         id: expect.any(Number),
         ...createDto,
-        timezone: timezoneUtils.DEFAULT_TIMEZONE,
         start_date: mockDate,
         patient_status: PatientStatus.IN_TREATMENT,
       });
@@ -214,59 +212,30 @@ describe('PatientService', () => {
       );
     });
 
-    it('should set start_date based on patient timezone (not database server timezone)', async () => {
+    it('should set start_date based on clinic timezone', async () => {
       const createDto: CreatePatientDto = {
         name: 'Jane Doe',
         phone: '(555) 888-7777',
         priority: PatientPriority.LEVEL_3,
-        timezone: 'America/Sao_Paulo',
       };
 
-      // Mock findOne to return null (no existing patient)
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
 
-      // Mock getCurrentDateTimeInTimezone to return a specific date
       const mockDate = '2026-02-04';
       jest
         .spyOn(timezoneUtils, 'getCurrentDateTimeInTimezone')
         .mockReturnValue({ date: mockDate, time: '14:30:00' });
 
-      const result = await service.create(createDto);
+      await service.create(createDto);
 
-      // Verify that getCurrentDateTimeInTimezone was called with the patient's timezone
       expect(timezoneUtils.getCurrentDateTimeInTimezone).toHaveBeenCalledWith(
-        'America/Sao_Paulo',
+        timezoneUtils.DEFAULT_TIMEZONE,
       );
-
-      // Verify that start_date was set to the timezone-aware date
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           ...createDto,
           start_date: mockDate,
         }),
-      );
-    });
-
-    it('should use default timezone when creating patient without explicit timezone', async () => {
-      const createDto: CreatePatientDto = {
-        name: 'Bob Smith',
-        phone: '(718) 456-7890',
-        priority: PatientPriority.LEVEL_3,
-      };
-
-      // Mock findOne to return null (no existing patient)
-      jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
-
-      const mockDate = '2026-02-04';
-      jest
-        .spyOn(timezoneUtils, 'getCurrentDateTimeInTimezone')
-        .mockReturnValue({ date: mockDate, time: '10:00:00' });
-
-      await service.create(createDto);
-
-      // Should use DEFAULT_TIMEZONE
-      expect(timezoneUtils.getCurrentDateTimeInTimezone).toHaveBeenCalledWith(
-        timezoneUtils.DEFAULT_TIMEZONE,
       );
     });
   });

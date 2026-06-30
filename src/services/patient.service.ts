@@ -10,7 +10,6 @@ import { Appointment } from '../entities/appointment.entity';
 import { CreatePatientDto, UpdatePatientDto } from '../dtos/patient.dto';
 import { AppointmentStatus, PatientStatus } from '../common/enums';
 import {
-  isValidTimezone,
   getCurrentDateTimeInTimezone,
   getClinicTimezone,
 } from '../common/utils/timezone.utils';
@@ -52,7 +51,7 @@ export interface SetPatientStatusOptions {
   cancellationReason?: string;
   /**
    * Appointment IDs used to derive the "trigger date" for audit notes (e.g. cancellation requested from a specific appointment).
-   * When not provided, the service falls back to excludeAppointmentIds[0] (when present) or to the current date in the patient's timezone.
+   * When not provided, the service falls back to excludeAppointmentIds[0] (when present) or to the current date in the clinic timezone.
    */
   triggerAppointmentIds?: number[];
 }
@@ -99,28 +98,12 @@ export class PatientService {
       }
     }
 
-    // Validate timezone if provided, otherwise use server's timezone
-    let patientTimezone: string;
-
-    if (createPatientDto.timezone) {
-      if (!isValidTimezone(createPatientDto.timezone)) {
-        throw new ValidationException(
-          `Invalid timezone: ${createPatientDto.timezone}. Must be a valid IANA timezone identifier.`,
-        );
-      }
-      patientTimezone = createPatientDto.timezone;
-    } else {
-      // Use clinic timezone (CLINIC_TIMEZONE env var)
-      patientTimezone = getClinicTimezone();
-      createPatientDto.timezone = patientTimezone;
-    }
-
-    // Calculate start_date based on server's timezone to avoid timezone conversion issues
-    const { date: startDate } = getCurrentDateTimeInTimezone(patientTimezone);
+    const clinicTimezone = getClinicTimezone();
+    const { date: startDate } = getCurrentDateTimeInTimezone(clinicTimezone);
 
     const patient = this.patientRepository.create({
       ...createPatientDto,
-      start_date: startDate, // Explicitly set start_date in patient's timezone
+      start_date: startDate,
     });
     return await this.patientRepository.save(patient);
   }
@@ -147,7 +130,6 @@ export class PatientService {
     this.validateNoDirectAf(updatePatientDto);
     await this.validateStatusTransitionForUpdate(id, patient, updatePatientDto);
     await this.validatePriorityForUpdate(updatePatientDto);
-    this.validateTimezoneForUpdate(updatePatientDto);
     await this.validateDischargeDateForUpdate(id, updatePatientDto);
 
     this.patientRepository.merge(patient, updatePatientDto);
@@ -247,17 +229,6 @@ export class PatientService {
     });
 
     return priorities.map((p) => p.value);
-  }
-
-  private validateTimezoneForUpdate(updatePatientDto: UpdatePatientDto): void {
-    if (
-      updatePatientDto.timezone &&
-      !isValidTimezone(updatePatientDto.timezone)
-    ) {
-      throw new ValidationException(
-        `Invalid timezone: ${updatePatientDto.timezone}. Must be a valid IANA timezone identifier.`,
-      );
-    }
   }
 
   private async validateDischargeDateForUpdate(
@@ -419,11 +390,11 @@ export class PatientService {
           ? 'Discharged'
           : 'Consecutive no-shows';
 
-    const { date: nowInPatientTimezone } = getCurrentDateTimeInTimezone(
-      patient.timezone,
-    );
+    const clinicTimezone = getClinicTimezone();
+    const { date: todayInClinicTimezone } =
+      getCurrentDateTimeInTimezone(clinicTimezone);
 
-    let triggerDate = nowInPatientTimezone;
+    let triggerDate = todayInClinicTimezone;
     const triggerAppointmentId =
       options?.triggerAppointmentIds?.[0] ?? options?.excludeAppointmentIds?.[0];
 
@@ -466,7 +437,7 @@ export class PatientService {
 
     this.patientRepository.merge(patient, { patient_status: newStatus });
     if (newStatus === PatientStatus.DISCHARGED) {
-      patient.discharge_date = new Date().toISOString().split('T')[0];
+      patient.discharge_date = todayInClinicTimezone;
     }
 
     const savedPatient = await this.patientRepository.save(patient);

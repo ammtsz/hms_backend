@@ -10,7 +10,6 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Sanitize } from '../common/decorators/sanitize.decorator';
 import { PatientPriority, PatientStatus } from '../common/enums';
-import { getClinicTimezone } from '../common/utils/timezone.utils';
 
 export class CreatePatientDto {
   @ApiProperty({
@@ -71,15 +70,6 @@ export class CreatePatientDto {
   @IsString()
   @IsOptional()
   main_concern?: string;
-
-  @ApiPropertyOptional({
-    description: 'Patient timezone (IANA timezone format)',
-    example: 'America/Sao_Paulo',
-    default: 'America/Sao_Paulo',
-  })
-  @IsString()
-  @IsOptional()
-  timezone?: string = getClinicTimezone();
 }
 
 export class UpdatePatientDto {
@@ -161,14 +151,6 @@ export class UpdatePatientDto {
   @IsDateString()
   @IsOptional()
   discharge_date?: string;
-
-  @ApiPropertyOptional({
-    description: 'Patient timezone (IANA timezone format)',
-    example: 'America/Sao_Paulo',
-  })
-  @IsString()
-  @IsOptional()
-  timezone?: string;
 }
 
 export class PatientResponseDto {
@@ -233,12 +215,6 @@ export class PatientResponseDto {
     example: 0,
   })
   missing_appointments_streak: number;
-
-  @ApiProperty({
-    description: 'Patient timezone (IANA timezone format)',
-    example: 'America/Sao_Paulo',
-  })
-  timezone: string;
 
   @ApiProperty({
     description: 'Creation date',

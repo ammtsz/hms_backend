@@ -78,7 +78,6 @@ CREATE TABLE hms_patient (
     start_date DATE NOT NULL,
     discharge_date DATE,
     missing_appointments_streak INTEGER DEFAULT 0,
-    timezone VARCHAR(50) DEFAULT 'America/Sao_Paulo',
 
 -- Timezone-agnostic audit fields
 created_date DATE DEFAULT CURRENT_DATE,
@@ -132,7 +131,6 @@ cancelled_time TIME,
 absence_justified BOOLEAN DEFAULT NULL,
 absence_notes TEXT,
 notes TEXT,
-timezone_override VARCHAR(50),
 
 -- Parent/child relationship for linking follow-ups and generated treatments
 parent_appointment_id INTEGER REFERENCES hms_appointment (id) ON DELETE SET NULL,
@@ -662,8 +660,6 @@ CREATE INDEX idx_appointment_patient_id ON hms_appointment (patient_id);
 
 CREATE INDEX idx_appointment_status ON hms_appointment (status);
 
-CREATE INDEX idx_hms_patient_timezone ON hms_patient (timezone);
-
 CREATE INDEX idx_treatments_consultation ON hms_treatment (consultation_id);
 
 CREATE INDEX idx_treatments_patient ON hms_treatment (patient_id);
@@ -677,11 +673,6 @@ CREATE INDEX idx_hms_patient_note_category ON hms_patient_note (category);
 CREATE INDEX idx_hms_patient_note_created_date ON hms_patient_note (created_date);
 
 CREATE INDEX idx_consultation_patient_status ON hms_consultation (patient_status);
-
--- Column comments for timezone support
-COMMENT ON COLUMN hms_patient.timezone IS 'Patient timezone for scheduling and display purposes (IANA timezone format)';
-
-COMMENT ON COLUMN hms_appointment.timezone_override IS 'Optional timezone override for specific appointments (IANA timezone format)';
 
 -- Patient notes table comments
 COMMENT ON TABLE hms_patient_note IS 'Stores patient notes and observations for healthcare providers';

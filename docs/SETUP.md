@@ -17,8 +17,8 @@ BFF_INTERNAL_SECRET=CHANGE_ME_use_openssl_rand_base64_32_to_generate
 # CORS Configuration (Important for cookie-based auth)
 CORS_ORIGIN=http://localhost:3000
 
-# Clinic timezone for calendar "today" and patient defaults (IANA, e.g. America/Sao_Paulo)
-CLINIC_TIMEZONE=America/Sao_Paulo
+# Clinic timezone for calendar "today" (IANA, e.g. America/Vancouver)
+CLINIC_TIMEZONE=America/Vancouver
 ```
 
 Set the same value as frontend `NEXT_PUBLIC_CLINIC_TIMEZONE`.

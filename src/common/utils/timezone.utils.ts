@@ -3,9 +3,9 @@
  */
 
 /**
- * Default timezone for the application (Brazil)
+ * Default timezone for the application (Canada - Vancouver)
  */
-export const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
+export const DEFAULT_TIMEZONE = 'America/Vancouver';
 
 /**
  * Validates if a timezone string is a valid IANA timezone
@@ -40,19 +40,6 @@ export function getCurrentDateTimeInTimezone(timezone: string) {
   });
 
   return { date, time };
-}
-
-/**
- * Gets timezone offset in hours from UTC
- * @param timezone The IANA timezone identifier
- * @returns Offset in hours (rounded to whole number)
- */
-export function getTimezoneOffset(timezone: string): number {
-  const now = new Date();
-  const utc = new Date(now.getTime() + now.getTimezoneOffset() * 60000);
-  const target = new Date(utc.toLocaleString('en-US', { timeZone: timezone }));
-  const offset = (target.getTime() - utc.getTime()) / (1000 * 60 * 60);
-  return Math.round(offset);
 }
 
 /**

@@ -75,9 +75,6 @@ export class Appointment {
   @Column({ nullable: true, unique: true })
   rescheduled_from_appointment_id: number;
 
-  @Column({ nullable: true })
-  timezone_override?: string;
-
   // Timezone-agnostic created/updated date/time pairs
   @Column({ type: 'date', default: () => 'CURRENT_DATE' })
   created_date: string;

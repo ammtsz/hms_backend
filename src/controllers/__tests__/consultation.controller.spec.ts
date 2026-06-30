@@ -44,7 +44,6 @@ describe('ConsultationController', () => {
     absence_notes: null,
     parent_appointment_id: null,
     rescheduled_from_appointment_id: null,
-    timezone_override: null,
     created_date: '2025-07-22',
     created_time: '09:00:00',
     updated_date: '2025-07-22',

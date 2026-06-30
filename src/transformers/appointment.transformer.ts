@@ -49,7 +49,6 @@ export class AppointmentTransformer {
         discharge_date: appointment.patient.discharge_date,
         missing_appointments_streak:
           appointment.patient.missing_appointments_streak,
-        timezone: appointment.patient.timezone,
         created_date: appointment.patient.created_date,
         created_time: appointment.patient.created_time,
         updated_date: appointment.patient.updated_date,

@@ -22,7 +22,7 @@ export function combineDateTimeToTimestamp(
 }
 
 /**
- * Get current date as YYYY-MM-DD string in server timezone (default America/Sao_Paulo).
+ * Get current date as YYYY-MM-DD string in server timezone (default America/Vancouver).
  * Avoids UTC conversion bugs when the server or users are in another timezone.
  */
 export function getCurrentDateString(): string {
