@@ -150,6 +150,8 @@ node scripts/create-admin.js --email admin@example.com --name "Administrator"
 node scripts/create-admin.js --email dev@local --name "Dev" --dev
 ```
 
+**Railway from your machine:** `DATABASE_URL` on Railway uses `postgres.railway.internal`, which only works inside Railway. For local bootstrap, add `DATABASE_PUBLIC_URL` to `.env.local` (from Railway Postgres → Connect) and `DATABASE_SSL_REJECT_UNAUTHORIZED=false`. The script picks the public URL automatically.
+
 **Never** use `admin123` as a password in any environment.
 
 ### Run once per environment

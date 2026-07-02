@@ -66,22 +66,72 @@ async function hashPassword(password) {
   return bcrypt.hash(password, 10);
 }
 
-/** Mirrors src/common/utils/databaseSsl.ts */
-function getDatabaseSslConfig() {
-  if (process.env.NODE_ENV !== 'production') {
+/** True when the host is only reachable from inside Railway's private network. */
+function isRailwayInternalUrl(url) {
+  return typeof url === 'string' && url.includes('.railway.internal');
+}
+
+/** True for Railway-managed Postgres (public proxy or internal hostname). */
+function isRailwayDatabaseUrl(url) {
+  return (
+    typeof url === 'string' &&
+    (url.includes('.railway.internal') ||
+      url.includes('.rlwy.net') ||
+      url.includes('railway.app'))
+  );
+}
+
+/**
+ * Pick a connection string reachable from the current machine.
+ * Railway sets DATABASE_URL to an internal hostname; use DATABASE_PUBLIC_URL locally.
+ */
+function resolveDatabaseUrl() {
+  const databaseUrl = process.env.DATABASE_URL;
+  const publicUrl = process.env.DATABASE_PUBLIC_URL;
+
+  if (databaseUrl && isRailwayInternalUrl(databaseUrl)) {
+    if (publicUrl) {
+      console.log(
+        'ℹ️  Using DATABASE_PUBLIC_URL (DATABASE_URL points to Railway internal network)'
+      );
+      return publicUrl;
+    }
+    console.error(
+      '❌ DATABASE_URL uses postgres.railway.internal, which is not reachable from your machine.'
+    );
+    console.error(
+      '   Set DATABASE_PUBLIC_URL in .env.local (from Railway Postgres → Connect).'
+    );
+    process.exit(1);
+  }
+
+  return databaseUrl || publicUrl || null;
+}
+
+/** Mirrors src/common/utils/databaseSsl.ts; also enables TLS for Railway public proxy. */
+function getDatabaseSslConfig(connectionString) {
+  const isRailway = isRailwayDatabaseUrl(connectionString);
+
+  if (!isRailway && process.env.NODE_ENV !== 'production') {
     return false;
   }
-  const rejectUnauthorized =
-    process.env.DATABASE_SSL_REJECT_UNAUTHORIZED?.toLowerCase() !== 'false';
+
+  // Railway managed Postgres: relaxed verification by default (see .env.railway)
+  const envValue = process.env.DATABASE_SSL_REJECT_UNAUTHORIZED?.toLowerCase();
+  const rejectUnauthorized = isRailway
+    ? envValue === 'true'
+    : envValue !== 'false';
+
   return { rejectUnauthorized };
 }
 
 async function createAdmin(password) {
   const hash = await hashPassword(password);
+  const connectionString = resolveDatabaseUrl();
 
   const client = new Client(
-    process.env.DATABASE_URL
-      ? { connectionString: process.env.DATABASE_URL, ssl: getDatabaseSslConfig() }
+    connectionString
+      ? { connectionString, ssl: getDatabaseSslConfig(connectionString) }
       : {
           host: process.env.POSTGRES_HOST || 'localhost',
           port: parseInt(process.env.POSTGRES_PORT || '5432', 10),

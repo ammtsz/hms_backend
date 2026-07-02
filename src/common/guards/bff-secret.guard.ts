@@ -15,7 +15,7 @@ export class BffSecretGuard implements CanActivate {
   constructor(private readonly configService: ConfigService) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const expected = this.configService.get<string>('BFF_INTERNAL_SECRET');
+    const expected = this.configService.get<string>('BFF_INTERNAL_SECRET')?.trim();
     const nodeEnv =
       this.configService.get<string>('NODE_ENV') || process.env.NODE_ENV;
     const isProduction = nodeEnv === 'production';
@@ -29,7 +29,7 @@ export class BffSecretGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<{ headers: Record<string, string | string[] | undefined> }>();
     const raw = request.headers[BFF_SECRET_HEADER];
-    const provided = Array.isArray(raw) ? raw[0] : raw;
+    const provided = (Array.isArray(raw) ? raw[0] : raw)?.trim();
 
     if (!provided || !this.secretsMatch(expected, provided)) {
       throw new UnauthorizedException('Unauthorized');
